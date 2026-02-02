@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Minimal SAM template for Vegas lines pipeline
+
+Resources:
+  VegasLinesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src.vegas_pipeline.handler.handler
+      Runtime: python3.10
+      CodeUri: .
+      MemorySize: 256
+      Timeout: 30
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref DataBucket
+          ODDS_API_KEY: "" # set in env or ParameterStore/SecretsManager in prod
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+
+  FetchSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 hour)
+      Targets:
+        - Arn: !GetAtt VegasLinesFunction.Arn
+          Id: "VegasLinesScheduler"
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+Outputs:
+  FunctionArn:
+    Value: !GetAtt VegasLinesFunction.Arn
+  DataBucketName:
+    Value: !Ref DataBucket
