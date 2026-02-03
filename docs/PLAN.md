@@ -51,6 +51,8 @@
   - Run load tests and fix scaling bottlenecks.
   - Beta launch: onboard small user groups, gather feedback and metrics.
 
+- Add draft grades
+
 ---
 
 ## Key architecture choices & rationale 💡
