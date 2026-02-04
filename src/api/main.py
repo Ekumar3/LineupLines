@@ -1,81 +1,371 @@
-from fastapi import FastAPI, HTTPException
+"""Draft Helper API - Main application."""
+
+import logging
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Query
+
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import storage
+from src.data_sources.sleeper_client import SleeperClient
+from src.api.models import (
+    UserDraftsResponse,
+    DraftSummary,
+    ErrorResponse,
+    UserLookupResponse,
+)
 
-app = FastAPI(title="LineupLines API", version="0.1")
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="Draft Helper API",
+    version="1.0",
+    description="Fantasy football draft helper using Sleeper API and historical ADP data",
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "OPTIONS", "POST"],
     allow_headers=["*"],
 )
+
+# Initialize Sleeper client (singleton)
+sleeper_client = SleeperClient()
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """Health check endpoint."""
+    return {"status": "ok", "service": "draft-helper"}
 
 
-@app.get("/lines/latest")
-def get_latest_lines():
+@app.get(
+    "/api/v1/users/lookup/{username}",
+    response_model=UserLookupResponse,
+    responses={
+        200: {"description": "Successfully retrieved user info"},
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Look up user by username",
+    description="Get user information including user_id from Sleeper username",
+    tags=["Users"],
+)
+def lookup_user(username: str):
+    """
+    Look up a user by their Sleeper username.
+
+    Returns their user_id and other profile information, which can be used
+    to fetch their drafts.
+
+    - **username**: Sleeper username (e.g., 'sleeperuser')
+
+    Returns the user_id needed for other endpoints.
+    """
+    logger.info(f"Looking up user: {username}")
+
     try:
-        data = storage.get_latest_lines()
-        return data
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="latest data not found")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        user_data = sleeper_client.get_user(username)
 
+        if not user_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User not found: {username}",
+            )
 
-@app.get("/props/season/latest")
-def get_latest_season_props(sport: str = "nfl", season: str = "2026"):
-    """Get all latest season-long player props."""
-    try:
-        data = storage.get_season_props(sport=sport, season=season)
-        return data
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="season props data not found")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        return UserLookupResponse(
+            user_id=user_data.get("user_id", ""),
+            username=user_data.get("username", username),
+            display_name=user_data.get("display_name"),
+            avatar=user_data.get("avatar"),
+            verified=user_data.get("verified", False),
+        )
 
-
-@app.get("/props/season/player/{player_name}")
-def get_player_season_props(player_name: str, sport: str = "nfl", season: str = "2026"):
-    """Get all season props for a specific player."""
-    try:
-        data = storage.get_season_props(sport=sport, season=season)
-        props = storage.get_player_props(player_name, sport=sport, season=season)
-        if not props:
-            raise HTTPException(status_code=404, detail=f"no props found for player {player_name}")
-        return {
-            "player_name": player_name,
-            "fetched_at": data.get("fetched_at"),
-            "props": props,
-        }
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as e:
+        logger.error(f"Error looking up user {username}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
 
 
-@app.get("/props/season/category/{category}")
-def get_category_props(category: str, sport: str = "nfl", season: str = "2026"):
-    """Get all players for a specific stat category."""
+@app.get(
+    "/api/v1/users/{username}/drafts",
+    response_model=UserDraftsResponse,
+    responses={
+        200: {"description": "Successfully retrieved user drafts"},
+        404: {"model": ErrorResponse, "description": "User not found or no drafts"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get drafts by username",
+    description="Get all drafts for a user by their username (automatically looks up user_id)",
+    tags=["Drafts"],
+)
+def get_user_drafts_by_username(
+    username: str,
+    sport: str = Query(default="nfl", description="Sport type (nfl, nba, etc)"),
+    season: str = Query(default="2026", description="Season year"),
+    status_filter: Optional[str] = Query(
+        default=None,
+        description="Filter by status: 'active' (in_progress + pre_draft), 'complete', or None for all",
+        pattern="^(active|complete)$|^$",
+    ),
+):
+    """
+    Get all drafts for a user by their username.
+
+    This endpoint automatically looks up the user_id from the username,
+    then fetches their drafts.
+
+    - **username**: Sleeper username (e.g., 'sleeperuser')
+    - **sport**: Sport type, defaults to 'nfl'
+    - **season**: Season year, defaults to '2026'
+    - **status_filter**: Filter drafts by status (active/complete/all)
+    """
+    logger.info(f"Fetching drafts for username {username}")
+
     try:
-        data = storage.get_season_props(sport=sport, season=season)
-        props = storage.get_props_by_category(category, sport=sport, season=season)
-        if not props:
-            raise HTTPException(status_code=404, detail=f"no props found for category {category}")
-        return {
-            "category": category,
-            "fetched_at": data.get("fetched_at"),
-            "count": len(props),
-            "props": props,
-        }
+        # Look up user by username
+        user_data = sleeper_client.get_user(username)
+
+        if not user_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User not found: {username}",
+            )
+
+        user_id = user_data.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid user data returned from Sleeper API",
+            )
+
+        # Fetch drafts using the user_id
+        raw_drafts = sleeper_client.get_user_drafts(user_id, sport, season)
+
+        if not raw_drafts:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No drafts found for user {username} in {sport} {season}",
+            )
+
+        # Transform to DraftSummary objects
+        draft_summaries = _transform_drafts(raw_drafts)
+
+        # Apply status filtering
+        if status_filter == "active":
+            filtered_drafts = [
+                d for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+            ]
+        elif status_filter == "complete":
+            filtered_drafts = [d for d in draft_summaries if d.status == "complete"]
+        else:
+            filtered_drafts = draft_summaries
+
+        # Sort by status priority and start_time
+        filtered_drafts = _sort_drafts(filtered_drafts)
+
+        # Calculate active draft count
+        active_count = sum(
+            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+        )
+
+        return UserDraftsResponse(
+            user_id=user_id,
+            sport=sport,
+            season=season,
+            total_drafts=len(draft_summaries),
+            active_drafts=active_count,
+            drafts=filtered_drafts,
+        )
+
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+    except Exception as e:
+        logger.error(f"Error fetching drafts for username {username}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/users/by-id/{user_id}/drafts",
+    response_model=UserDraftsResponse,
+    responses={
+        200: {"description": "Successfully retrieved user drafts"},
+        404: {"model": ErrorResponse, "description": "User not found or no drafts"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get user's drafts by user ID",
+    description="Fetch all drafts for a given Sleeper user ID, with optional filtering by status",
+    tags=["Drafts"],
+)
+def get_user_drafts_by_id(
+    user_id: str,
+    sport: str = Query(default="nfl", description="Sport type (nfl, nba, etc)"),
+    season: str = Query(default="2026", description="Season year"),
+    status_filter: Optional[str] = Query(
+        default=None,
+        description="Filter by status: 'active' (in_progress + pre_draft), 'complete', or None for all",
+        pattern="^(active|complete)$|^$",
+    ),
+):
+    """
+    Get all drafts for a user with optional filtering.
+
+    - **user_id**: Sleeper user ID (required path parameter)
+    - **sport**: Sport type, defaults to 'nfl'
+    - **season**: Season year, defaults to '2026'
+    - **status_filter**: Filter drafts by status:
+        - 'active': Only pre_draft and in_progress drafts
+        - 'complete': Only completed drafts
+        - None: All drafts
+    """
+    logger.info(
+        f"Fetching drafts for user {user_id} (sport={sport}, season={season}, filter={status_filter})"
+    )
+
+    try:
+        # Fetch drafts from Sleeper
+        raw_drafts = sleeper_client.get_user_drafts(user_id, sport, season)
+
+        if not raw_drafts:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No drafts found for user_id: {user_id} in {sport} {season}",
+            )
+
+        # Transform to DraftSummary objects
+        draft_summaries = _transform_drafts(raw_drafts)
+
+        # Apply status filtering
+        if status_filter == "active":
+            filtered_drafts = [
+                d for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+            ]
+        elif status_filter == "complete":
+            filtered_drafts = [d for d in draft_summaries if d.status == "complete"]
+        else:
+            filtered_drafts = draft_summaries
+
+        # Sort by status priority and start_time
+        filtered_drafts = _sort_drafts(filtered_drafts)
+
+        # Calculate active draft count
+        active_count = sum(
+            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+        )
+
+        return UserDraftsResponse(
+            user_id=user_id,
+            sport=sport,
+            season=season,
+            total_drafts=len(draft_summaries),
+            active_drafts=active_count,
+            drafts=filtered_drafts,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching drafts for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/users/by-id/{user_id}/drafts/active",
+    response_model=UserDraftsResponse,
+    responses={
+        200: {"description": "Successfully retrieved active drafts"},
+        404: {"model": ErrorResponse, "description": "No active drafts found"},
+    },
+    summary="Get user's active drafts by user ID",
+    description="Convenience endpoint to fetch only active drafts (in_progress + pre_draft)",
+    tags=["Drafts"],
+)
+def get_active_user_drafts_by_id(
+    user_id: str,
+    sport: str = Query(default="nfl", description="Sport type"),
+    season: str = Query(default="2026", description="Season year"),
+):
+    """
+    Get only active/live drafts for a user by user ID.
+
+    Shorthand for GET /users/by-id/{user_id}/drafts?status_filter=active
+
+    - **user_id**: Sleeper user ID
+    - **sport**: Sport type, defaults to 'nfl'
+    - **season**: Season year, defaults to '2026'
+    """
+    return get_user_drafts_by_id(user_id, sport, season, status_filter="active")
+
+
+def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:
+    """Transform raw Sleeper API response to DraftSummary objects.
+
+    Args:
+        raw_drafts: List of draft dicts from Sleeper API
+
+    Returns:
+        List of DraftSummary objects
+    """
+    summaries = []
+
+    for draft in raw_drafts:
+        try:
+            summary = DraftSummary(
+                draft_id=draft.get("draft_id", ""),
+                league_id=draft.get("league_id", ""),
+                status=draft.get("status", "unknown"),
+                settings={
+                    "teams": draft.get("settings", {}).get("teams", 0),
+                    "rounds": draft.get("settings", {}).get("rounds", 0),
+                    "reversal_round": draft.get("settings", {}).get("reversal_round"),
+                    "type": draft.get("type", "snake"),
+                },
+                metadata={
+                    "name": draft.get("metadata", {}).get("name"),
+                    "scoring_type": draft.get("metadata", {}).get("scoring_type"),
+                }
+                if draft.get("metadata")
+                else None,
+                start_time=draft.get("start_time"),
+                sport=draft.get("sport", "nfl"),
+                season=draft.get("season", ""),
+            )
+            summaries.append(summary)
+        except Exception as e:
+            logger.warning(f"Skipping malformed draft: {e}")
+            continue
+
+    return summaries
+
+
+def _sort_drafts(drafts: list[DraftSummary]) -> list[DraftSummary]:
+    """Sort drafts by status priority and start time.
+
+    Priority: in_progress (1) > pre_draft (2) > complete (3)
+    Then by start_time (newest first)
+
+    Args:
+        drafts: List of DraftSummary objects
+
+    Returns:
+        Sorted list of drafts
+    """
+    # Status priority: in_progress (1) > pre_draft (2) > complete (3)
+    status_priority = {"in_progress": 1, "pre_draft": 2, "complete": 3}
+
+    def sort_key(draft):
+        priority = status_priority.get(draft.status, 999)
+        # Use negative start_time so newest comes first (None sorts to end)
+        start = -draft.start_time if draft.start_time else float("inf")
+        return (priority, start)
+
+    return sorted(drafts, key=sort_key)
