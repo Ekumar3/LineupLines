@@ -169,3 +169,60 @@ class UserLookupResponse(BaseModel):
     display_name: Optional[str] = Field(None, description="User's display name")
     avatar: Optional[str] = Field(None, description="User's avatar URL")
     verified: Optional[bool] = Field(None, description="Whether user is verified")
+
+
+class PickDetail(BaseModel):
+    """Individual draft pick with player information."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "pick_no": 1,
+                "round": 1,
+                "roster_id": 1,
+                "player_id": "2307",
+                "player_name": "Christian McCaffrey",
+                "position": "RB",
+                "team": "SF",
+                "timestamp": "2026-08-15T19:30:00",
+            }
+        }
+    )
+
+    pick_no: int = Field(..., description="Pick number in the draft (1-indexed)")
+    round: int = Field(..., description="Round number")
+    roster_id: int = Field(..., description="Roster ID of the team that made this pick")
+    player_id: str = Field(..., description="Sleeper player ID")
+    player_name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Player position (RB, WR, QB, TE, etc.)")
+    team: str = Field(..., description="NFL team abbreviation")
+    timestamp: str = Field(..., description="When the pick was made (ISO format)")
+
+
+class DraftPicksResponse(BaseModel):
+    """Response containing all picks from a draft."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "draft_id": "789012345",
+                "total_picks": 2,
+                "picks": [
+                    {
+                        "pick_no": 1,
+                        "round": 1,
+                        "roster_id": 1,
+                        "player_id": "2307",
+                        "player_name": "Christian McCaffrey",
+                        "position": "RB",
+                        "team": "SF",
+                        "timestamp": "2026-08-15T19:30:00",
+                    }
+                ],
+            }
+        }
+    )
+
+    draft_id: str = Field(..., description="The draft ID")
+    total_picks: int = Field(..., description="Total number of picks made so far")
+    picks: List[PickDetail] = Field(..., description="List of all picks in order")

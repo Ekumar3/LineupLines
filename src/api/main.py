@@ -13,6 +13,8 @@ from src.api.models import (
     DraftSummary,
     ErrorResponse,
     UserLookupResponse,
+    DraftPicksResponse,
+    PickDetail,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,7 +112,7 @@ def get_user_drafts_by_username(
     season: str = Query(default="2026", description="Season year"),
     status_filter: Optional[str] = Query(
         default=None,
-        description="Filter by status: 'active' (in_progress + pre_draft), 'complete', or None for all",
+        description="Filter by status: 'active' (in_progress + pre_draft), 'complete', or leave it empty for all",
         pattern="^(active|complete)$|^$",
     ),
 ):
@@ -159,7 +161,7 @@ def get_user_drafts_by_username(
         # Apply status filtering
         if status_filter == "active":
             filtered_drafts = [
-                d for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+                d for d in draft_summaries if d.status in ["pre_draft", "in_progress", "drafting"]
             ]
         elif status_filter == "complete":
             filtered_drafts = [d for d in draft_summaries if d.status == "complete"]
@@ -171,7 +173,7 @@ def get_user_drafts_by_username(
 
         # Calculate active draft count
         active_count = sum(
-            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress", "drafting"]
         )
 
         return UserDraftsResponse(
@@ -245,7 +247,7 @@ def get_user_drafts_by_id(
         # Apply status filtering
         if status_filter == "active":
             filtered_drafts = [
-                d for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+                d for d in draft_summaries if d.status in ["pre_draft", "in_progress", "drafting"]
             ]
         elif status_filter == "complete":
             filtered_drafts = [d for d in draft_summaries if d.status == "complete"]
@@ -257,7 +259,7 @@ def get_user_drafts_by_id(
 
         # Calculate active draft count
         active_count = sum(
-            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress"]
+            1 for d in draft_summaries if d.status in ["pre_draft", "in_progress", "drafting"]
         )
 
         return UserDraftsResponse(
@@ -304,6 +306,69 @@ def get_active_user_drafts_by_id(
     - **season**: Season year, defaults to '2026'
     """
     return get_user_drafts_by_id(user_id, sport, season, status_filter="active")
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/picks",
+    response_model=DraftPicksResponse,
+    responses={
+        200: {"description": "Successfully retrieved draft picks"},
+        404: {"model": ErrorResponse, "description": "Draft not found or no picks"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get all picks from a draft",
+    description="Fetch all picks made in a draft so far, with player information",
+    tags=["Drafts"],
+)
+def get_draft_picks(draft_id: str):
+    """
+    Get all picks from a draft.
+
+    Returns picks in chronological order with enriched player data including
+    names, positions, and teams.
+
+    - **draft_id**: Sleeper draft ID (required path parameter)
+    """
+    logger.info(f"Fetching picks for draft {draft_id}")
+
+    try:
+        # Fetch picks from Sleeper (includes player enrichment)
+        draft_picks = sleeper_client.get_draft_picks(draft_id)
+
+        if not draft_picks:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No picks found for draft_id: {draft_id}",
+            )
+
+        # Transform DraftPick dataclasses to PickDetail Pydantic models
+        pick_details = [
+            PickDetail(
+                pick_no=pick.pick_no,
+                round=pick.round,
+                roster_id=pick.roster_id,
+                player_id=pick.player_id,
+                player_name=pick.player_name,
+                position=pick.position,
+                team=pick.team,
+                timestamp=pick.timestamp.isoformat(),
+            )
+            for pick in draft_picks
+        ]
+
+        return DraftPicksResponse(
+            draft_id=draft_id,
+            total_picks=len(pick_details),
+            picks=pick_details,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching picks for draft {draft_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
 
 
 def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:

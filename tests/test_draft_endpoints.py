@@ -236,12 +236,15 @@ class TestAPIDocumentation:
         assert "/api/v1/users/{username}/drafts" in schema["paths"]
         assert "/api/v1/users/by-id/{user_id}/drafts" in schema["paths"]
         assert "/api/v1/users/by-id/{user_id}/drafts/active" in schema["paths"]
+        assert "/api/v1/drafts/{draft_id}/picks" in schema["paths"]
 
         # Verify models are documented
         assert "UserDraftsResponse" in schema["components"]["schemas"]
         assert "DraftSummary" in schema["components"]["schemas"]
         assert "DraftSettings" in schema["components"]["schemas"]
         assert "UserLookupResponse" in schema["components"]["schemas"]
+        assert "DraftPicksResponse" in schema["components"]["schemas"]
+        assert "PickDetail" in schema["components"]["schemas"]
 
     def test_api_docs_endpoint(self, client):
         """Test that OpenAPI docs endpoint exists."""
@@ -402,3 +405,107 @@ class TestGetDraftsByUsername:
 
         assert response.status_code == 404
         assert "No drafts found" in response.json()["detail"]
+
+
+class TestGetDraftPicks:
+    """Tests for GET /api/v1/drafts/{draft_id}/picks endpoint."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_picks_list(self):
+        """Mock draft picks response."""
+        from src.data_sources.sleeper_client import DraftPick
+        from datetime import datetime
+
+        return [
+            DraftPick(
+                pick_no=1,
+                draft_id="123",
+                roster_id=1,
+                player_id="2307",
+                player_name="Christian McCaffrey",
+                position="RB",
+                team="SF",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 30, 0),
+            ),
+            DraftPick(
+                pick_no=2,
+                draft_id="123",
+                roster_id=2,
+                player_id="4866",
+                player_name="CeeDee Lamb",
+                position="WR",
+                team="DAL",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 32, 0),
+            ),
+        ]
+
+    def test_get_draft_picks_success(self, client, mock_picks_list):
+        """Test successful retrieval of draft picks."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list
+        ):
+            response = client.get("/api/v1/drafts/123/picks")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["draft_id"] == "123"
+        assert data["total_picks"] == 2
+        assert len(data["picks"]) == 2
+
+        # Verify first pick
+        assert data["picks"][0]["pick_no"] == 1
+        assert data["picks"][0]["player_name"] == "Christian McCaffrey"
+        assert data["picks"][0]["position"] == "RB"
+        assert data["picks"][0]["team"] == "SF"
+
+    def test_get_draft_picks_not_found(self, client):
+        """Test 404 when draft has no picks."""
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=[]):
+            response = client.get("/api/v1/drafts/nonexistent/picks")
+
+        assert response.status_code == 404
+        assert "No picks found" in response.json()["detail"]
+
+    def test_get_draft_picks_server_error(self, client):
+        """Test 500 on server error."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            side_effect=Exception("API Error"),
+        ):
+            response = client.get("/api/v1/drafts/123/picks")
+
+        assert response.status_code == 500
+        assert "Internal server error" in response.json()["detail"]
+
+    def test_draft_picks_order(self, client, mock_picks_list):
+        """Test that picks are returned in chronological order."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list
+        ):
+            response = client.get("/api/v1/drafts/123/picks")
+
+        picks = response.json()["picks"]
+        assert picks[0]["pick_no"] == 1
+        assert picks[1]["pick_no"] == 2
+
+    def test_draft_picks_enrichment(self, client, mock_picks_list):
+        """Test that picks include enriched player data."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list
+        ):
+            response = client.get("/api/v1/drafts/123/picks")
+
+        picks = response.json()["picks"]
+        # Verify all picks have enriched data
+        for pick in picks:
+            assert "player_name" in pick
+            assert "position" in pick
+            assert "team" in pick
+            assert pick["player_name"] != ""  # Not just player_id

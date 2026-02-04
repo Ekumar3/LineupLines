@@ -86,18 +86,28 @@ class SleeperClient:
                 if pick_data.get("player_id") is None:
                     continue  # Skip unpicked slots
 
+                # Get roster_id, defaulting to 0 if missing or empty
+                roster_id = pick_data.get("picked_by")
+                if not roster_id:  # Handle None or empty string
+                    roster_id = 0
+                else:
+                    try:
+                        roster_id = int(roster_id)
+                    except (ValueError, TypeError):
+                        roster_id = 0
+
                 pick = DraftPick(
                     pick_no=pick_data.get("pick_no", 0),
                     draft_id=draft_id,
-                    roster_id=pick_data.get("picked_by", 0),
+                    roster_id=roster_id,
                     player_id=pick_data.get("player_id", ""),
                     player_name=self._get_player_name(pick_data.get("player_id", "")),
                     position=self._get_player_position(pick_data.get("player_id", "")),
                     team=self._get_player_team(pick_data.get("player_id", "")),
                     round=self._calculate_round(pick_data.get("pick_no", 0)),
                     timestamp=datetime.fromisoformat(
-                        pick_data.get("timestamp", datetime.utcnow().isoformat()).rstrip("Z")
-                    ) if pick_data.get("timestamp") else datetime.utcnow()
+                        pick_data.get("timestamp", datetime.now().isoformat()).rstrip("Z")
+                    ) if pick_data.get("timestamp") else datetime.now()
                 )
                 draft_picks.append(pick)
 
@@ -310,7 +320,7 @@ class SleeperClient:
             and self._player_cache is not None
             and self._player_cache_time is not None
         ):
-            age_seconds = (datetime.utcnow() - self._player_cache_time).total_seconds()
+            age_seconds = (datetime.now() - self._player_cache_time).total_seconds()
             if age_seconds < 86400:  # 24 hours
                 logger.info("Using cached player universe")
                 return self._player_cache
@@ -322,7 +332,7 @@ class SleeperClient:
 
             if isinstance(response, dict):
                 self._player_cache = response
-                self._player_cache_time = datetime.utcnow()
+                self._player_cache_time = datetime.now()
                 logger.info(f"Cached {len(response)} players")
                 return response
 
@@ -351,7 +361,8 @@ class SleeperClient:
             self.get_players()
 
         if self._player_cache and player_id in self._player_cache:
-            return self._player_cache[player_id].get("position", "UNKNOWN")
+            position = self._player_cache[player_id].get("position")
+            return position if position else "UNKNOWN"
 
         return "UNKNOWN"
 
@@ -361,7 +372,8 @@ class SleeperClient:
             self.get_players()
 
         if self._player_cache and player_id in self._player_cache:
-            return self._player_cache[player_id].get("team", "FA")
+            team = self._player_cache[player_id].get("team")
+            return team if team else "FA"
 
         return "FA"
 
