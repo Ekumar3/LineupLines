@@ -15,7 +15,10 @@ from src.api.models import (
     UserLookupResponse,
     DraftPicksResponse,
     PickDetail,
+    AvailablePlayersResponse,
+    PlayerSummary,
 )
+from src.api.storage import load_player_universe, save_player_universe
 
 logger = logging.getLogger(__name__)
 
@@ -366,6 +369,104 @@ def get_draft_picks(draft_id: str):
         raise
     except Exception as e:
         logger.error(f"Error fetching picks for draft {draft_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/available-players",
+    response_model=AvailablePlayersResponse,
+    responses={
+        200: {"description": "Successfully retrieved available players"},
+        404: {"model": ErrorResponse, "description": "Draft not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get available (undrafted) players for a draft",
+    description="Returns all players who have not been drafted yet, with optional position filtering",
+    tags=["Drafts"],
+)
+def get_available_players(
+    draft_id: str,
+    position: Optional[str] = Query(None, description="Filter by position (RB, WR, QB, TE, etc.)"),
+    limit: int = Query(100, description="Maximum number of players to return", le=500),
+):
+    """
+    Get available (undrafted) players for draft recommendations.
+
+    - **draft_id**: Sleeper draft ID
+    - **position**: Optional position filter (e.g., 'RB', 'WR', 'QB', 'TE')
+    - **limit**: Max players to return (default: 100, max: 500)
+
+    Returns players sorted by recommendation score (integrated with ADP in future versions).
+    """
+    logger.info(f"Fetching available players for draft {draft_id}")
+
+    try:
+        # Get all picks made in this draft
+        draft_picks = sleeper_client.get_draft_picks(draft_id)
+        drafted_player_ids = {pick.player_id for pick in draft_picks}
+
+        logger.info(f"Found {len(drafted_player_ids)} drafted players")
+
+        # Load player universe
+        all_players = load_player_universe()
+
+        if not all_players:
+            # Fallback: fetch from Sleeper if no local data
+            logger.warning("No local player data, fetching from Sleeper...")
+            all_players = sleeper_client.get_players()
+            if all_players:
+                save_player_universe(all_players)
+
+        if not all_players:
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to load player data",
+            )
+
+        # Filter out drafted players
+        available = {
+            pid: player
+            for pid, player in all_players.items()
+            if pid not in drafted_player_ids
+        }
+
+        logger.info(f"Found {len(available)} available players")
+
+        # Apply position filter if specified
+        if position:
+            position_upper = position.upper()
+            available = {
+                pid: player
+                for pid, player in available.items()
+                if player.get("position") == position_upper
+            }
+            logger.info(f"Filtered to {len(available)} {position} players")
+
+        # Convert to list and limit results
+        player_list = []
+        for pid, player in list(available.items())[:limit]:
+            player_list.append(PlayerSummary(
+                player_id=pid,
+                name=f"{player.get('first_name', '')} {player.get('last_name', '')}".strip(),
+                position=player.get("position") or "UNKNOWN",
+                team=player.get("team") or "FA",
+                age=player.get("age"),
+                years_exp=player.get("years_exp"),
+            ))
+
+        return AvailablePlayersResponse(
+            draft_id=draft_id,
+            total_available=len(available),
+            position_filter=position,
+            players=player_list,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching available players: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}"
         )

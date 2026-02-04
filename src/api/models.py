@@ -226,3 +226,56 @@ class DraftPicksResponse(BaseModel):
     draft_id: str = Field(..., description="The draft ID")
     total_picks: int = Field(..., description="Total number of picks made so far")
     picks: List[PickDetail] = Field(..., description="List of all picks in order")
+
+
+class PlayerSummary(BaseModel):
+    """Summary of a player for recommendations."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "player_id": "2307",
+                "name": "Christian McCaffrey",
+                "position": "RB",
+                "team": "SF",
+                "age": 27,
+                "years_exp": 7,
+            }
+        }
+    )
+
+    player_id: str = Field(..., description="Sleeper player ID")
+    name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Player position")
+    team: str = Field(..., description="NFL team abbreviation")
+    age: Optional[int] = Field(None, description="Player age")
+    years_exp: Optional[int] = Field(None, description="Years of NFL experience")
+
+
+class AvailablePlayersResponse(BaseModel):
+    """Response containing available (undrafted) players."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "draft_id": "789012345",
+                "total_available": 450,
+                "position_filter": "RB",
+                "players": [
+                    {
+                        "player_id": "2307",
+                        "name": "Christian McCaffrey",
+                        "position": "RB",
+                        "team": "SF",
+                        "age": 27,
+                        "years_exp": 7,
+                    }
+                ],
+            }
+        }
+    )
+
+    draft_id: str = Field(..., description="The draft ID")
+    total_available: int = Field(..., description="Total number of available players matching filters")
+    position_filter: Optional[str] = Field(None, description="Position filter applied (if any)")
+    players: List[PlayerSummary] = Field(..., description="List of available players")

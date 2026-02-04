@@ -237,6 +237,7 @@ class TestAPIDocumentation:
         assert "/api/v1/users/by-id/{user_id}/drafts" in schema["paths"]
         assert "/api/v1/users/by-id/{user_id}/drafts/active" in schema["paths"]
         assert "/api/v1/drafts/{draft_id}/picks" in schema["paths"]
+        assert "/api/v1/drafts/{draft_id}/available-players" in schema["paths"]
 
         # Verify models are documented
         assert "UserDraftsResponse" in schema["components"]["schemas"]
@@ -245,6 +246,8 @@ class TestAPIDocumentation:
         assert "UserLookupResponse" in schema["components"]["schemas"]
         assert "DraftPicksResponse" in schema["components"]["schemas"]
         assert "PickDetail" in schema["components"]["schemas"]
+        assert "AvailablePlayersResponse" in schema["components"]["schemas"]
+        assert "PlayerSummary" in schema["components"]["schemas"]
 
     def test_api_docs_endpoint(self, client):
         """Test that OpenAPI docs endpoint exists."""
@@ -509,3 +512,234 @@ class TestGetDraftPicks:
             assert "position" in pick
             assert "team" in pick
             assert pick["player_name"] != ""  # Not just player_id
+
+
+class TestGetAvailablePlayers:
+    """Tests for GET /api/v1/drafts/{draft_id}/available-players endpoint."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_picks_list(self):
+        """Mock draft picks response."""
+        from src.data_sources.sleeper_client import DraftPick
+        from datetime import datetime
+
+        return [
+            DraftPick(
+                pick_no=1,
+                draft_id="123",
+                roster_id=1,
+                player_id="2307",
+                player_name="Christian McCaffrey",
+                position="RB",
+                team="SF",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 30, 0),
+            ),
+            DraftPick(
+                pick_no=2,
+                draft_id="123",
+                roster_id=2,
+                player_id="4866",
+                player_name="CeeDee Lamb",
+                position="WR",
+                team="DAL",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 32, 0),
+            ),
+        ]
+
+    @pytest.fixture
+    def mock_players(self):
+        """Mock player universe."""
+        return {
+            "2307": {
+                "first_name": "Christian",
+                "last_name": "McCaffrey",
+                "position": "RB",
+                "team": "SF",
+                "age": 27,
+                "years_exp": 7,
+            },
+            "4866": {
+                "first_name": "CeeDee",
+                "last_name": "Lamb",
+                "position": "WR",
+                "team": "DAL",
+                "age": 24,
+                "years_exp": 3,
+            },
+            "5000": {
+                "first_name": "Joe",
+                "last_name": "Burrow",
+                "position": "QB",
+                "team": "CIN",
+                "age": 27,
+                "years_exp": 4,
+            },
+            "5001": {
+                "first_name": "Travis",
+                "last_name": "Kelce",
+                "position": "TE",
+                "team": "KC",
+                "age": 34,
+                "years_exp": 11,
+            },
+        }
+
+    def test_get_available_players_success(
+        self, client, mock_picks_list, mock_players
+    ):
+        """Test successful retrieval of available players."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_picks_list,
+        ):
+            with patch(
+                "src.api.main.load_player_universe",
+                return_value=mock_players,
+            ):
+                response = client.get("/api/v1/drafts/123/available-players")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["draft_id"] == "123"
+        assert data["total_available"] == 2  # 4 total - 2 drafted
+        assert len(data["players"]) == 2
+
+    def test_get_available_players_excludes_drafted(
+        self, client, mock_picks_list, mock_players
+    ):
+        """Test that available players excludes drafted players."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_picks_list,
+        ):
+            with patch(
+                "src.api.main.load_player_universe",
+                return_value=mock_players,
+            ):
+                response = client.get("/api/v1/drafts/123/available-players")
+
+        data = response.json()
+        returned_ids = {p["player_id"] for p in data["players"]}
+
+        # Drafted players should not be in available list
+        assert "2307" not in returned_ids  # McCaffrey (drafted)
+        assert "4866" not in returned_ids  # Lamb (drafted)
+
+        # Undrafted players should be in available list
+        assert "5000" in returned_ids  # Burrow (available)
+        assert "5001" in returned_ids  # Kelce (available)
+
+    def test_get_available_players_with_position_filter(
+        self, client, mock_picks_list, mock_players
+    ):
+        """Test filtering available players by position."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_picks_list,
+        ):
+            with patch(
+                "src.api.main.load_player_universe",
+                return_value=mock_players,
+            ):
+                response = client.get(
+                    "/api/v1/drafts/123/available-players?position=QB"
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["position_filter"] == "QB"
+        assert data["total_available"] == 1  # Only Burrow is QB
+        assert len(data["players"]) == 1
+        assert data["players"][0]["position"] == "QB"
+        assert data["players"][0]["player_id"] == "5000"
+
+    def test_get_available_players_with_limit(
+        self, client, mock_picks_list, mock_players
+    ):
+        """Test limiting number of returned players."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_picks_list,
+        ):
+            with patch(
+                "src.api.main.load_player_universe",
+                return_value=mock_players,
+            ):
+                response = client.get("/api/v1/drafts/123/available-players?limit=1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_available"] == 2  # Total is 2
+        assert len(data["players"]) == 1  # But only 1 returned
+
+    def test_get_available_players_no_local_data(self, client, mock_picks_list):
+        """Test fallback to fetching from Sleeper when no local data."""
+        mock_players = {
+            "5000": {
+                "first_name": "Joe",
+                "last_name": "Burrow",
+                "position": "QB",
+                "team": "CIN",
+            },
+            "5001": {
+                "first_name": "Travis",
+                "last_name": "Kelce",
+                "position": "TE",
+                "team": "KC",
+            },
+        }
+
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_picks_list,
+        ):
+            with patch(
+                "src.api.main.load_player_universe",
+                return_value=None,  # No local data
+            ):
+                with patch(
+                    "src.api.main.sleeper_client.get_players",
+                    return_value=mock_players,
+                ):
+                    with patch(
+                        "src.api.main.save_player_universe"
+                    ) as mock_save:
+                        response = client.get(
+                            "/api/v1/drafts/123/available-players"
+                        )
+
+        assert response.status_code == 200
+        # Verify fallback was used
+        mock_save.assert_called_once()
+
+    def test_get_available_players_server_error(self, client):
+        """Test 500 on server error."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            side_effect=Exception("API Error"),
+        ):
+            response = client.get("/api/v1/drafts/123/available-players")
+
+        assert response.status_code == 500
+        assert "Internal server error" in response.json()["detail"]
+
+    def test_openapi_schema_includes_available_players(self, client):
+        """Test that available-players endpoint is in OpenAPI schema."""
+        response = client.get("/openapi.json")
+
+        assert response.status_code == 200
+        schema = response.json()
+
+        # Verify endpoint is documented
+        assert "/api/v1/drafts/{draft_id}/available-players" in schema["paths"]
+
+        # Verify models are documented
+        assert "AvailablePlayersResponse" in schema["components"]["schemas"]
+        assert "PlayerSummary" in schema["components"]["schemas"]
