@@ -279,3 +279,71 @@ class AvailablePlayersResponse(BaseModel):
     total_available: int = Field(..., description="Total number of available players matching filters")
     position_filter: Optional[str] = Field(None, description="Position filter applied (if any)")
     players: List[PlayerSummary] = Field(..., description="List of available players")
+
+
+class RosterMapping(BaseModel):
+    """Mapping of user IDs to roster positions."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "user_id_1": 1,
+                "user_id_2": 2,
+                "user_id_3": 3,
+            }
+        }
+    )
+
+    root: Dict[str, int] = Field(..., description="Maps user_id to roster_id (draft position)")
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __getitem__(self, key):
+        return self.root[key]
+
+
+class DraftDetails(BaseModel):
+    """Complete draft information including roster mapping for tracking user picks.
+
+    All IDs are normalized to strings for consistency across the API.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "draft_id": "789012345",
+                "league_id": "456789012",
+                "status": "in_progress",
+                "settings": {
+                    "teams": 12,
+                    "rounds": 15,
+                    "reversal_round": 1,
+                    "type": "snake",
+                },
+                "metadata": {
+                    "name": "My Fantasy League 2026",
+                    "scoring_type": "ppr",
+                },
+                "draft_order": ["942348475046494208", "765432109876543210", "123456789012345678", None],
+                "roster_to_user": {
+                    "1": "942348475046494208",
+                    "2": "765432109876543210",
+                    "3": "123456789012345678",
+                    "4": "876543210123456789",
+                },
+            }
+        }
+    )
+
+    draft_id: str = Field(..., description="The draft ID")
+    league_id: str = Field(..., description="The league ID")
+    status: str = Field(..., description="Draft status (pre_draft, in_progress, complete)")
+    settings: DraftSettings = Field(..., description="Draft settings")
+    metadata: DraftMetadata = Field(..., description="League metadata")
+    draft_order: List[Optional[str]] = Field(
+        ..., description="Array indexed by slot position, containing user_id (string) or None for unpicked slots"
+    )
+    roster_to_user: Dict[str, str] = Field(
+        ..., description="Maps roster_id (string) to user_id (string) for identifying user picks"
+    )

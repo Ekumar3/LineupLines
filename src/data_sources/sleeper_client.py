@@ -18,7 +18,7 @@ class DraftPick:
     """Represents a single draft pick."""
     pick_no: int
     draft_id: str
-    roster_id: int
+    user_id: int
     player_id: str
     player_name: str
     position: str
@@ -87,19 +87,19 @@ class SleeperClient:
                     continue  # Skip unpicked slots
 
                 # Get roster_id, defaulting to 0 if missing or empty
-                roster_id = pick_data.get("picked_by")
-                if not roster_id:  # Handle None or empty string
-                    roster_id = 0
+                user_id = pick_data.get("picked_by")
+                if not user_id:  # Handle None or empty string
+                    user_id = 0
                 else:
                     try:
-                        roster_id = int(roster_id)
+                        user_id = int(user_id)
                     except (ValueError, TypeError):
-                        roster_id = 0
+                        user_id = 0
 
                 pick = DraftPick(
                     pick_no=pick_data.get("pick_no", 0),
                     draft_id=draft_id,
-                    roster_id=roster_id,
+                    user_id=user_id,
                     player_id=pick_data.get("player_id", ""),
                     player_name=self._get_player_name(pick_data.get("player_id", "")),
                     position=self._get_player_position(pick_data.get("player_id", "")),
@@ -159,6 +159,67 @@ class SleeperClient:
 
         except Exception as e:
             logger.error(f"Failed to fetch draft status: {e}")
+            return None
+
+    def get_draft_details(self, draft_id: str) -> Optional[Dict[str, Any]]:
+        """Get complete draft details including roster mapping.
+
+        Args:
+            draft_id: The draft ID from Sleeper
+
+        Returns:
+            Dict with draft details (draft_order, settings, metadata, etc.) or None if fetch fails
+        """
+        logger.info(f"Fetching details for draft {draft_id}")
+
+        try:
+            response = self._make_request(f"/draft/{draft_id}")
+
+            if not response:
+                return None
+
+            # Normalize all IDs to strings for consistency across the API
+            # Sleeper API returns draft_order with user_ids (int or str),
+            # and slot_to_roster_id with roster_ids (int), so we normalize to strings
+            raw_draft_order = response.get("draft_order", [])
+            print(f"Raw response: {response}")
+            draft_order = [""] * response.get("settings", {}).get("teams", 12)  # Default empty slots
+            for user_id, slot_index in raw_draft_order.items():
+                draft_order[int(slot_index) - 1] = str(user_id)
+
+            # Build roster_to_user mapping: roster_id (str) -> user_id (str)
+            # slot_to_roster_id from Sleeper: slot_num (str) -> roster_id (int)
+            # draft_order from Sleeper: list indexed by slot_num with user_ids
+            roster_to_user = {}
+            print(f"Slot to Roster ID mapping: {response.get('slot_to_roster_id', {})}")
+            for slot_id_str, roster_id_int in response.get("slot_to_roster_id", {}).items():
+                slot_index = int(slot_id_str)  # Convert slot string to list index
+                if slot_index < len(draft_order):
+                    user_at_slot = draft_order[slot_index]
+                    if user_at_slot:
+                        # Store as: roster_id (string) -> user_id (string)
+                        roster_to_user[str(roster_id_int)] = user_at_slot
+
+            return {
+                "draft_id": draft_id,
+                "league_id": response.get("league_id", ""),
+                "status": response.get("status", "pre_draft"),
+                "settings": {
+                    "teams": response.get("settings", {}).get("teams", 12),
+                    "rounds": response.get("settings", {}).get("rounds", 15),
+                    "reversal_round": response.get("settings", {}).get("reversal_round"),
+                    "type": response.get("type", ""),
+                },
+                "metadata": {
+                    "name": response.get("metadata", {}).get("name"),
+                    "scoring_type": response.get("metadata", {}).get("scoring_type"),
+                },
+                "draft_order": draft_order,
+                "roster_to_user": roster_to_user,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to fetch draft details: {e}")
             return None
 
     def poll_draft_picks(

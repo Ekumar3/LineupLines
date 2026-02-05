@@ -1,0 +1,860 @@
+# Deployment Guide
+
+Comprehensive guide for running the Draft Helper API locally and deploying to production.
+
+## Table of Contents
+
+1. [Local Development](#local-development)
+2. [Running Tests](#running-tests)
+3. [Daily Player Data Sync](#daily-player-data-sync)
+4. [Production Deployment](#production-deployment)
+5. [Monitoring & Troubleshooting](#monitoring--troubleshooting)
+
+---
+
+## Local Development
+
+### Prerequisites
+
+**System Requirements:**
+- Python 3.11+
+- pip (Python package manager)
+- Git
+- 1GB free disk space (for player data)
+
+**Verify Setup:**
+```bash
+python --version          # Should be 3.11+
+pip --version             # Should be 23.0+
+git --version             # Should be 2.30+
+```
+
+### Installation
+
+#### Step 1: Clone Repository
+
+```bash
+git clone <repository-url>
+cd LineupLines
+```
+
+#### Step 2: Create Virtual Environment
+
+```bash
+# On Windows
+python -m venv venv
+venv\Scripts\activate
+
+# On macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Verify activation** (prompt should show `(venv)` prefix):
+```bash
+which python  # macOS/Linux
+# or
+where python  # Windows
+```
+
+#### Step 3: Install Dependencies
+
+```bash
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+```
+
+**Verify Installation:**
+```bash
+python -c "import fastapi; import pytest; import pydantic; print('All dependencies installed')"
+```
+
+#### Step 4: Sync Player Data
+
+Before running the API, fetch the player universe:
+
+```bash
+python scripts/sync_player_data.py
+```
+
+**Expected Output:**
+```
+INFO:root:Starting player data sync...
+INFO:root:Fetching players from Sleeper API...
+INFO:root:Fetched 11546 players from Sleeper
+INFO:root:Saved 11546 players to data/players/nfl_players.json
+INFO:root:Player data sync complete
+```
+
+**Verify Data:**
+```bash
+# Check file was created
+ls -lh data/players/nfl_players.json
+# Should be ~19MB
+
+# Verify JSON structure
+python -c "
+import json
+with open('data/players/nfl_players.json') as f:
+    data = json.load(f)
+    print(f'Players: {data[\"player_count\"]}')
+    print(f'Updated: {data[\"updated_at\"]}')
+"
+```
+
+### Running the API Server
+
+#### Start Development Server
+
+```bash
+uvicorn src.api.main:app --reload --port 8000
+```
+
+**Expected Output:**
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000
+INFO:     Application startup complete
+```
+
+**Access the API:**
+- Main API: http://localhost:8000/
+- Interactive Docs: http://localhost:8000/docs
+- Alternative Docs: http://localhost:8000/redoc
+- OpenAPI Schema: http://localhost:8000/openapi.json
+
+#### Testing the API
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Expected response:
+# {"status":"ok","service":"draft-helper"}
+```
+
+### Environment Configuration
+
+**Optional:** Create `.env` file for custom configuration:
+
+```bash
+# .env
+PYTHONPATH=/path/to/project
+LOG_LEVEL=INFO
+SLEEPER_API_BASE=https://api.sleeper.app
+PLAYER_DATA_DIR=data/players
+```
+
+**Load environment variables:**
+```bash
+# Create .env file
+cat > .env << 'EOF'
+PYTHONPATH=$(pwd)
+LOG_LEVEL=INFO
+EOF
+
+# Load (optional - uvicorn reads from environment)
+source .env
+```
+
+---
+
+## Running Tests
+
+### Prerequisites
+
+All tests use `pytest` and `pytest-mock`. Already installed via `requirements.txt`.
+
+### Run All Tests
+
+```bash
+# Standard run
+pytest tests/ -v
+
+# With coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# Run and show slowest tests
+pytest tests/ -v --durations=10
+```
+
+**Expected Output:**
+```
+tests/test_api.py::test_health PASSED                                    [  2%]
+tests/test_fetcher.py::TestGetUserDrafts::test_get_user_drafts_success PASSED
+...
+======================== 52 passed in 1.23s ========================
+```
+
+### Run Specific Test Files
+
+```bash
+# API health check only
+pytest tests/test_api.py -v
+
+# SleeperClient unit tests
+pytest tests/test_fetcher.py -v
+
+# API endpoint integration tests
+pytest tests/test_draft_endpoints.py -v
+
+# Storage layer tests
+pytest tests/test_api_storage.py -v
+```
+
+### Run Specific Test Classes
+
+```bash
+# All user draft tests
+pytest tests/test_draft_endpoints.py::TestGetUserDrafts -v
+
+# All available player tests
+pytest tests/test_draft_endpoints.py::TestGetAvailablePlayers -v
+
+# All storage tests
+pytest tests/test_api_storage.py::TestPlayerUniverseStorage -v
+```
+
+### Run Specific Test
+
+```bash
+# Single test
+pytest tests/test_draft_endpoints.py::TestGetAvailablePlayers::test_get_available_players_success -v
+
+# Run with print statements
+pytest tests/test_draft_endpoints.py::test_name -v -s
+```
+
+### Generate Coverage Report
+
+```bash
+# Generate HTML coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# Open in browser
+# macOS:
+open htmlcov/index.html
+
+# Linux:
+xdg-open htmlcov/index.html
+
+# Windows:
+start htmlcov/index.html
+```
+
+**Coverage Targets:**
+- Overall: >80%
+- Critical paths: >90%
+- Storage layer: 100% (9/9 tests)
+
+### Continuous Testing During Development
+
+```bash
+# Automatically run tests on file changes
+pytest-watch tests/ -- -v
+
+# Or use pytest's native option:
+pytest tests/ -v --looponfail
+```
+
+---
+
+## Daily Player Data Sync
+
+### Manual Sync
+
+For development and testing, manually sync player data:
+
+```bash
+python scripts/sync_player_data.py
+```
+
+### Automated Sync (Cron Job)
+
+For production, schedule daily sync via cron (Linux/macOS):
+
+#### Setup Cron Job
+
+```bash
+# Open cron editor
+crontab -e
+
+# Add this line to run daily at 2 AM
+0 2 * * * cd /path/to/LineupLines && /path/to/venv/bin/python scripts/sync_player_data.py >> /var/log/draft-helper-sync.log 2>&1
+
+# Verify cron was added
+crontab -l
+```
+
+**Cron Expression Breakdown:**
+```
+0       2       *       *       *
+│       │       │       │       │
+│       │       │       │       └─ Day of week (0-6, 0 = Sunday)
+│       │       │       └───────── Month (1-12)
+│       │       └───────────────── Day of month (1-31)
+│       └───────────────────────── Hour (0-23, 2 = 2 AM UTC)
+└───────────────────────────────── Minute (0-59)
+```
+
+**Example Cron Schedules:**
+```bash
+# Daily at 2 AM
+0 2 * * * cd /path/to/project && python scripts/sync_player_data.py
+
+# Every 12 hours (2 AM and 2 PM)
+0 2,14 * * * cd /path/to/project && python scripts/sync_player_data.py
+
+# Every Sunday at 1 AM (for weekend draft preparation)
+0 1 * * 0 cd /path/to/project && python scripts/sync_player_data.py
+
+# Hourly during draft season (August-December)
+# Use a wrapper script that checks month before running
+0 * 8-12 * * cd /path/to/project && python scripts/sync_player_data.py
+```
+
+#### Monitoring Cron Jobs
+
+```bash
+# View cron logs (macOS)
+log stream --predicate 'process == "cron"'
+
+# View cron logs (Linux)
+sudo journalctl -u cron --since "1 hour ago"
+
+# Check log file if redirecting output
+tail -f /var/log/draft-helper-sync.log
+```
+
+### Windows Task Scheduler (Alternative to Cron)
+
+```powershell
+# Create scheduled task to run daily at 2 AM
+$trigger = New-ScheduledTaskTrigger -Daily -At 02:00
+$action = New-ScheduledTaskAction -Execute "C:\path\to\venv\Scripts\python.exe" `
+    -Argument "scripts/sync_player_data.py" `
+    -WorkingDirectory "C:\path\to\LineupLines"
+Register-ScheduledTask -TaskName "DraftHelperSync" -Trigger $trigger -Action $action -RunLevel Highest
+```
+
+---
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+- [ ] All 52 tests passing locally
+- [ ] Player data synced within last 24 hours
+- [ ] Environment variables configured
+- [ ] API docs generated at `/docs`
+- [ ] Rate limiting tested (no >1000 req/min)
+- [ ] Error handling verified (404, 422, 500 responses)
+
+### Option 1: Self-Hosted (VPS/EC2)
+
+#### System Setup
+
+```bash
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Python and dependencies
+sudo apt install -y python3.11 python3-pip python3-venv git
+
+# Create deploy directory
+sudo mkdir -p /opt/draft-helper
+sudo chown $USER:$USER /opt/draft-helper
+cd /opt/draft-helper
+```
+
+#### Deploy Application
+
+```bash
+# Clone repo
+git clone <repository-url> .
+
+# Create virtual environment
+python3.11 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Sync player data
+python scripts/sync_player_data.py
+
+# Verify API starts
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 &
+```
+
+#### Setup systemd Service
+
+Create `/etc/systemd/system/draft-helper.service`:
+
+```ini
+[Unit]
+Description=Draft Helper API
+After=network.target
+
+[Service]
+Type=notify
+User=draft-helper
+WorkingDirectory=/opt/draft-helper
+ExecStart=/opt/draft-helper/venv/bin/uvicorn src.api.main:app \
+    --host 0.0.0.0 --port 8000 --workers 4
+Restart=on-failure
+RestartSec=10
+
+Environment="PATH=/opt/draft-helper/venv/bin"
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Enable and Start:**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable draft-helper
+sudo systemctl start draft-helper
+
+# Check status
+sudo systemctl status draft-helper
+
+# View logs
+sudo journalctl -u draft-helper -f
+```
+
+#### Setup Reverse Proxy (Nginx)
+
+Create `/etc/nginx/sites-available/draft-helper`:
+
+```nginx
+server {
+    listen 80;
+    server_name api.draft-helper.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8000/health;
+        access_log off;
+    }
+}
+```
+
+**Enable Site:**
+```bash
+sudo ln -s /etc/nginx/sites-available/draft-helper /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### Option 2: AWS Deployment (Lambda + API Gateway)
+
+#### Infrastructure Setup
+
+The project includes a SAM (Serverless Application Model) template for AWS deployment.
+
+**Current Template Location:** `infra/template.yaml`
+
+**Deploy to AWS:**
+```bash
+# Install AWS SAM CLI
+pip install aws-sam-cli
+
+# Configure AWS credentials
+aws configure
+
+# Build and deploy
+sam build
+sam deploy --guided
+
+# Follow prompts:
+# Stack name: draft-helper
+# Region: us-east-1
+# Confirm changes before deploy: Y
+```
+
+#### Lambda Function Configuration
+
+The SAM template includes:
+
+**DraftHelperAPIFunction:**
+- Handler: `src.api.main.handler` (ASGI application)
+- Runtime: Python 3.11
+- Memory: 512 MB (for Pydantic serialization)
+- Timeout: 30 seconds
+- Environment: `SLEEPER_API_BASE`, `LOG_LEVEL`
+
+**PlayerSyncFunction (Optional):**
+- Schedule: Daily at 2 AM UTC
+- Timeout: 120 seconds
+- Updates S3 with player data
+
+#### S3 Configuration for Player Data
+
+**Create S3 Bucket:**
+```bash
+aws s3 mb s3://draft-helper-players-prod --region us-east-1
+aws s3api put-bucket-versioning \
+    --bucket draft-helper-players-prod \
+    --versioning-configuration Status=Enabled
+```
+
+**Update Storage Layer for S3:**
+
+Modify `src/api/storage.py` to use S3 fallback:
+
+```python
+import boto3
+
+S3_CLIENT = boto3.client('s3')
+S3_BUCKET = os.getenv('PLAYER_DATA_BUCKET', 'draft-helper-players-prod')
+
+def load_player_universe() -> Optional[Dict]:
+    """Load player data from S3 or local fallback."""
+    # Try S3 first
+    try:
+        response = S3_CLIENT.get_object(Bucket=S3_BUCKET, Key='nfl_players.json')
+        data = json.load(response['Body'])
+        return data.get('players', {})
+    except:
+        pass
+
+    # Fallback to local
+    if not PLAYER_DATA_FILE.exists():
+        return None
+
+    try:
+        with open(PLAYER_DATA_FILE, 'r') as f:
+            data = json.load(f)
+        return data.get('players', {})
+    except:
+        return None
+```
+
+#### CloudWatch Monitoring
+
+**View API Logs:**
+```bash
+aws logs tail /aws/lambda/DraftHelperAPIFunction --follow
+
+# Search for errors
+aws logs filter-log-events \
+    --log-group-name /aws/lambda/DraftHelperAPIFunction \
+    --filter-pattern "ERROR"
+```
+
+**Create Alarms:**
+```bash
+# High error rate alarm
+aws cloudwatch put-metric-alarm \
+    --alarm-name draft-helper-errors \
+    --alarm-description "Alert on high error rate" \
+    --metric-name Errors \
+    --namespace AWS/Lambda \
+    --statistic Sum \
+    --period 300 \
+    --threshold 10 \
+    --comparison-operator GreaterThanThreshold
+```
+
+### Option 3: Docker Deployment
+
+**Create Dockerfile:**
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN python scripts/sync_player_data.py
+
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**Build and Run:**
+
+```bash
+# Build image
+docker build -t draft-helper:latest .
+
+# Run locally
+docker run -p 8000:8000 draft-helper:latest
+
+# Push to registry
+docker tag draft-helper:latest your-registry/draft-helper:latest
+docker push your-registry/draft-helper:latest
+```
+
+---
+
+## Monitoring & Troubleshooting
+
+### Common Issues
+
+#### Issue: "Player data file not found"
+
+**Symptom:** API returns `null` for available players
+
+**Solution:**
+```bash
+# Sync player data
+python scripts/sync_player_data.py
+
+# Verify file exists
+ls -lh data/players/nfl_players.json
+
+# Check file contents
+python -c "import json; print(json.load(open('data/players/nfl_players.json')).keys())"
+```
+
+#### Issue: "Connection refused" to Sleeper API
+
+**Symptom:** SleeperClient methods fail with connection error
+
+**Solution:**
+```bash
+# Check internet connectivity
+curl https://api.sleeper.app/v1/players/nfl -I
+
+# Test with verbose output
+python -c "
+from src.data_sources.sleeper_client import SleeperClient
+client = SleeperClient()
+print(client.get_players())
+" 2>&1 | head -20
+
+# Check rate limiting
+# Sleeper API limit: 1000 req/minute
+# Current code: 1 req / 5 sec = 12 req/min (safe)
+```
+
+#### Issue: Import errors after deployment
+
+**Symptom:** `ModuleNotFoundError: No module named 'src'`
+
+**Solution:**
+```bash
+# Ensure PYTHONPATH is set
+export PYTHONPATH=/path/to/project:$PYTHONPATH
+
+# Or use absolute imports
+cd /path/to/project
+python -c "import sys; sys.path.insert(0, '.'); from src.api.main import app; print('OK')"
+```
+
+#### Issue: Tests fail with "Permission denied"
+
+**Symptom:** `pytest` cannot create temp directories
+
+**Solution:**
+```bash
+# Check directory permissions
+ls -la data/
+ls -la tests/
+
+# Fix permissions
+chmod 755 data/
+chmod 755 tests/
+
+# Or run with sudo (not recommended)
+sudo pytest tests/ -v
+```
+
+### Performance Tuning
+
+#### API Response Time
+
+**Current baseline:** <100ms for all endpoints
+
+**Optimize if slower:**
+```bash
+# Profile requests
+python -c "
+import time
+import requests
+
+start = time.time()
+response = requests.get('http://localhost:8000/health')
+print(f'Response time: {(time.time() - start) * 1000:.2f}ms')
+print(f'Status: {response.status_code}')
+"
+
+# Test available-players endpoint (slowest)
+time curl 'http://localhost:8000/api/v1/drafts/<id>/available-players'
+```
+
+**Optimizations:**
+1. Increase `PLAYER_DATA_CACHE_HOURS` (currently 24 hours)
+2. Use S3 with CloudFront for global distribution
+3. Add Redis cache layer for available players
+4. Implement pagination for large result sets
+
+#### Memory Usage
+
+**Monitor memory:**
+```bash
+# macOS
+top -p $(pgrep -f uvicorn)
+
+# Linux
+ps aux | grep uvicorn
+watch -n 1 'ps aux | grep uvicorn'
+
+# Expected: 200-300 MB for API + cached players
+```
+
+**Reduce if needed:**
+- Use generators for large lists
+- Stream responses instead of buffering
+- Implement request queuing for peak loads
+
+### Health Checks
+
+**Setup endpoint health monitoring:**
+
+```bash
+# Simple health check
+curl http://localhost:8000/health
+
+# Expected response:
+# {"status":"ok","service":"draft-helper"}
+
+# Add to monitoring service (DataDog, New Relic, etc.)
+# HTTP GET http://your-api.com/health
+# Check for 200 status code and "ok" status field
+```
+
+**Uptime Monitoring Command:**
+```bash
+# Check API availability
+watch -n 60 'curl -s http://localhost:8000/health | jq .status'
+```
+
+### Logs and Debugging
+
+**View application logs:**
+
+```bash
+# Standard output
+uvicorn src.api.main:app --log-level DEBUG
+
+# To file
+uvicorn src.api.main:app --log-level DEBUG > api.log 2>&1 &
+
+# Follow logs
+tail -f api.log
+```
+
+**Debug specific requests:**
+
+```bash
+# With verbose HTTP logging
+python -c "
+import logging
+logging.basicConfig(level=logging.DEBUG)
+import requests
+response = requests.get('http://localhost:8000/api/v1/users/test/drafts')
+print(response.json())
+"
+```
+
+**Check API metrics:**
+
+```bash
+# Request count (from logs)
+grep "GET /api" api.log | wc -l
+
+# Error rate (4xx, 5xx responses)
+grep -E '"4[0-9]{2}|5[0-9]{2}"' api.log | wc -l
+
+# Slowest endpoints
+grep "completed_in" api.log | sort -t: -k2 -nr | head -10
+```
+
+### Backup and Recovery
+
+**Backup player data:**
+
+```bash
+# Backup locally
+cp data/players/nfl_players.json data/players/nfl_players.backup.json
+
+# Backup to S3
+aws s3 cp data/players/nfl_players.json \
+    s3://draft-helper-backup/$(date +%Y-%m-%d).json
+
+# Restore from backup
+cp data/players/nfl_players.backup.json data/players/nfl_players.json
+
+# Restore from S3
+aws s3 cp s3://draft-helper-backup/2026-02-04.json \
+    data/players/nfl_players.json
+```
+
+---
+
+## Next Steps
+
+### Phase 2 Preparation
+
+Once Phase 1 deployment is stable:
+
+1. **Integrate FantasyPros ADP Data**
+   - Fetch and cache ADP rankings
+   - Compare available players to ADP
+   - Highlight value picks
+
+2. **Build Draft Board UI**
+   - Display draft picks
+   - Show available players
+   - Real-time updates with WebSocket
+
+3. **Add Recommendations Engine**
+   - Position recommendations
+   - Archetype matching
+   - Scarcity alerts
+
+### Monitoring Dashboard
+
+Consider setting up a monitoring dashboard:
+
+```bash
+# AWS CloudWatch Dashboard
+aws cloudwatch put-dashboard \
+    --dashboard-name DraftHelperDashboard \
+    --dashboard-body file://dashboard-config.json
+```
+
+### Scaling Considerations
+
+**For 1000+ concurrent users:**
+
+1. Use Lambda with auto-scaling
+2. Add CloudFront CDN for player data
+3. Implement request queuing
+4. Add Redis cache layer for hot data
+5. Split into multiple Lambda functions by endpoint
+
+---
+
+## Support
+
+For issues or questions:
+
+1. Check logs: `tail -f api.log`
+2. Review docs: `open http://localhost:8000/docs`
+3. Run tests: `pytest tests/ -v`
+4. Check GitHub Issues: `<repository>/issues`
+

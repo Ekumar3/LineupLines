@@ -17,6 +17,9 @@ from src.api.models import (
     PickDetail,
     AvailablePlayersResponse,
     PlayerSummary,
+    DraftDetails,
+    DraftSettings,
+    DraftMetadata,
 )
 from src.api.storage import load_player_universe, save_player_universe
 
@@ -369,6 +372,70 @@ def get_draft_picks(draft_id: str):
         raise
     except Exception as e:
         logger.error(f"Error fetching picks for draft {draft_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/draft/{draft_id}",
+    response_model=DraftDetails,
+    responses={
+        200: {"description": "Successfully retrieved draft details"},
+        404: {"model": ErrorResponse, "description": "Draft not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get complete draft details including roster mapping",
+    description="Returns full draft information including draft order and user-to-roster mapping for tracking picks",
+    tags=["Drafts"],
+)
+def get_draft_details(draft_id: str):
+    """
+    Get complete draft details with roster mapping.
+
+    This endpoint returns the draft's configuration, status, and most importantly
+    the draft_order and roster_to_user mapping, which tells you which user is
+    at which draft position. Use this to identify which picks belong to a specific user.
+
+    - **draft_id**: Sleeper draft ID (required path parameter)
+
+    The roster_to_user mapping is a dict mapping roster_id (str) to user_id,
+    allowing you to identify which user made each pick by matching the pick's roster_id.
+    """
+    logger.info(f"Fetching details for draft {draft_id}")
+
+    try:
+        draft_details = sleeper_client.get_draft_details(draft_id)
+
+        if not draft_details:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Draft not found: {draft_id}",
+            )
+
+        # Convert dict response to DraftDetails model for validation and docs
+        return DraftDetails(
+            draft_id=draft_details["draft_id"],
+            league_id=draft_details["league_id"],
+            status=draft_details["status"],
+            settings=DraftSettings(
+                teams=draft_details["settings"]["teams"],
+                rounds=draft_details["settings"]["rounds"],
+                reversal_round=draft_details["settings"].get("reversal_round"),
+                type=draft_details["settings"]["type"],
+            ),
+            metadata=DraftMetadata(
+                name=draft_details["metadata"].get("name"),
+                scoring_type=draft_details["metadata"].get("scoring_type"),
+            ),
+            draft_order=draft_details["draft_order"],
+            roster_to_user=draft_details["roster_to_user"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching draft details: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}"
         )

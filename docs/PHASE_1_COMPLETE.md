@@ -236,12 +236,113 @@ Phase 2 (Historical Analysis) will:
 
 **Total new code:** ~1,500 lines of production-ready code
 
-## Next Steps
+---
 
-1. Install dependencies: `pip install -r requirements.txt`
-2. Test ADP fetching: `python scripts/fetch_adp_data.py`
-3. Test live draft tracking with a Sleeper draft ID
-4. Proceed to Phase 2: Historical Analysis
+## Phase 1.5: User Draft Selection Flow ✓ COMPLETE
+
+**Purpose**: Enable users to enter Sleeper username, view their active drafts, and select which draft to get help with.
+
+**Key Components**:
+- Extended `SleeperClient` with `get_user_drafts()` method
+- Created Pydantic models (DraftSummary, UserDraftsResponse)
+- Added API endpoints for user lookup and draft retrieval
+- Draft status filtering (active/complete/all)
+- Sorting logic: in_progress → pre_draft → complete
+
+**API Endpoints Added**:
+- `GET /api/v1/users/lookup/{username}` - Look up user by username
+- `GET /api/v1/users/{username}/drafts` - Get drafts by username
+- `GET /api/v1/users/by-id/{user_id}/drafts` - Get drafts by user ID
+- `GET /api/v1/users/by-id/{user_id}/drafts/active` - Get active drafts only
+
+**Key Bug Fixes**:
+- Fixed `roster_id` validation error when empty string from Sleeper
+- Fixed active draft status filtering to recognize "drafting" status
+
+---
+
+## Phase 1.6: Draft Picks Endpoint ✓ COMPLETE
+
+**Purpose**: Fetch all picks made in a draft with enriched player data.
+
+**Key Features**:
+- API endpoint: `GET /api/v1/drafts/{draft_id}/picks`
+- Enriched player data (names, positions, teams)
+- Automatic filtering of unpicked slots
+- Chronological ordering by pick number
+- Full OpenAPI documentation
+
+**Files Modified**:
+- `src/api/models.py` - Added PickDetail and DraftPicksResponse
+- `src/api/main.py` - Added get_draft_picks endpoint
+
+---
+
+## Phase 1.7: Player Data Storage & Available Players ✓ COMPLETE
+
+**Purpose**: Store 11,546+ NFL players, update daily, filter for recommendations.
+
+**Key Features**:
+- Storage layer: `save_player_universe()`, `load_player_universe()`, `get_player_universe_age()`
+- Daily sync script: `scripts/sync_player_data.py`
+- API endpoint: `GET /api/v1/drafts/{draft_id}/available-players`
+- Position filtering (RB, WR, QB, TE)
+- Fallback to Sleeper API if no local data
+
+**Data Storage**:
+- Location: `data/players/nfl_players.json`
+- Size: ~19MB for 11,546 players
+- Format: JSON with metadata
+
+**Files Created/Modified**:
+- `src/api/storage.py` - Player storage layer
+- `src/api/models.py` - PlayerSummary, AvailablePlayersResponse
+- `src/api/main.py` - Available players endpoint
+- `scripts/sync_player_data.py` - Daily sync script
+
+---
+
+## Current State Summary
+
+### ✅ What's Working Now
+
+- ✅ User lookup by username
+- ✅ Draft retrieval with filtering
+- ✅ Draft picks with player enrichment
+- ✅ Player universe storage (11,546 players)
+- ✅ Daily sync capability
+- ✅ Available player filtering
+- ✅ Draft-aware filtering
+- ✅ Full OpenAPI docs
+- ✅ 52/52 tests passing
+
+### 📊 Project Statistics
+
+- **Total Code**: ~2,100 lines (production-ready)
+- **Test Coverage**: 52/52 passing (100%)
+- **API Endpoints**: 7 (health + 6 draft helper endpoints)
+- **Pydantic Models**: 11 (validation + docs)
+- **Test Files**: 4 (comprehensive coverage)
+- **Data Sources**: 2 (Sleeper API + local storage)
+
+### 🚀 Getting Started
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Sync player data
+python scripts/sync_player_data.py
+
+# Run API server
+uvicorn src.api.main:app --reload --port 8000
+
+# Run tests
+pytest tests/ -v
+
+# Access docs
+open http://localhost:8000/docs
+```
 
 ---
 
