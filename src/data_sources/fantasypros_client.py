@@ -310,7 +310,13 @@ class FantasyProsClient:
         except Exception as e:
             logger.debug(f"Failed to save table debug file: {e}")
 
-        rows = table.find_all("tr")[1:]  # Skip header
+        # Get rows from tbody (more precise than getting all tr and skipping first)
+        tbody = table.find("tbody")
+        if not tbody:
+            logger.warning("Could not find tbody in ranking table")
+            return []
+
+        rows = tbody.find_all("tr")
 
         for idx, row in enumerate(rows, 1):
             try:
