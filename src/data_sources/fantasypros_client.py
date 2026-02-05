@@ -228,6 +228,44 @@ class FantasyProsClient:
             logger.error(f"Selenium initialization/fetch failed: {type(e).__name__}: {e}")
             return None
 
+    def _save_players_json(self, players: List[Player], scoring_format: str) -> None:
+        """Save parsed players to JSON file for debugging.
+
+        Saves to ./debug_html/{scoring_format}_{timestamp}_players.json
+        Contains all extracted player data in readable format.
+
+        Args:
+            players: List of Player objects that were parsed
+            scoring_format: The scoring format (ppr, half_ppr, standard)
+        """
+        try:
+            debug_dir = Path("./debug_html")
+            debug_dir.mkdir(exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = debug_dir / f"{scoring_format}_{timestamp}_players.json"
+
+            # Convert players to dicts for JSON serialization
+            players_data = [
+                {
+                    "player_name": p.player_name,
+                    "position": p.position,
+                    "team": p.team,
+                    "adp_overall": p.adp_overall,
+                    "adp_by_position": p.adp_by_position,
+                    "round": p.round,
+                    "scoring_format": p.scoring_format,
+                }
+                for p in players
+            ]
+
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(players_data, f, indent=2)
+
+            logger.info(f"Saved {len(players)} players to: {filename}")
+        except Exception as e:
+            logger.debug(f"Failed to save players JSON file: {e}")
+
     def _save_html_debug(self, html_content: str, scoring_format: str, filename_suffix: str = "") -> None:
         """Save HTML content to a local file for debugging.
 
@@ -382,6 +420,10 @@ class FantasyProsClient:
             except (ValueError, IndexError) as e:
                 logger.debug(f"Skipped row {idx}: {e}")
                 continue
+
+        # Save parsed players to JSON for debugging
+        if players:
+            self._save_players_json(players, scoring_format)
 
         return players
 
