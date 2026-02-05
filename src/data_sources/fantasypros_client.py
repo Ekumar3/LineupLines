@@ -121,9 +121,6 @@ class FantasyProsClient:
                 response.raise_for_status()
                 html_content = response.content
 
-            # Save raw HTML for debugging
-            self._save_html_debug(html_content, scoring_format, "raw")
-
             soup = BeautifulSoup(html_content, "html.parser")
             players = self._parse_adp_table(soup, scoring_format)
 
@@ -234,12 +231,13 @@ class FantasyProsClient:
     def _save_html_debug(self, html_content: str, scoring_format: str, filename_suffix: str = "") -> None:
         """Save HTML content to a local file for debugging.
 
-        Saves to ./debug_html/{scoring_format}_{timestamp}{suffix}.html
+        Saves ADP table HTML to ./debug_html/{scoring_format}_{timestamp}{suffix}.html
+        Used to inspect table structure when parsing fails.
 
         Args:
-            html_content: The HTML to save
+            html_content: The HTML table to save
             scoring_format: The scoring format (ppr, half_ppr, standard)
-            filename_suffix: Optional suffix for the filename
+            filename_suffix: Optional suffix for the filename (e.g., "table")
         """
         try:
             debug_dir = Path("./debug_html")
