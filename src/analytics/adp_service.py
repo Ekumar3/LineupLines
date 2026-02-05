@@ -91,9 +91,10 @@ class ADPService:
         """Get ADP for a specific player by name.
 
         Performs case-insensitive matching on player names.
+        Handles both "Player Name" and "Player Name (TEAM)" formats.
 
         Args:
-            player_name: Player's full name (e.g., "Christian McCaffrey")
+            player_name: Player's full name (e.g., "Christian McCaffrey" or "Christian McCaffrey (SF)")
             scoring_format: Scoring format (ppr, half_ppr, standard)
 
         Returns:
@@ -104,12 +105,25 @@ class ADPService:
             if not players:
                 return None
 
-            # Match player by name (case-insensitive)
+            # Normalize search name - remove team if present
             normalized_name = player_name.lower().strip()
+            # Remove team abbreviation in parentheses if present
+            if "(" in normalized_name:
+                normalized_name = normalized_name[: normalized_name.rfind("(")].strip()
+
             for player in players:
-                player_match_name = getattr(player, 'player_name', None)
-                if player_match_name and player_match_name.lower().strip() == normalized_name:
-                    return getattr(player, 'adp_overall', None)
+                player_match_name = getattr(player, "player_name", None)
+                if not player_match_name:
+                    continue
+
+                # Normalize database name - remove team abbreviation
+                db_name = player_match_name.lower().strip()
+                if "(" in db_name:
+                    db_name = db_name[: db_name.rfind("(")].strip()
+
+                # Match if names are equal
+                if db_name == normalized_name:
+                    return getattr(player, "adp_overall", None)
 
             logger.debug(f"Player '{player_name}' not found in {scoring_format} ADP data")
             return None
@@ -160,7 +174,8 @@ class ADPService:
             Value score (higher = better value opportunity)
             Typical range: -20 to 50+ (negative = reaches, >30 = exceptional value)
         """
-        analyzer = self.analyzers.get(scoring_format)
+        # Ensure ADP data and analyzer are loaded
+        analyzer = self.get_analyzer(scoring_format)
         if not analyzer:
             logger.warning(f"No analyzer available for {scoring_format}")
             return 0.0

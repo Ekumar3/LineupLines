@@ -34,7 +34,7 @@ class FantasyProsClient:
     """
 
     SCORING_FORMATS = ["ppr", "standard", "half_ppr"]
-    BASE_URL = "https://www.fantasypros.com/nfl/adp"
+    BASE_URL = "https://www.fantasypros.com/nfl/rankings"
 
     def __init__(self):
         """Initialize the FantasyPros client."""
@@ -78,8 +78,11 @@ class FantasyProsClient:
     def _scrape_adp_data(self, scoring_format: str) -> List[Player]:
         """Scrape ADP data from FantasyPros website.
 
-        Implementation note: This requires BeautifulSoup4 and requests.
-        The actual scraping logic will depend on FantasyPros HTML structure.
+        Note: FantasyPros uses JavaScript to render rankings. This method uses Selenium
+        to render the page. If Selenium is unavailable, it falls back to basic requests
+        (which may not work if content is dynamically loaded).
+
+        Requirements: selenium, beautifulsoup4, requests
 
         Args:
             scoring_format: One of "ppr", "standard", "half_ppr"
@@ -97,34 +100,92 @@ class FantasyProsClient:
             )
             return []
 
-        # Map format to URL parameter
+        # Map format to URL parameter (cheatsheets pages)
         format_map = {
-            "ppr": "ppr",
-            "standard": "standard",
-            "half_ppr": "half-ppr"
+            "ppr": "ppr-cheatsheets.php",
+            "standard": "standard-cheatsheets.php",
+            "half_ppr": "half-ppr-cheatsheets.php"
         }
 
-        url = f"{self.BASE_URL}/{format_map[scoring_format]}/"
+        url = f"{self.BASE_URL}/{format_map[scoring_format]}"
 
         try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
+            # Try to fetch with Selenium for JavaScript rendering
+            html_content = self._fetch_with_selenium(url)
+            if not html_content:
+                # Fallback to basic requests
+                logger.info("Selenium unavailable, trying basic requests fetch")
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                html_content = response.content
 
-            soup = BeautifulSoup(response.content, "html.parser")
+            soup = BeautifulSoup(html_content, "html.parser")
             players = self._parse_adp_table(soup, scoring_format)
 
             logger.info(f"Fetched {len(players)} players from FantasyPros for {scoring_format}")
             return players
 
-        except requests.RequestException as e:
+        except Exception as e:
             logger.error(f"Failed to fetch FantasyPros ADP data: {e}")
             return []
+
+    def _fetch_with_selenium(self, url: str) -> Optional[str]:
+        """Fetch page content using Selenium for JavaScript rendering.
+
+        Selenium renders the page with a headless Chrome browser to load dynamically
+        generated content. This is required for FantasyPros cheatsheets pages.
+
+        Args:
+            url: URL to fetch
+
+        Returns:
+            HTML content as string, or None if Selenium unavailable or fails
+        """
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+        except ImportError:
+            logger.debug("Selenium not installed, skipping JavaScript rendering")
+            return None
+
+        try:
+            logger.debug(f"Fetching {url} with Selenium for JavaScript rendering")
+
+            # Configure headless browser
+            options = webdriver.ChromeOptions()
+            options.add_argument("--headless")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+
+            driver = webdriver.Chrome(options=options)
+            driver.set_page_load_timeout(30)
+
+            try:
+                driver.get(url)
+
+                # Wait for ranking table to load
+                wait = WebDriverWait(driver, 10)
+                wait.until(EC.presence_of_element_located((By.ID, "ranking-table")))
+
+                # Get rendered HTML
+                html_content = driver.page_source
+                logger.debug("Successfully rendered page with Selenium")
+                return html_content
+
+            finally:
+                driver.quit()
+
+        except Exception as e:
+            logger.debug(f"Selenium fetch failed: {e}")
+            return None
 
     def _parse_adp_table(self, soup, scoring_format: str) -> List[Player]:
         """Parse the ADP table from FantasyPros HTML.
 
-        Implementation note: This will need to be adjusted based on actual HTML structure.
-        FantasyPros typically uses tables with classes like 'tr-table' or similar.
+        The cheatsheets page uses a table with id="ranking-table" and class containing "player-table".
+        Table structure: Rank | Player | Team/Pos | ADP | vs ADP | etc.
 
         Args:
             soup: BeautifulSoup object of the page
@@ -135,13 +196,11 @@ class FantasyProsClient:
         """
         players = []
 
-        # Look for the main ADP table
-        # Note: This is a placeholder implementation
-        # The actual selectors depend on FantasyPros' current HTML structure
-        table = soup.find("table", {"class": "tr-table"})
+        # Look for the main ranking table by id
+        table = soup.find("table", {"id": "ranking-table"})
 
         if not table:
-            logger.warning("Could not find ADP table on FantasyPros page")
+            logger.warning("Could not find ranking table on FantasyPros page")
             return []
 
         rows = table.find_all("tr")[1:]  # Skip header
@@ -149,23 +208,46 @@ class FantasyProsClient:
         for idx, row in enumerate(rows, 1):
             try:
                 cols = row.find_all("td")
-                if len(cols) < 5:
+                if len(cols) < 7:  # Need at least up to col 6 for ADP
                     continue
 
-                # Typical structure: Rank | Player | Team/Position | ADP | vs ADP
-                rank = int(cols[0].text.strip())
-                player_info = cols[1].text.strip()
-                team_pos = cols[2].text.strip()
-                adp_overall = float(cols[3].text.strip())
+                # Validate rank is numeric (skip tier rows and header rows)
+                rank_text = cols[0].text.strip()
+                try:
+                    int(rank_text)
+                except (ValueError, IndexError):
+                    # Skip non-numeric rank rows (tier headers, etc.)
+                    continue
 
-                # Parse position and team
-                position = self._extract_position(team_pos)
-                team = self._extract_team(team_pos)
+                # Extract player information from known column positions
+                # Structure: Rank | Checkbox | Player(Team) | Position | Pos_Rank | Bye | ADP | vs_ADP | ...
+                player_info = cols[2].text.strip()
+                if not player_info:
+                    continue
 
-                # Calculate round from ADP
+                # Position designation is in col 3 (e.g., "WR1", "RB2")
+                pos_designation = cols[3].text.strip()  # e.g., "WR1", "RB2"
+
+                # Extract position from designation
+                position = self._extract_position(pos_designation)
+
+                # Extract team from player info (format: "Player Name (TEAM)")
+                team = self._extract_team_from_player_info(player_info)
+
+                # ADP is in col 6 (0-indexed)
+                try:
+                    adp_overall = float(cols[6].text.strip())
+                except (ValueError, IndexError):
+                    continue
+
+                # Validate ADP is in reasonable range
+                if not (1 <= adp_overall <= 500):
+                    continue
+
+                # Calculate round from ADP (assuming 12-team league)
                 round_num = int((adp_overall - 1) // 12) + 1
 
-                # Calculate position rank (how many of this position drafted before)
+                # Calculate position rank
                 adp_by_position = self._calculate_position_rank(players, position)
 
                 player = Player(
@@ -180,6 +262,9 @@ class FantasyProsClient:
                 )
 
                 players.append(player)
+                logger.debug(
+                    f"Parsed player: {player_info} ({position}) - ADP: {adp_overall:.1f}"
+                )
 
             except (ValueError, IndexError) as e:
                 logger.debug(f"Skipped row {idx}: {e}")
@@ -215,6 +300,24 @@ class FantasyProsClient:
         # Typical format: "TEAM - POS"
         parts = team_pos_str.split("-")
         return parts[0].strip()[:3].upper() if parts else "UNK"
+
+    def _extract_team_from_player_info(self, player_info: str) -> str:
+        """Extract team from player info string.
+
+        Args:
+            player_info: String like "Ja'Marr Chase (CIN)" or "Player Name (TB)"
+
+        Returns:
+            Team abbreviation (e.g., "CIN", "TB")
+        """
+        # Format: "Player Name (TEAM)"
+        if "(" in player_info and ")" in player_info:
+            start = player_info.rfind("(")
+            end = player_info.rfind(")")
+            if start >= 0 and end > start:
+                team = player_info[start + 1 : end].strip().upper()
+                return team[:3]  # Limit to 3 chars
+        return "UNK"
 
     def _calculate_position_rank(self, players: List[Player], position: str) -> int:
         """Calculate the positional rank (e.g., RB5, WR12).

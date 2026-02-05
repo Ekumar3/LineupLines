@@ -197,7 +197,8 @@ class ADPAnalyzer:
                     continue
 
                 # Value score: how many top players available in this round
-                value_score = position_freq / max(pattern.position_frequencies.values(), 1)
+                max_freq = max(pattern.position_frequencies.values()) if pattern.position_frequencies else 0
+                value_score = position_freq / max(max_freq, 1)
 
                 # Scarcity bonus: round with few of this position is also valuable
                 if position_freq < 2:
