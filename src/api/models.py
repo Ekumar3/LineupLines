@@ -185,6 +185,8 @@ class PickDetail(BaseModel):
                 "position": "RB",
                 "team": "SF",
                 "timestamp": "2026-08-15T19:30:00",
+                "adp_ppr": 8.1,
+                "adp_delta": 7.1,
             }
         }
     )
@@ -197,6 +199,8 @@ class PickDetail(BaseModel):
     position: str = Field(..., description="Player position (RB, WR, QB, TE, etc.)")
     team: str = Field(..., description="NFL team abbreviation")
     timestamp: str = Field(..., description="When the pick was made (ISO format)")
+    adp_ppr: Optional[float] = Field(None, description="Player's ADP in PPR format from FantasyPros (e.g., 8.1)")
+    adp_delta: Optional[float] = Field(None, description="Delta between ADP and actual pick (positive=value, negative=reach). Calculated as: adp_ppr - pick_no")
 
 
 class DraftPicksResponse(BaseModel):

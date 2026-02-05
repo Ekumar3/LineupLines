@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.data_sources.sleeper_client import SleeperClient
+from src.analytics.adp_service import adp_service
 from src.api.models import (
     UserDraftsResponse,
     DraftSummary,
@@ -352,8 +353,18 @@ def get_draft_picks(draft_id: str):
             )
 
         # Transform DraftPick dataclasses to PickDetail Pydantic models
-        pick_details = [
-            PickDetail(
+        # Include ADP data for value analysis
+        pick_details = []
+        for pick in draft_picks:
+            # Get PPR ADP for this player
+            adp_ppr = adp_service.get_player_adp(pick.player_name, "ppr")
+
+            # Calculate delta (ADP - pick_no, positive = value, negative = reach)
+            adp_delta = None
+            if adp_ppr:
+                adp_delta = adp_ppr - pick.pick_no
+
+            pick_detail = PickDetail(
                 pick_no=pick.pick_no,
                 round=pick.round,
                 user_id=pick.user_id,
@@ -362,9 +373,10 @@ def get_draft_picks(draft_id: str):
                 position=pick.position,
                 team=pick.team,
                 timestamp=pick.timestamp.isoformat(),
+                adp_ppr=adp_ppr,
+                adp_delta=adp_delta,
             )
-            for pick in draft_picks
-        ]
+            pick_details.append(pick_detail)
 
         return DraftPicksResponse(
             draft_id=draft_id,
