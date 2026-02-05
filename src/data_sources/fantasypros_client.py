@@ -153,47 +153,71 @@ class FantasyProsClient:
         try:
             logger.debug(f"Fetching {url} with Selenium for JavaScript rendering")
 
-            # Configure headless browser
+            # Configure headless browser with stability improvements
             options = webdriver.ChromeOptions()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            # Additional stability flags
+            options.add_argument("--disable-gpu")
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-plugins")
+            options.add_argument("--disable-sync")
+            options.add_argument("--disable-background-networking")
+            options.add_argument("--disable-breakpad")
+            options.add_argument("--disable-client-side-phishing-detection")
 
             driver = webdriver.Chrome(options=options)
-            driver.set_page_load_timeout(30)
+            driver.set_page_load_timeout(45)  # Increased timeout
+            driver.set_script_timeout(45)  # Added script timeout
 
             try:
                 logger.debug("Navigating to URL...")
                 driver.get(url)
                 logger.debug("Page loaded, waiting for ranking table...")
 
-                # Wait for ranking table to load
-                wait = WebDriverWait(driver, 10)
-                table_element = wait.until(
-                    EC.presence_of_element_located((By.ID, "ranking-table"))
-                )
-                logger.debug(
-                    f"Table found! Tag: {table_element.tag_name}, Classes: {table_element.get_attribute('class')}"
-                )
+                # Wait for ranking table to load (more resilient timeout handling)
+                table_found = False
+                try:
+                    wait = WebDriverWait(driver, 15)
+                    table_element = wait.until(
+                        EC.presence_of_element_located((By.ID, "ranking-table"))
+                    )
+                    logger.debug(
+                        f"Table found! Tag: {table_element.tag_name}, Classes: {table_element.get_attribute('class')}"
+                    )
+                    table_found = True
+                except Exception as wait_error:
+                    # Table didn't load in time, but try to get whatever HTML we have
+                    logger.warning(
+                        f"Table timeout after 15s: {type(wait_error).__name__}. Attempting fallback..."
+                    )
 
-                # Get rendered HTML
+                # Get rendered HTML (works even if table wait failed)
                 html_content = driver.page_source
-                logger.debug(
-                    f"Successfully rendered page with Selenium ({len(html_content)} bytes)"
-                )
-                return html_content
+                if html_content and len(html_content) > 5000:
+                    logger.debug(
+                        f"Got page HTML ({len(html_content)} bytes)"
+                        + (" - table found" if table_found else " - table not found, but returning anyway")
+                    )
+                    return html_content
+                else:
+                    logger.warning(f"Page HTML too small ({len(html_content)} bytes), likely blank or error")
+                    return None
 
             except Exception as e:
                 logger.error(
-                    f"Selenium rendering failed (waited 10s for table): {type(e).__name__}: {e}"
+                    f"Selenium page navigation failed: {type(e).__name__}: {e}"
                 )
-                # Try to get the current page source even if table loading failed
+                # Last resort: try to get whatever HTML is available
                 try:
                     html = driver.page_source
-                    logger.debug(f"Fallback: returning partial HTML ({len(html)} bytes)")
-                    return html
+                    if len(html) > 1000:
+                        logger.info(f"Last resort: returning partial HTML ({len(html)} bytes)")
+                        return html
                 except Exception:
-                    return None
+                    pass
+                return None
 
             finally:
                 driver.quit()
