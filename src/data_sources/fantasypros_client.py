@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,9 @@ class FantasyProsClient:
                 response.raise_for_status()
                 html_content = response.content
 
+            # Save raw HTML for debugging
+            self._save_html_debug(html_content, scoring_format, "raw")
+
             soup = BeautifulSoup(html_content, "html.parser")
             players = self._parse_adp_table(soup, scoring_format)
 
@@ -226,6 +231,31 @@ class FantasyProsClient:
             logger.error(f"Selenium initialization/fetch failed: {type(e).__name__}: {e}")
             return None
 
+    def _save_html_debug(self, html_content: str, scoring_format: str, filename_suffix: str = "") -> None:
+        """Save HTML content to a local file for debugging.
+
+        Saves to ./debug_html/{scoring_format}_{timestamp}{suffix}.html
+
+        Args:
+            html_content: The HTML to save
+            scoring_format: The scoring format (ppr, half_ppr, standard)
+            filename_suffix: Optional suffix for the filename
+        """
+        try:
+            debug_dir = Path("./debug_html")
+            debug_dir.mkdir(exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            suffix = f"_{filename_suffix}" if filename_suffix else ""
+            filename = debug_dir / f"{scoring_format}_{timestamp}{suffix}.html"
+
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(html_content)
+
+            logger.info(f"Saved HTML debug file: {filename}")
+        except Exception as e:
+            logger.debug(f"Failed to save HTML debug file: {e}")
+
     def _parse_adp_table(self, soup, scoring_format: str) -> List[Player]:
         """Parse the ADP table from FantasyPros HTML.
 
@@ -274,6 +304,13 @@ class FantasyProsClient:
                 logger.debug("Page does NOT contain expected player names - may be blank page")
 
             return []
+
+        # Save table for debugging
+        try:
+            table_html = str(table)[:50000]  # Limit to first 50k chars
+            self._save_html_debug(table_html, scoring_format, "table")
+        except Exception as e:
+            logger.debug(f"Failed to save table debug file: {e}")
 
         rows = table.find_all("tr")[1:]  # Skip header
 
