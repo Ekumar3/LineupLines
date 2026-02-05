@@ -163,22 +163,43 @@ class FantasyProsClient:
             driver.set_page_load_timeout(30)
 
             try:
+                logger.debug("Navigating to URL...")
                 driver.get(url)
+                logger.debug("Page loaded, waiting for ranking table...")
 
                 # Wait for ranking table to load
                 wait = WebDriverWait(driver, 10)
-                wait.until(EC.presence_of_element_located((By.ID, "ranking-table")))
+                table_element = wait.until(
+                    EC.presence_of_element_located((By.ID, "ranking-table"))
+                )
+                logger.debug(
+                    f"Table found! Tag: {table_element.tag_name}, Classes: {table_element.get_attribute('class')}"
+                )
 
                 # Get rendered HTML
                 html_content = driver.page_source
-                logger.debug("Successfully rendered page with Selenium")
+                logger.debug(
+                    f"Successfully rendered page with Selenium ({len(html_content)} bytes)"
+                )
                 return html_content
+
+            except Exception as e:
+                logger.error(
+                    f"Selenium rendering failed (waited 10s for table): {type(e).__name__}: {e}"
+                )
+                # Try to get the current page source even if table loading failed
+                try:
+                    html = driver.page_source
+                    logger.debug(f"Fallback: returning partial HTML ({len(html)} bytes)")
+                    return html
+                except Exception:
+                    return None
 
             finally:
                 driver.quit()
 
         except Exception as e:
-            logger.debug(f"Selenium fetch failed: {e}")
+            logger.error(f"Selenium initialization/fetch failed: {type(e).__name__}: {e}")
             return None
 
     def _parse_adp_table(self, soup, scoring_format: str) -> List[Player]:
@@ -200,7 +221,34 @@ class FantasyProsClient:
         table = soup.find("table", {"id": "ranking-table"})
 
         if not table:
+            # Detailed debugging when table not found
             logger.warning("Could not find ranking table on FantasyPros page")
+
+            # Debug: check if page has any tables at all
+            all_tables = soup.find_all("table")
+            logger.debug(f"Total tables found: {len(all_tables)}")
+
+            # Debug: check for divs with ranking in the name
+            ranking_divs = soup.find_all("div", class_=lambda x: x and "ranking" in x.lower())
+            logger.debug(f"Divs with 'ranking' in class: {len(ranking_divs)}")
+
+            # Debug: check page content length
+            page_text = soup.get_text()
+            logger.debug(f"Page text length: {len(page_text)} characters")
+
+            # Debug: look for any element with "ranking-table" in id
+            all_ranking_elements = soup.find_all(id=lambda x: x and "ranking" in x.lower())
+            logger.debug(f"Elements with 'ranking' in id: {len(all_ranking_elements)}")
+            if all_ranking_elements:
+                for elem in all_ranking_elements[:3]:
+                    logger.debug(f"  - {elem.name}: id={elem.get('id')}")
+
+            # Debug: check for specific player names that might appear
+            if "Ja'Marr" in page_text or "Ja&rsquo;Marr" in page_text:
+                logger.debug("Page contains player data (found 'Ja'Marr Chase')")
+            else:
+                logger.debug("Page does NOT contain expected player names - may be blank page")
+
             return []
 
         rows = table.find_all("tr")[1:]  # Skip header
