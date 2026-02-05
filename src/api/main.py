@@ -20,6 +20,10 @@ from src.api.models import (
     DraftDetails,
     DraftSettings,
     DraftMetadata,
+    LeagueSettings,
+    LeagueSettingsResponse,
+    UserRosterResponse,
+    PositionNeed,
 )
 from src.api.storage import load_player_universe, save_player_universe
 
@@ -338,7 +342,7 @@ def get_draft_picks(draft_id: str):
     logger.info(f"Fetching picks for draft {draft_id}")
 
     try:
-        # Fetch picks from Sleeper (includes player enrichment)
+        # Fetch picks from Sleeper (includes player enrichment and roster mapping)
         draft_picks = sleeper_client.get_draft_picks(draft_id)
 
         if not draft_picks:
@@ -352,7 +356,7 @@ def get_draft_picks(draft_id: str):
             PickDetail(
                 pick_no=pick.pick_no,
                 round=pick.round,
-                roster_id=pick.roster_id,
+                user_id=pick.user_id,
                 player_id=pick.player_id,
                 player_name=pick.player_name,
                 position=pick.position,
@@ -436,6 +440,73 @@ def get_draft_details(draft_id: str):
         raise
     except Exception as e:
         logger.error(f"Error fetching draft details: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/league-settings",
+    response_model=LeagueSettingsResponse,
+    responses={
+        200: {"description": "Successfully retrieved league settings"},
+        404: {"model": ErrorResponse, "description": "Draft or league not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get league scoring settings",
+    description="Returns league settings including scoring format (PPR/Half-PPR/Standard) for ADP matching",
+    tags=["Drafts"],
+)
+def get_league_settings(draft_id: str):
+    """Get league settings for a draft, including scoring format.
+
+    This endpoint determines the league's scoring format to match appropriate
+    ADP data. Returns PPR, Half-PPR, or Standard based on the league's
+    points-per-reception setting.
+
+    - **draft_id**: Sleeper draft ID (required path parameter)
+    """
+    logger.info(f"Fetching league settings for draft {draft_id}")
+
+    try:
+        # Get draft details to find league_id
+        draft_details = sleeper_client.get_draft_details(draft_id)
+        if not draft_details:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Draft not found: {draft_id}",
+            )
+
+        league_id = draft_details["league_id"]
+
+        # Get scoring format
+        scoring_format = sleeper_client.get_scoring_format(league_id)
+        if not scoring_format:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not determine scoring format for league: {league_id}",
+            )
+
+        # Get full league info
+        league_info = sleeper_client.get_league_info(league_id)
+        roster_positions = league_info.get("roster_positions", []) if league_info else []
+        total_rosters = league_info.get("total_rosters", 12) if league_info else 12
+
+        return LeagueSettingsResponse(
+            draft_id=draft_id,
+            league_id=league_id,
+            settings=LeagueSettings(
+                league_id=league_id,
+                scoring_format=scoring_format,
+                roster_positions=roster_positions,
+                total_rosters=total_rosters,
+            ),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching league settings: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}"
         )
@@ -537,6 +608,256 @@ def get_available_players(
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}"
         )
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/users/{user_id}/roster",
+    response_model=UserRosterResponse,
+    responses={
+        200: {"description": "Successfully retrieved user roster"},
+        404: {"model": ErrorResponse, "description": "Draft or user not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get user's roster grouped by position",
+    description="Returns a specific user's draft picks organized by position with strength analysis",
+    tags=["Drafts"],
+)
+def get_user_roster(draft_id: str, user_id: str):
+    """
+    Get user's drafted roster grouped by position.
+
+    Returns picks organized by position (QB, RB, WR, TE, K, DEF) with:
+    - Full pick details for each position
+    - Position needs analysis (what positions need more players)
+    - Draft slot information
+
+    This is used for generating draft recommendations based on team construction.
+
+    - **draft_id**: Sleeper draft ID (required path parameter)
+    - **user_id**: Sleeper user ID (required path parameter)
+    """
+    logger.info(f"Fetching roster for user {user_id} in draft {draft_id}")
+
+    try:
+        # Fetch all picks from draft
+        all_picks = sleeper_client.get_draft_picks(draft_id)
+
+        if not all_picks:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No picks found for draft_id: {draft_id}",
+            )
+
+        # Filter picks to only this user
+        user_picks = [pick for pick in all_picks if pick.user_id == user_id]
+
+        if not user_picks:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No picks found for user_id: {user_id} in draft {draft_id}",
+            )
+
+        # Get draft details to find user's draft slot
+        draft_details = sleeper_client.get_draft_details(draft_id)
+        draft_slot = 0
+        if draft_details:
+            draft_order = draft_details.get("draft_order", [])
+            for idx, uid in enumerate(draft_order):
+                if uid == user_id:
+                    draft_slot = idx + 1  # Convert 0-indexed to 1-indexed
+                    break
+
+        # Group picks by position
+        from collections import defaultdict
+
+        picks_by_position = defaultdict(list)
+        for pick in user_picks:
+            pick_detail = PickDetail(
+                pick_no=pick.pick_no,
+                round=pick.round,
+                user_id=pick.user_id,
+                player_id=pick.player_id,
+                player_name=pick.player_name,
+                position=pick.position,
+                team=pick.team,
+                timestamp=pick.timestamp.isoformat(),
+            )
+            picks_by_position[pick.position].append(pick_detail)
+
+        # Calculate current round (round of last pick + 1, or 1 if no picks)
+        current_round = max((pick.round for pick in user_picks), default=0) + 1
+
+        # Calculate current pick number for ADP value scoring
+        current_pick_number = None
+        if draft_details and user_picks:
+            teams = draft_details.get("settings", {}).get("teams", 12)
+            last_pick_round = user_picks[-1].round
+            # Estimate current pick (simplified)
+            current_pick_number = (last_pick_round * teams) + 1
+
+        # Get available players by position for value calculation
+        available_by_position = None
+        if current_pick_number:
+            try:
+                from collections import defaultdict
+
+                all_picks = sleeper_client.get_draft_picks(draft_id)
+                drafted_ids = {p.player_id for p in all_picks}
+                all_players = load_player_universe()
+
+                if all_players:
+                    available_by_position = defaultdict(list)
+                    for pid, player in all_players.items():
+                        if pid not in drafted_ids:
+                            pos = player.get("position")
+                            if pos:
+                                available_by_position[pos].append(
+                                    {
+                                        "id": pid,
+                                        "name": f"{player.get('first_name', '')} {player.get('last_name', '')}".strip(),
+                                    }
+                                )
+            except Exception as e:
+                logger.debug(f"Could not fetch available players for value calc: {e}")
+
+        # Calculate position needs with ADP enhancement
+        position_summary = _calculate_position_needs(
+            picks_by_position,
+            current_round,
+            draft_id=draft_id,
+            current_pick=current_pick_number,
+            available_players=available_by_position,
+        )
+
+        # Ensure all positions are in the response
+        for position in ["QB", "RB", "WR", "TE", "K", "DEF"]:
+            if position not in picks_by_position:
+                picks_by_position[position] = []
+            if position not in position_summary:
+                position_summary[position] = PositionNeed(
+                    count=0, needs_more=True, priority="medium"
+                )
+
+        return UserRosterResponse(
+            draft_id=draft_id,
+            user_id=user_id,
+            draft_slot=draft_slot,
+            total_picks=len(user_picks),
+            roster_by_position=dict(picks_by_position),
+            position_summary=position_summary,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user roster: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+def _calculate_position_needs(
+    picks_by_position: dict,
+    current_round: int,
+    draft_id: Optional[str] = None,
+    current_pick: Optional[int] = None,
+    available_players: Optional[dict] = None,
+) -> dict[str, PositionNeed]:
+    """Calculate position needs for draft recommendations with ADP-based value scoring.
+
+    Args:
+        picks_by_position: User's picks grouped by position
+        current_round: Current draft round (inferred from latest pick)
+        draft_id: Optional draft ID for fetching league settings
+        current_pick: Optional current pick number for ADP value calculation
+        available_players: Optional dict mapping position to list of available player dicts
+
+    Returns:
+        Dict mapping position to PositionNeed analysis
+    """
+    # Standard roster requirements
+    targets = {
+        "QB": {"min": 1, "target": 1, "max": 2},
+        "RB": {"min": 2, "target": 3, "max": 4},
+        "WR": {"min": 2, "target": 3, "max": 4},
+        "TE": {"min": 1, "target": 1, "max": 2},
+        "K": {"min": 0, "target": 1, "max": 1},
+        "DEF": {"min": 0, "target": 1, "max": 1},
+    }
+
+    needs = {}
+
+    # Try to get scoring format for ADP matching
+    scoring_format = None
+    if draft_id:
+        try:
+            draft_details = sleeper_client.get_draft_details(draft_id)
+            if draft_details:
+                league_id = draft_details.get("league_id")
+                if league_id:
+                    scoring_format = sleeper_client.get_scoring_format(league_id)
+                    logger.debug(f"Using scoring format: {scoring_format}")
+        except Exception as e:
+            logger.debug(f"Could not determine scoring format: {e}")
+
+    for position, requirements in targets.items():
+        count = len(picks_by_position.get(position, []))
+
+        # Determine if more needed
+        needs_more = count < requirements["target"]
+
+        # Calculate base priority
+        if count == 0 and position in ["QB", "RB", "WR", "TE"]:
+            # No player at this critical position
+            if current_round >= 8:
+                base_priority = "high"  # Late in draft, need starter
+            else:
+                base_priority = "medium"
+        elif count < requirements["min"]:
+            base_priority = "high"  # Below minimum
+        elif count < requirements["target"]:
+            base_priority = "medium"  # Below target
+        else:
+            base_priority = "low"  # At or above target
+
+        # ADP-based value adjustment
+        final_priority = base_priority
+        value_score = 0.0
+
+        if scoring_format and current_pick and available_players:
+            try:
+                from src.analytics.adp_service import adp_service
+
+                pos_available = available_players.get(position, [])
+                if pos_available:
+                    # Calculate positional value
+                    value_score = adp_service.calculate_positional_value(
+                        position, current_pick, pos_available, scoring_format
+                    )
+
+                    # Boost priority if exceptional value available
+                    # value_score > 30: exceptional value (ADP 30+ picks later)
+                    # value_score > 15: good value (ADP 15+ picks later)
+                    if value_score > 30 and base_priority in ["medium", "low"]:
+                        final_priority = "high"
+                        logger.debug(
+                            f"Boosted {position} priority to high (value_score: {value_score:.1f})"
+                        )
+                    elif value_score > 15 and base_priority == "low":
+                        final_priority = "medium"
+                        logger.debug(
+                            f"Boosted {position} priority to medium (value_score: {value_score:.1f})"
+                        )
+            except Exception as e:
+                logger.debug(f"ADP value calculation failed for {position}: {e}")
+
+        needs[position] = PositionNeed(
+            count=count,
+            needs_more=needs_more,
+            priority=final_priority,
+        )
+
+    return needs
 
 
 def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:

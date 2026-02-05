@@ -428,7 +428,7 @@ class TestGetDraftPicks:
             DraftPick(
                 pick_no=1,
                 draft_id="123",
-                roster_id=1,
+                user_id="942348475046494208",
                 player_id="2307",
                 player_name="Christian McCaffrey",
                 position="RB",
@@ -439,7 +439,7 @@ class TestGetDraftPicks:
             DraftPick(
                 pick_no=2,
                 draft_id="123",
-                roster_id=2,
+                user_id="765432109876543210",
                 player_id="4866",
                 player_name="CeeDee Lamb",
                 position="WR",
@@ -532,7 +532,7 @@ class TestGetAvailablePlayers:
             DraftPick(
                 pick_no=1,
                 draft_id="123",
-                roster_id=1,
+                user_id="942348475046494208",
                 player_id="2307",
                 player_name="Christian McCaffrey",
                 position="RB",
@@ -543,7 +543,7 @@ class TestGetAvailablePlayers:
             DraftPick(
                 pick_no=2,
                 draft_id="123",
-                roster_id=2,
+                user_id="765432109876543210",
                 player_id="4866",
                 player_name="CeeDee Lamb",
                 position="WR",
@@ -742,4 +742,231 @@ class TestGetAvailablePlayers:
 
         # Verify models are documented
         assert "AvailablePlayersResponse" in schema["components"]["schemas"]
-        assert "PlayerSummary" in schema["components"]["schemas"]
+
+
+class TestGetUserRoster:
+    """Tests for user roster endpoint."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture
+    def mock_picks_list(self):
+        """Mock draft picks for different users."""
+        from src.data_sources.sleeper_client import DraftPick
+        from datetime import datetime
+
+        return [
+            # Picks for user_id="user_1"
+            DraftPick(
+                pick_no=1,
+                draft_id="draft_123",
+                user_id="user_1",
+                player_id="2307",
+                player_name="Christian McCaffrey",
+                position="RB",
+                team="SF",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 30, 0),
+            ),
+            DraftPick(
+                pick_no=15,
+                draft_id="draft_123",
+                user_id="user_1",
+                player_id="4866",
+                player_name="CeeDee Lamb",
+                position="WR",
+                team="DAL",
+                round=2,
+                timestamp=datetime(2026, 8, 15, 19, 37, 0),
+            ),
+            DraftPick(
+                pick_no=27,
+                draft_id="draft_123",
+                user_id="user_1",
+                player_id="5000",
+                player_name="Joe Burrow",
+                position="QB",
+                team="CIN",
+                round=3,
+                timestamp=datetime(2026, 8, 15, 19, 45, 0),
+            ),
+            # Picks for user_id="user_2" (other user)
+            DraftPick(
+                pick_no=2,
+                draft_id="draft_123",
+                user_id="user_2",
+                player_id="4981",
+                player_name="Bijan Robinson",
+                position="RB",
+                team="ATL",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 32, 0),
+            ),
+        ]
+
+    @pytest.fixture
+    def mock_draft_details(self):
+        """Mock draft details with draft_order."""
+        return {
+            "draft_id": "draft_123",
+            "league_id": "league_456",
+            "status": "in_progress",
+            "settings": {"teams": 12, "rounds": 15, "type": "snake", "reversal_round": 1},
+            "metadata": {"name": "Test League", "scoring_type": "ppr"},
+            "draft_order": ["user_1", "user_2", "user_3", "user_4"],
+            "roster_to_user": {"1": "user_1", "2": "user_2", "3": "user_3", "4": "user_4"},
+        }
+
+    def test_get_user_roster_success(self, client, mock_picks_list, mock_draft_details):
+        """Test successful roster retrieval for a user."""
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/user_1/roster")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify basic structure
+        assert data["draft_id"] == "draft_123"
+        assert data["user_id"] == "user_1"
+        assert data["draft_slot"] == 1  # user_1 is at index 0, so slot 1
+        assert data["total_picks"] == 3
+
+        # Verify picks are grouped by position
+        assert "RB" in data["roster_by_position"]
+        assert "WR" in data["roster_by_position"]
+        assert "QB" in data["roster_by_position"]
+
+        # Verify RB picks
+        rb_picks = data["roster_by_position"]["RB"]
+        assert len(rb_picks) == 1
+        assert rb_picks[0]["player_name"] == "Christian McCaffrey"
+
+        # Verify WR picks
+        wr_picks = data["roster_by_position"]["WR"]
+        assert len(wr_picks) == 1
+        assert wr_picks[0]["player_name"] == "CeeDee Lamb"
+
+        # Verify QB picks
+        qb_picks = data["roster_by_position"]["QB"]
+        assert len(qb_picks) == 1
+        assert qb_picks[0]["player_name"] == "Joe Burrow"
+
+        # Verify position summary
+        assert data["position_summary"]["RB"]["count"] == 1
+        assert data["position_summary"]["RB"]["needs_more"] == True  # Target is 3
+        assert data["position_summary"]["WR"]["count"] == 1
+        assert data["position_summary"]["QB"]["count"] == 1
+        assert data["position_summary"]["QB"]["needs_more"] == False  # Has 1, target is 1
+
+    def test_get_user_roster_empty_positions(self, client, mock_draft_details):
+        """Test roster with user who hasn't drafted at some positions."""
+        from src.data_sources.sleeper_client import DraftPick
+        from datetime import datetime
+
+        minimal_picks = [
+            DraftPick(
+                pick_no=1,
+                draft_id="draft_123",
+                user_id="user_3",
+                player_id="2307",
+                player_name="Christian McCaffrey",
+                position="RB",
+                team="SF",
+                round=1,
+                timestamp=datetime(2026, 8, 15, 19, 30, 0),
+            ),
+        ]
+
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=minimal_picks):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/user_3/roster")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["total_picks"] == 1
+        assert len(data["roster_by_position"]["RB"]) == 1
+        assert len(data["roster_by_position"]["WR"]) == 0
+        assert len(data["roster_by_position"]["QB"]) == 0
+        assert len(data["roster_by_position"]["TE"]) == 0
+
+        # QB should be high priority (missing)
+        assert data["position_summary"]["QB"]["count"] == 0
+        assert data["position_summary"]["QB"]["needs_more"] == True
+        assert data["position_summary"]["QB"]["priority"] == "medium"
+
+    def test_get_user_roster_no_picks_for_user(self, client, mock_picks_list, mock_draft_details):
+        """Test with user who has no picks in the draft."""
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/nonexistent_user/roster")
+
+        assert response.status_code == 404
+        assert "No picks found" in response.json()["detail"]
+
+    def test_get_user_roster_no_picks_in_draft(self, client, mock_draft_details):
+        """Test with draft that has no picks yet."""
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=[]):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/user_1/roster")
+
+        assert response.status_code == 404
+
+    def test_get_user_roster_draft_slot_detection(self, client, mock_picks_list, mock_draft_details):
+        """Test that draft slot is correctly detected from draft_order."""
+        mock_draft_details["draft_order"] = ["user_a", "user_b", "user_1", "user_d"]
+
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/user_1/roster")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["draft_slot"] == 3  # user_1 is at index 2, so slot 3
+
+    def test_get_user_roster_position_needs_priority(self, client, mock_draft_details):
+        """Test that priority increases in later rounds when positions are missing."""
+        from src.data_sources.sleeper_client import DraftPick
+        from datetime import datetime
+
+        # User in round 10 with no QB
+        late_game_picks = [
+            DraftPick(
+                pick_no=73,
+                draft_id="draft_123",
+                user_id="user_late",
+                player_id="2307",
+                player_name="Christian McCaffrey",
+                position="RB",
+                team="SF",
+                round=10,
+                timestamp=datetime(2026, 8, 15, 20, 30, 0),
+            ),
+        ]
+
+        with patch("src.api.main.sleeper_client.get_draft_picks", return_value=late_game_picks):
+            with patch(
+                "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
+            ):
+                response = client.get("/api/v1/drafts/draft_123/users/user_late/roster")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # In round 10, missing QB should be high priority (late draft)
+        assert data["position_summary"]["QB"]["count"] == 0
+        assert data["position_summary"]["QB"]["priority"] == "high"

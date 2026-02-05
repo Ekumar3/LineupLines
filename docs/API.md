@@ -285,7 +285,7 @@ Get all picks made in a draft so far, with enriched player data.
     {
       "pick_no": 1,
       "round": 1,
-      "roster_id": 1,
+      "user_id": "942348475046494208",
       "player_id": "2307",
       "player_name": "Christian McCaffrey",
       "position": "RB",
@@ -295,7 +295,7 @@ Get all picks made in a draft so far, with enriched player data.
     {
       "pick_no": 2,
       "round": 1,
-      "roster_id": 2,
+      "user_id": "765432109876543210",
       "player_id": "4866",
       "player_name": "CeeDee Lamb",
       "position": "WR",
@@ -306,11 +306,17 @@ Get all picks made in a draft so far, with enriched player data.
 }
 ```
 
+**Key Fields**:
+
+- `user_id`: Sleeper user ID of the user who made the pick. Use this with the draft order endpoint to identify the user's name and other details.
+
 **Errors**:
+
 - 404: Draft not found or no picks
 - 500: Server error
 
 **Example**:
+
 ```bash
 curl http://localhost:8000/api/v1/drafts/789012345/picks
 ```

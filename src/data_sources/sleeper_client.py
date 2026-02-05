@@ -18,7 +18,7 @@ class DraftPick:
     """Represents a single draft pick."""
     pick_no: int
     draft_id: str
-    user_id: int
+    user_id: str
     player_id: str
     player_name: str
     position: str
@@ -86,20 +86,14 @@ class SleeperClient:
                 if pick_data.get("player_id") is None:
                     continue  # Skip unpicked slots
 
-                # Get roster_id, defaulting to 0 if missing or empty
+                # Get user_id from picked_by field (comes as int or str from Sleeper)
                 user_id = pick_data.get("picked_by")
-                if not user_id:  # Handle None or empty string
-                    user_id = 0
-                else:
-                    try:
-                        user_id = int(user_id)
-                    except (ValueError, TypeError):
-                        user_id = 0
+                user_id_str = str(user_id) if user_id else ""
 
                 pick = DraftPick(
                     pick_no=pick_data.get("pick_no", 0),
                     draft_id=draft_id,
-                    user_id=user_id,
+                    user_id=user_id_str,
                     player_id=pick_data.get("player_id", ""),
                     player_name=self._get_player_name(pick_data.get("player_id", "")),
                     position=self._get_player_position(pick_data.get("player_id", "")),
@@ -309,6 +303,43 @@ class SleeperClient:
         except Exception as e:
             logger.error(f"Failed to fetch league info: {e}")
             return None
+
+    def get_scoring_format(self, league_id: str) -> Optional[str]:
+        """Determine scoring format from league settings.
+
+        Maps Sleeper's reception points to standard scoring formats:
+        - 1.0 points per reception = PPR
+        - 0.5 points per reception = Half-PPR
+        - 0.0 points per reception = Standard
+
+        Args:
+            league_id: The league ID from Sleeper
+
+        Returns:
+            One of "ppr", "half_ppr", "standard", or None if cannot determine
+        """
+        league_info = self.get_league_info(league_id)
+        if not league_info:
+            return None
+
+        scoring_settings = league_info.get("scoring_settings", {})
+        rec_points = scoring_settings.get("rec", 0)
+
+        # Map reception points to format
+        if rec_points == 1.0:
+            return "ppr"
+        elif rec_points == 0.5:
+            return "half_ppr"
+        elif rec_points == 0.0:
+            return "standard"
+        else:
+            # Custom scoring - default to closest match
+            if rec_points > 0.75:
+                return "ppr"
+            elif rec_points > 0.25:
+                return "half_ppr"
+            else:
+                return "standard"
 
     def get_league_drafts(self, league_id: str) -> List[Dict[str, Any]]:
         """Get all drafts for a league.

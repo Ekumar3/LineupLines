@@ -179,7 +179,7 @@ class PickDetail(BaseModel):
             "example": {
                 "pick_no": 1,
                 "round": 1,
-                "roster_id": 1,
+                "user_id": "942348475046494208",
                 "player_id": "2307",
                 "player_name": "Christian McCaffrey",
                 "position": "RB",
@@ -191,7 +191,7 @@ class PickDetail(BaseModel):
 
     pick_no: int = Field(..., description="Pick number in the draft (1-indexed)")
     round: int = Field(..., description="Round number")
-    roster_id: int = Field(..., description="Roster ID of the team that made this pick")
+    user_id: str = Field(..., description="Sleeper user ID of the user who made this pick")
     player_id: str = Field(..., description="Sleeper player ID")
     player_name: str = Field(..., description="Player full name")
     position: str = Field(..., description="Player position (RB, WR, QB, TE, etc.)")
@@ -211,7 +211,7 @@ class DraftPicksResponse(BaseModel):
                     {
                         "pick_no": 1,
                         "round": 1,
-                        "roster_id": 1,
+                        "user_id": "942348475046494208",
                         "player_id": "2307",
                         "player_name": "Christian McCaffrey",
                         "position": "RB",
@@ -346,4 +346,82 @@ class DraftDetails(BaseModel):
     )
     roster_to_user: Dict[str, str] = Field(
         ..., description="Maps roster_id (string) to user_id (string) for identifying user picks"
+    )
+
+
+class LeagueSettings(BaseModel):
+    """League scoring and roster settings."""
+
+    league_id: str = Field(..., description="League ID")
+    scoring_format: str = Field(..., description="Scoring format: ppr, half_ppr, or standard")
+    roster_positions: Optional[List[str]] = Field(None, description="Required roster positions")
+    total_rosters: int = Field(..., description="Number of teams in league")
+
+
+class LeagueSettingsResponse(BaseModel):
+    """Response containing league settings for a draft."""
+
+    draft_id: str = Field(..., description="Draft ID")
+    league_id: str = Field(..., description="League ID")
+    settings: LeagueSettings = Field(..., description="League settings")
+
+
+class PositionNeed(BaseModel):
+    """Position strength analysis for a roster."""
+
+    count: int = Field(..., description="Number of players at this position")
+    needs_more: bool = Field(..., description="Whether more players are needed at this position")
+    priority: str = Field(..., description="Priority to draft this position: high, medium, or low")
+
+
+class UserRosterResponse(BaseModel):
+    """Complete roster information for a user grouped by position."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "draft_id": "789012345",
+                "user_id": "942348475046494208",
+                "draft_slot": 3,
+                "total_picks": 7,
+                "roster_by_position": {
+                    "QB": [],
+                    "RB": [
+                        {
+                            "pick_no": 3,
+                            "round": 1,
+                            "user_id": "942348475046494208",
+                            "player_id": "2307",
+                            "player_name": "Christian McCaffrey",
+                            "position": "RB",
+                            "team": "SF",
+                            "timestamp": "2026-08-15T19:30:00",
+                        }
+                    ],
+                    "WR": [],
+                    "TE": [],
+                    "K": [],
+                    "DEF": [],
+                },
+                "position_summary": {
+                    "QB": {"count": 0, "needs_more": True, "priority": "high"},
+                    "RB": {"count": 1, "needs_more": True, "priority": "medium"},
+                    "WR": {"count": 0, "needs_more": True, "priority": "medium"},
+                    "TE": {"count": 0, "needs_more": True, "priority": "high"},
+                    "K": {"count": 0, "needs_more": False, "priority": "low"},
+                    "DEF": {"count": 0, "needs_more": False, "priority": "low"},
+                },
+            }
+        }
+    )
+
+    draft_id: str = Field(..., description="The draft ID")
+    user_id: str = Field(..., description="The user ID")
+    draft_slot: int = Field(..., description="User's draft slot position (1-based, 0 if not found)")
+    total_picks: int = Field(..., description="Total number of picks made by this user")
+    roster_by_position: Dict[str, List[PickDetail]] = Field(
+        ..., description="User's picks grouped by position"
+    )
+    position_summary: Dict[str, PositionNeed] = Field(
+        ..., description="Summary of position needs and priorities"
     )
