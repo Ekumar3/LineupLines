@@ -200,7 +200,7 @@ class PickDetail(BaseModel):
     team: str = Field(..., description="NFL team abbreviation")
     timestamp: str = Field(..., description="When the pick was made (ISO format)")
     adp_ppr: Optional[float] = Field(None, description="Player's ADP in PPR format from FantasyPros (e.g., 8.1)")
-    adp_delta: Optional[float] = Field(None, description="Delta between ADP and actual pick (positive=value, negative=reach). Calculated as: adp_ppr - pick_no")
+    adp_delta: Optional[float] = Field(None, description="Delta between pick and ADP (positive=reach, negative=value). Calculated as: pick_no - adp_ppr")
 
 
 class DraftPicksResponse(BaseModel):

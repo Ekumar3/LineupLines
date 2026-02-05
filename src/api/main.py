@@ -359,10 +359,10 @@ def get_draft_picks(draft_id: str):
             # Get PPR ADP for this player
             adp_ppr = adp_service.get_player_adp(pick.player_name, "ppr")
 
-            # Calculate delta (ADP - pick_no, positive = value, negative = reach)
+            # Calculate delta (pick_no - adp_ppr: positive = reach, negative = value)
             adp_delta = None
             if adp_ppr:
-                adp_delta = adp_ppr - pick.pick_no
+                adp_delta = pick.pick_no - adp_ppr
 
             pick_detail = PickDetail(
                 pick_no=pick.pick_no,
