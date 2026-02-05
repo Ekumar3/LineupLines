@@ -67,15 +67,75 @@ class FantasyProsClient:
             logger.info(f"Returning cached ADP data for {scoring_format}")
             return self.data_cache[scoring_format]
 
-        # Fetch from FantasyPros
+        # Try to fetch from FantasyPros
         logger.info(f"Fetching ADP data from FantasyPros for {scoring_format}")
         players = self._scrape_adp_data(scoring_format)
+
+        # If fetch failed, try to load saved players from debug files
+        if not players:
+            logger.info(f"Fetch failed, attempting to load saved players for {scoring_format}")
+            players = self._load_saved_players(scoring_format)
+            if players:
+                logger.info(f"Loaded {len(players)} players from saved file")
 
         # Cache the data
         self.data_cache[scoring_format] = players
         self.last_updated[scoring_format] = datetime.utcnow()
 
         return players
+
+    def _load_saved_players(self, scoring_format: str) -> Optional[List[Player]]:
+        """Load previously saved players from JSON debug file.
+
+        Looks for the most recent {scoring_format}_*_players.json file
+        in ./debug_html/ directory. Useful for testing without re-fetching.
+
+        Args:
+            scoring_format: The scoring format (ppr, half_ppr, standard)
+
+        Returns:
+            List of Player objects from saved file, or None if not found
+        """
+        try:
+            debug_dir = Path("./debug_html")
+            if not debug_dir.exists():
+                return None
+
+            # Find the most recent players JSON file
+            pattern = f"{scoring_format}_*_players.json"
+            files = sorted(debug_dir.glob(pattern), reverse=True)
+
+            if not files:
+                logger.debug(f"No saved players file found for {scoring_format}")
+                return None
+
+            latest_file = files[0]
+            logger.debug(f"Loading saved players from: {latest_file.name}")
+
+            with open(latest_file, "r", encoding="utf-8") as f:
+                players_data = json.load(f)
+
+            # Convert dicts back to Player objects
+            players = [
+                Player(
+                    player_name=p["player_name"],
+                    position=p["position"],
+                    team=p["team"],
+                    adp_overall=p["adp_overall"],
+                    adp_by_position=p["adp_by_position"],
+                    round=p["round"],
+                    scoring_format=p["scoring_format"],
+                    updated_at=datetime.utcnow(),
+                )
+                for p in players_data
+            ]
+
+            logger.info(f"Loaded {len(players)} saved players from {latest_file.name}")
+            return players
+
+        except Exception as e:
+            logger.debug(f"Failed to load saved players: {e}")
+            return None
 
     def _scrape_adp_data(self, scoring_format: str) -> List[Player]:
         """Scrape ADP data from FantasyPros website.
