@@ -176,7 +176,7 @@ class SleeperClient:
             # Sleeper API returns draft_order with user_ids (int or str),
             # and slot_to_roster_id with roster_ids (int), so we normalize to strings
             raw_draft_order = response.get("draft_order", [])
-            print(f"Raw response: {response}")
+            
             draft_order = [""] * response.get("settings", {}).get("teams", 12)  # Default empty slots
             for user_id, slot_index in raw_draft_order.items():
                 draft_order[int(slot_index) - 1] = str(user_id)
@@ -185,7 +185,7 @@ class SleeperClient:
             # slot_to_roster_id from Sleeper: slot_num (str) -> roster_id (int)
             # draft_order from Sleeper: list indexed by slot_num with user_ids
             roster_to_user = {}
-            print(f"Slot to Roster ID mapping: {response.get('slot_to_roster_id', {})}")
+
             for slot_id_str, roster_id_int in response.get("slot_to_roster_id", {}).items():
                 slot_index = int(slot_id_str)  # Convert slot string to list index
                 if slot_index < len(draft_order):
