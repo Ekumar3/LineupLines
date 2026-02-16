@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-sleeper-darker text-white font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-sleeper-dark rounded-lg border border-sleeper-gray-800 overflow-hidden;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:border-sleeper-gray-700 hover:shadow-lg;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}

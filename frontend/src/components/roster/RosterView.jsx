@@ -1,0 +1,51 @@
+import React from 'react';
+import { useRosterData } from '../../hooks/useRosterData';
+import { useNextPick } from '../../hooks/useNextPick';
+import PositionTable from './PositionTable';
+import LoadingSpinner from '../common/LoadingSpinner';
+import ErrorMessage from '../common/ErrorMessage';
+
+const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+
+export default function RosterView({ draftId, userId }) {
+  const { data: rosterData, loading, error } = useRosterData(draftId, userId);
+  const { nextPickNumber } = useNextPick(draftId, userId);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  if (!rosterData) return null;
+
+  return (
+    <div className="min-h-screen bg-sleeper-darker py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            My Roster
+          </h1>
+          <div className="flex gap-4 text-sleeper-gray-400 flex-wrap">
+            <span>Draft Slot: {rosterData.draft_slot}</span>
+            <span>Total Picks: {rosterData.total_picks}</span>
+            {nextPickNumber && (
+              <span className="text-sleeper-blue">
+                Next Pick: #{nextPickNumber}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Position Tables - Each in its own section */}
+        <div className="space-y-6">
+          {POSITION_ORDER.map(position => (
+            <PositionTable
+              key={position}
+              position={position}
+              players={rosterData.roster_by_position?.[position] || []}
+              positionSummary={rosterData.position_summary?.[position]}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

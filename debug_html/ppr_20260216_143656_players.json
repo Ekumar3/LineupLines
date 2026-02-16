@@ -1,0 +1,3071 @@
+[
+  {
+    "player_name": "Ja'Marr Chase (CIN)",
+    "position": "WR",
+    "team": "CIN",
+    "adp_overall": 1.8,
+    "adp_by_position": 1,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bijan Robinson (ATL)",
+    "position": "RB",
+    "team": "ATL",
+    "adp_overall": 2.0,
+    "adp_by_position": 1,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Puka Nacua (LAR)",
+    "position": "WR",
+    "team": "LAR",
+    "adp_overall": 2.3,
+    "adp_by_position": 2,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaxon Smith-Njigba (SEA)",
+    "position": "WR",
+    "team": "SEA",
+    "adp_overall": 4.0,
+    "adp_by_position": 3,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jahmyr Gibbs (DET)",
+    "position": "RB",
+    "team": "DET",
+    "adp_overall": 5.0,
+    "adp_by_position": 2,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "CeeDee Lamb (DAL)",
+    "position": "WR",
+    "team": "DAL",
+    "adp_overall": 6.8,
+    "adp_by_position": 4,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Amon-Ra St. Brown (DET)",
+    "position": "WR",
+    "team": "DET",
+    "adp_overall": 7.6,
+    "adp_by_position": 5,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Christian McCaffrey (SF)",
+    "position": "RB",
+    "team": "SF",
+    "adp_overall": 7.8,
+    "adp_by_position": 3,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Justin Jefferson (MIN)",
+    "position": "WR",
+    "team": "MIN",
+    "adp_overall": 10.5,
+    "adp_by_position": 6,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Drake London (ATL)",
+    "position": "WR",
+    "team": "ATL",
+    "adp_overall": 11.4,
+    "adp_by_position": 7,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "De'Von Achane (MIA)",
+    "position": "RB",
+    "team": "MIA",
+    "adp_overall": 11.5,
+    "adp_by_position": 4,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jonathan Taylor (IND)",
+    "position": "RB",
+    "team": "IND",
+    "adp_overall": 11.5,
+    "adp_by_position": 5,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Malik Nabers (NYG)",
+    "position": "WR",
+    "team": "NYG",
+    "adp_overall": 12.3,
+    "adp_by_position": 8,
+    "round": 1,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Nico Collins (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 14.4,
+    "adp_by_position": 9,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rashee Rice (KC)",
+    "position": "WR",
+    "team": "KC",
+    "adp_overall": 14.5,
+    "adp_by_position": 10,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Olave (NO)",
+    "position": "WR",
+    "team": "NO",
+    "adp_overall": 17.3,
+    "adp_by_position": 11,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "George Pickens (DAL)",
+    "position": "WR",
+    "team": "DAL",
+    "adp_overall": 18.1,
+    "adp_by_position": 12,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Trey McBride (ARI)",
+    "position": "TE",
+    "team": "ARI",
+    "adp_overall": 18.3,
+    "adp_by_position": 1,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "James Cook III (BUF)",
+    "position": "RB",
+    "team": "BUF",
+    "adp_overall": 19.0,
+    "adp_by_position": 6,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ashton Jeanty (LV)",
+    "position": "RB",
+    "team": "LV",
+    "adp_overall": 19.5,
+    "adp_by_position": 7,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brock Bowers (LV)",
+    "position": "TE",
+    "team": "LV",
+    "adp_overall": 19.8,
+    "adp_by_position": 2,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "A.J. Brown (PHI)",
+    "position": "WR",
+    "team": "PHI",
+    "adp_overall": 20.6,
+    "adp_by_position": 13,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Omarion Hampton (LAC)",
+    "position": "RB",
+    "team": "LAC",
+    "adp_overall": 23.3,
+    "adp_by_position": 8,
+    "round": 2,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chase Brown (CIN)",
+    "position": "RB",
+    "team": "CIN",
+    "adp_overall": 25.0,
+    "adp_by_position": 9,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Josh Allen (BUF)",
+    "position": "QB",
+    "team": "BUF",
+    "adp_overall": 25.0,
+    "adp_by_position": 1,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tetairoa McMillan (CAR)",
+    "position": "WR",
+    "team": "CAR",
+    "adp_overall": 25.4,
+    "adp_by_position": 14,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Drake Maye (NE)",
+    "position": "QB",
+    "team": "NE",
+    "adp_overall": 28.6,
+    "adp_by_position": 2,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tee Higgins (CIN)",
+    "position": "WR",
+    "team": "CIN",
+    "adp_overall": 28.6,
+    "adp_by_position": 15,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Lamar Jackson (BAL)",
+    "position": "QB",
+    "team": "BAL",
+    "adp_overall": 29.6,
+    "adp_by_position": 3,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Saquon Barkley (PHI)",
+    "position": "RB",
+    "team": "PHI",
+    "adp_overall": 30.3,
+    "adp_by_position": 10,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Garrett Wilson (NYJ)",
+    "position": "WR",
+    "team": "NYJ",
+    "adp_overall": 30.8,
+    "adp_by_position": 16,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bucky Irving (TB)",
+    "position": "RB",
+    "team": "TB",
+    "adp_overall": 34.4,
+    "adp_by_position": 11,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Josh Jacobs (GB)",
+    "position": "RB",
+    "team": "GB",
+    "adp_overall": 34.5,
+    "adp_by_position": 12,
+    "round": 3,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Joe Burrow (CIN)",
+    "position": "QB",
+    "team": "CIN",
+    "adp_overall": 37.4,
+    "adp_by_position": 4,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Breece Hall (NYJ)",
+    "position": "RB",
+    "team": "NYJ",
+    "adp_overall": 38.0,
+    "adp_by_position": 13,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ladd McConkey (LAC)",
+    "position": "WR",
+    "team": "LAC",
+    "adp_overall": 38.1,
+    "adp_by_position": 17,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Davante Adams (LAR)",
+    "position": "WR",
+    "team": "LAR",
+    "adp_overall": 39.3,
+    "adp_by_position": 18,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Zay Flowers (BAL)",
+    "position": "WR",
+    "team": "BAL",
+    "adp_overall": 39.6,
+    "adp_by_position": 19,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jameson Williams (DET)",
+    "position": "WR",
+    "team": "DET",
+    "adp_overall": 40.9,
+    "adp_by_position": 20,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Derrick Henry (BAL)",
+    "position": "RB",
+    "team": "BAL",
+    "adp_overall": 42.0,
+    "adp_by_position": 14,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "DeVonta Smith (PHI)",
+    "position": "WR",
+    "team": "PHI",
+    "adp_overall": 43.8,
+    "adp_by_position": 21,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaylen Waddle (MIA)",
+    "position": "WR",
+    "team": "MIA",
+    "adp_overall": 44.4,
+    "adp_by_position": 22,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Luther Burden III (CHI)",
+    "position": "WR",
+    "team": "CHI",
+    "adp_overall": 45.3,
+    "adp_by_position": 23,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kyren Williams (LAR)",
+    "position": "RB",
+    "team": "LAR",
+    "adp_overall": 46.6,
+    "adp_by_position": 15,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Terry McLaurin (WAS)",
+    "position": "WR",
+    "team": "WAS",
+    "adp_overall": 46.9,
+    "adp_by_position": 24,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mike Evans (TB)",
+    "position": "WR",
+    "team": "TB",
+    "adp_overall": 47.6,
+    "adp_by_position": 25,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kenneth Walker III (SEA)",
+    "position": "RB",
+    "team": "SEA",
+    "adp_overall": 48.0,
+    "adp_by_position": 16,
+    "round": 4,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "RJ Harvey (DEN)",
+    "position": "RB",
+    "team": "DEN",
+    "adp_overall": 49.0,
+    "adp_by_position": 17,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Colston Loveland (CHI)",
+    "position": "TE",
+    "team": "CHI",
+    "adp_overall": 50.8,
+    "adp_by_position": 3,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "TreVeyon Henderson (NE)",
+    "position": "RB",
+    "team": "NE",
+    "adp_overall": 51.0,
+    "adp_by_position": 18,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Courtland Sutton (DEN)",
+    "position": "WR",
+    "team": "DEN",
+    "adp_overall": 52.3,
+    "adp_by_position": 26,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Travis Etienne Jr. (JAC)",
+    "position": "RB",
+    "team": "JAC",
+    "adp_overall": 52.4,
+    "adp_by_position": 19,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Emeka Egbuka (TB)",
+    "position": "WR",
+    "team": "TB",
+    "adp_overall": 54.1,
+    "adp_by_position": 27,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cam Skattebo (NYG)",
+    "position": "RB",
+    "team": "NYG",
+    "adp_overall": 54.4,
+    "adp_by_position": 20,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jayden Daniels (WAS)",
+    "position": "QB",
+    "team": "WAS",
+    "adp_overall": 54.5,
+    "adp_by_position": 5,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Javonte Williams (DAL)",
+    "position": "RB",
+    "team": "DAL",
+    "adp_overall": 56.0,
+    "adp_by_position": 21,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Harold Fannin Jr. (CLE)",
+    "position": "TE",
+    "team": "CLE",
+    "adp_overall": 56.8,
+    "adp_by_position": 4,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jalen Hurts (PHI)",
+    "position": "QB",
+    "team": "PHI",
+    "adp_overall": 58.3,
+    "adp_by_position": 6,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Christian Watson (GB)",
+    "position": "WR",
+    "team": "GB",
+    "adp_overall": 59.4,
+    "adp_by_position": 28,
+    "round": 5,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyler Warren (IND)",
+    "position": "TE",
+    "team": "IND",
+    "adp_overall": 61.3,
+    "adp_by_position": 5,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Quinshon Judkins (CLE)",
+    "position": "RB",
+    "team": "CLE",
+    "adp_overall": 61.6,
+    "adp_by_position": 22,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jakobi Meyers (JAC)",
+    "position": "WR",
+    "team": "JAC",
+    "adp_overall": 62.1,
+    "adp_by_position": 29,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaxson Dart (NYG)",
+    "position": "QB",
+    "team": "NYG",
+    "adp_overall": 62.5,
+    "adp_by_position": 7,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "DK Metcalf (PIT)",
+    "position": "WR",
+    "team": "PIT",
+    "adp_overall": 63.1,
+    "adp_by_position": 30,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brian Thomas Jr. (JAC)",
+    "position": "WR",
+    "team": "JAC",
+    "adp_overall": 65.3,
+    "adp_by_position": 31,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "D'Andre Swift (CHI)",
+    "position": "RB",
+    "team": "CHI",
+    "adp_overall": 66.0,
+    "adp_by_position": 23,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rome Odunze (CHI)",
+    "position": "WR",
+    "team": "CHI",
+    "adp_overall": 66.8,
+    "adp_by_position": 32,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tucker Kraft (GB)",
+    "position": "TE",
+    "team": "GB",
+    "adp_overall": 68.4,
+    "adp_by_position": 6,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaylen Warren (PIT)",
+    "position": "RB",
+    "team": "PIT",
+    "adp_overall": 69.3,
+    "adp_by_position": 24,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ricky Pearsall (SF)",
+    "position": "WR",
+    "team": "SF",
+    "adp_overall": 70.6,
+    "adp_by_position": 33,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Justin Herbert (LAC)",
+    "position": "QB",
+    "team": "LAC",
+    "adp_overall": 70.8,
+    "adp_by_position": 8,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Stefon Diggs (NE)",
+    "position": "WR",
+    "team": "NE",
+    "adp_overall": 71.8,
+    "adp_by_position": 34,
+    "round": 6,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Godwin Jr. (TB)",
+    "position": "WR",
+    "team": "TB",
+    "adp_overall": 75.4,
+    "adp_by_position": 35,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kyle Monangai (CHI)",
+    "position": "RB",
+    "team": "CHI",
+    "adp_overall": 80.0,
+    "adp_by_position": 25,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rico Dowdle (CAR)",
+    "position": "RB",
+    "team": "CAR",
+    "adp_overall": 80.8,
+    "adp_by_position": 26,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Trevor Lawrence (JAC)",
+    "position": "QB",
+    "team": "JAC",
+    "adp_overall": 81.0,
+    "adp_by_position": 9,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Marvin Harrison Jr. (ARI)",
+    "position": "WR",
+    "team": "ARI",
+    "adp_overall": 81.9,
+    "adp_by_position": 36,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tony Pollard (TEN)",
+    "position": "RB",
+    "team": "TEN",
+    "adp_overall": 81.9,
+    "adp_by_position": 27,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rhamondre Stevenson (NE)",
+    "position": "RB",
+    "team": "NE",
+    "adp_overall": 82.3,
+    "adp_by_position": 28,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Michael Wilson (ARI)",
+    "position": "WR",
+    "team": "ARI",
+    "adp_overall": 83.1,
+    "adp_by_position": 37,
+    "round": 7,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Sam LaPorta (DET)",
+    "position": "TE",
+    "team": "DET",
+    "adp_overall": 85.0,
+    "adp_by_position": 7,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Caleb Williams (CHI)",
+    "position": "QB",
+    "team": "CHI",
+    "adp_overall": 85.9,
+    "adp_by_position": 10,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Michael Pittman Jr. (IND)",
+    "position": "WR",
+    "team": "IND",
+    "adp_overall": 86.4,
+    "adp_by_position": 38,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Patrick Mahomes II (KC)",
+    "position": "QB",
+    "team": "KC",
+    "adp_overall": 88.0,
+    "adp_by_position": 11,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kyle Pitts Sr. (ATL)",
+    "position": "TE",
+    "team": "ATL",
+    "adp_overall": 89.8,
+    "adp_by_position": 8,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dak Prescott (DAL)",
+    "position": "QB",
+    "team": "DAL",
+    "adp_overall": 90.3,
+    "adp_by_position": 12,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "James Conner (ARI)",
+    "position": "RB",
+    "team": "ARI",
+    "adp_overall": 90.6,
+    "adp_by_position": 29,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Blake Corum (LAR)",
+    "position": "RB",
+    "team": "LAR",
+    "adp_overall": 91.8,
+    "adp_by_position": 30,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jordan Addison (MIN)",
+    "position": "WR",
+    "team": "MIN",
+    "adp_overall": 94.4,
+    "adp_by_position": 39,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Woody Marks (HOU)",
+    "position": "RB",
+    "team": "HOU",
+    "adp_overall": 94.8,
+    "adp_by_position": 31,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brock Purdy (SF)",
+    "position": "QB",
+    "team": "SF",
+    "adp_overall": 94.9,
+    "adp_by_position": 13,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Wan'Dale Robinson (NYG)",
+    "position": "WR",
+    "team": "NYG",
+    "adp_overall": 96.6,
+    "adp_by_position": 40,
+    "round": 8,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bhayshul Tuten (JAC)",
+    "position": "RB",
+    "team": "JAC",
+    "adp_overall": 98.0,
+    "adp_by_position": 32,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dalton Kincaid (BUF)",
+    "position": "TE",
+    "team": "BUF",
+    "adp_overall": 98.4,
+    "adp_by_position": 9,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Aaron Jones Sr. (MIN)",
+    "position": "RB",
+    "team": "MIN",
+    "adp_overall": 98.5,
+    "adp_by_position": 33,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Quentin Johnston (LAC)",
+    "position": "WR",
+    "team": "LAC",
+    "adp_overall": 100.4,
+    "adp_by_position": 41,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chuba Hubbard (CAR)",
+    "position": "RB",
+    "team": "CAR",
+    "adp_overall": 100.6,
+    "adp_by_position": 34,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jake Ferguson (DAL)",
+    "position": "TE",
+    "team": "DAL",
+    "adp_overall": 101.6,
+    "adp_by_position": 10,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jauan Jennings (SF)",
+    "position": "WR",
+    "team": "SF",
+    "adp_overall": 101.8,
+    "adp_by_position": 42,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Trey Benson (ARI)",
+    "position": "RB",
+    "team": "ARI",
+    "adp_overall": 102.0,
+    "adp_by_position": 35,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Alec Pierce (IND)",
+    "position": "WR",
+    "team": "IND",
+    "adp_overall": 103.5,
+    "adp_by_position": 43,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Khalil Shakir (BUF)",
+    "position": "WR",
+    "team": "BUF",
+    "adp_overall": 104.5,
+    "adp_by_position": 44,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Matthew Stafford (LAR)",
+    "position": "QB",
+    "team": "LAR",
+    "adp_overall": 105.8,
+    "adp_by_position": 14,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bo Nix (DEN)",
+    "position": "QB",
+    "team": "DEN",
+    "adp_overall": 105.8,
+    "adp_by_position": 15,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Zach Charbonnet (SEA)",
+    "position": "RB",
+    "team": "SEA",
+    "adp_overall": 106.8,
+    "adp_by_position": 36,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Travis Hunter (JAC)",
+    "position": "WR",
+    "team": "JAC",
+    "adp_overall": 107.3,
+    "adp_by_position": 45,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Alvin Kamara (NO)",
+    "position": "RB",
+    "team": "NO",
+    "adp_overall": 107.4,
+    "adp_by_position": 37,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyreek Hill (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 108.4,
+    "adp_by_position": 46,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jordan Love (GB)",
+    "position": "QB",
+    "team": "GB",
+    "adp_overall": 108.8,
+    "adp_by_position": 16,
+    "round": 9,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Parker Washington (JAC)",
+    "position": "WR",
+    "team": "JAC",
+    "adp_overall": 110.1,
+    "adp_by_position": 47,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Juwan Johnson (NO)",
+    "position": "TE",
+    "team": "NO",
+    "adp_overall": 111.4,
+    "adp_by_position": 11,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Oronde Gadsden II (LAC)",
+    "position": "TE",
+    "team": "LAC",
+    "adp_overall": 111.4,
+    "adp_by_position": 12,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jared Goff (DET)",
+    "position": "QB",
+    "team": "DET",
+    "adp_overall": 112.0,
+    "adp_by_position": 17,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Baker Mayfield (TB)",
+    "position": "QB",
+    "team": "TB",
+    "adp_overall": 114.4,
+    "adp_by_position": 18,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "DJ Moore (CHI)",
+    "position": "WR",
+    "team": "CHI",
+    "adp_overall": 115.6,
+    "adp_by_position": 48,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brenton Strange (JAC)",
+    "position": "TE",
+    "team": "JAC",
+    "adp_overall": 117.5,
+    "adp_by_position": 13,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jayden Higgins (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 118.0,
+    "adp_by_position": 49,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "David Montgomery (DET)",
+    "position": "RB",
+    "team": "DET",
+    "adp_overall": 119.8,
+    "adp_by_position": 38,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dylan Sampson (CLE)",
+    "position": "RB",
+    "team": "CLE",
+    "adp_overall": 123.3,
+    "adp_by_position": 39,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jayden Reed (GB)",
+    "position": "WR",
+    "team": "GB",
+    "adp_overall": 123.5,
+    "adp_by_position": 50,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jacory Croskey-Merritt (WAS)",
+    "position": "RB",
+    "team": "WAS",
+    "adp_overall": 123.6,
+    "adp_by_position": 40,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Xavier Worthy (KC)",
+    "position": "WR",
+    "team": "KC",
+    "adp_overall": 125.4,
+    "adp_by_position": 51,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dalton Schultz (HOU)",
+    "position": "TE",
+    "team": "HOU",
+    "adp_overall": 126.0,
+    "adp_by_position": 14,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "C.J. Stroud (HOU)",
+    "position": "QB",
+    "team": "HOU",
+    "adp_overall": 126.0,
+    "adp_by_position": 19,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Braelon Allen (NYJ)",
+    "position": "RB",
+    "team": "NYJ",
+    "adp_overall": 127.5,
+    "adp_by_position": 41,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyler Shough (NO)",
+    "position": "QB",
+    "team": "NO",
+    "adp_overall": 128.0,
+    "adp_by_position": 20,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Deebo Samuel Sr. (WAS)",
+    "position": "WR",
+    "team": "WAS",
+    "adp_overall": 128.3,
+    "adp_by_position": 52,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Josh Downs (IND)",
+    "position": "WR",
+    "team": "IND",
+    "adp_overall": 128.3,
+    "adp_by_position": 53,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Malik Willis (GB)",
+    "position": "QB",
+    "team": "GB",
+    "adp_overall": 129.5,
+    "adp_by_position": 21,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kenneth Gainwell (PIT)",
+    "position": "RB",
+    "team": "PIT",
+    "adp_overall": 130.4,
+    "adp_by_position": 42,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kyler Murray (ARI)",
+    "position": "QB",
+    "team": "ARI",
+    "adp_overall": 133.9,
+    "adp_by_position": 22,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyler Allgeier (ATL)",
+    "position": "RB",
+    "team": "ATL",
+    "adp_overall": 134.9,
+    "adp_by_position": 43,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Sam Darnold (SEA)",
+    "position": "QB",
+    "team": "SEA",
+    "adp_overall": 135.1,
+    "adp_by_position": 23,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyjae Spears (TEN)",
+    "position": "RB",
+    "team": "TEN",
+    "adp_overall": 135.1,
+    "adp_by_position": 44,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dallas Goedert (PHI)",
+    "position": "TE",
+    "team": "PHI",
+    "adp_overall": 135.3,
+    "adp_by_position": 15,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jalen Coker (CAR)",
+    "position": "WR",
+    "team": "CAR",
+    "adp_overall": 137.8,
+    "adp_by_position": 54,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Hunter Henry (NE)",
+    "position": "TE",
+    "team": "NE",
+    "adp_overall": 140.9,
+    "adp_by_position": 16,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyrone Tracy Jr. (NYG)",
+    "position": "RB",
+    "team": "NYG",
+    "adp_overall": 141.1,
+    "adp_by_position": 45,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Troy Franklin (DEN)",
+    "position": "WR",
+    "team": "DEN",
+    "adp_overall": 142.5,
+    "adp_by_position": 55,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jerry Jeudy (CLE)",
+    "position": "WR",
+    "team": "CLE",
+    "adp_overall": 142.6,
+    "adp_by_position": 56,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Adonai Mitchell (NYJ)",
+    "position": "WR",
+    "team": "NYJ",
+    "adp_overall": 142.8,
+    "adp_by_position": 57,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jordan Mason (MIN)",
+    "position": "RB",
+    "team": "MIN",
+    "adp_overall": 145.4,
+    "adp_by_position": 46,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "J.K. Dobbins (DEN)",
+    "position": "RB",
+    "team": "DEN",
+    "adp_overall": 145.8,
+    "adp_by_position": 47,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cam Ward (TEN)",
+    "position": "QB",
+    "team": "TEN",
+    "adp_overall": 145.9,
+    "adp_by_position": 24,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rachaad White (TB)",
+    "position": "RB",
+    "team": "TB",
+    "adp_overall": 148.9,
+    "adp_by_position": 48,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Houston Texans (HOU)",
+    "position": "UNKNOWN",
+    "team": "HOU",
+    "adp_overall": 151.0,
+    "adp_by_position": 1,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "George Kittle (SF)",
+    "position": "TE",
+    "team": "SF",
+    "adp_overall": 151.6,
+    "adp_by_position": 17,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kaleb Johnson (PIT)",
+    "position": "RB",
+    "team": "PIT",
+    "adp_overall": 151.8,
+    "adp_by_position": 49,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chimere Dike (TEN)",
+    "position": "WR",
+    "team": "TEN",
+    "adp_overall": 154.6,
+    "adp_by_position": 58,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rashid Shaheed (SEA)",
+    "position": "WR",
+    "team": "SEA",
+    "adp_overall": 154.8,
+    "adp_by_position": 59,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bryce Young (CAR)",
+    "position": "QB",
+    "team": "CAR",
+    "adp_overall": 156.8,
+    "adp_by_position": 25,
+    "round": 13,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brandon Aiyuk (SF)",
+    "position": "WR",
+    "team": "SF",
+    "adp_overall": 159.3,
+    "adp_by_position": 60,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tre Harris (LAC)",
+    "position": "WR",
+    "team": "LAC",
+    "adp_overall": 160.0,
+    "adp_by_position": 61,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Travis Kelce (KC)",
+    "position": "TE",
+    "team": "KC",
+    "adp_overall": 160.0,
+    "adp_by_position": 18,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isiah Pacheco (KC)",
+    "position": "RB",
+    "team": "KC",
+    "adp_overall": 161.1,
+    "adp_by_position": 50,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Denver Broncos (DEN)",
+    "position": "UNKNOWN",
+    "team": "DEN",
+    "adp_overall": 161.8,
+    "adp_by_position": 2,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isaiah Likely (BAL)",
+    "position": "TE",
+    "team": "BAL",
+    "adp_overall": 162.0,
+    "adp_by_position": 19,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaylin Noel (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 162.9,
+    "adp_by_position": 62,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Devin Neal (NO)",
+    "position": "RB",
+    "team": "NO",
+    "adp_overall": 163.0,
+    "adp_by_position": 51,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tank Bigsby (PHI)",
+    "position": "RB",
+    "team": "PHI",
+    "adp_overall": 163.1,
+    "adp_by_position": 52,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "J.J. McCarthy (MIN)",
+    "position": "QB",
+    "team": "MIN",
+    "adp_overall": 163.9,
+    "adp_by_position": 26,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "K.C. Concepcion (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 165.3,
+    "adp_by_position": 63,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Romeo Doubs (GB)",
+    "position": "WR",
+    "team": "GB",
+    "adp_overall": 166.3,
+    "adp_by_position": 64,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mark Andrews (BAL)",
+    "position": "TE",
+    "team": "BAL",
+    "adp_overall": 166.3,
+    "adp_by_position": 20,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Seattle Seahawks (SEA)",
+    "position": "UNKNOWN",
+    "team": "SEA",
+    "adp_overall": 166.3,
+    "adp_by_position": 3,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Matthew Golden (GB)",
+    "position": "WR",
+    "team": "GB",
+    "adp_overall": 166.4,
+    "adp_by_position": 65,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kimani Vidal (LAC)",
+    "position": "RB",
+    "team": "LAC",
+    "adp_overall": 167.5,
+    "adp_by_position": 53,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Fernando Mendoza (FA)",
+    "position": "QB",
+    "team": "FA",
+    "adp_overall": 170.3,
+    "adp_by_position": 27,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Elic Ayomanor (TEN)",
+    "position": "WR",
+    "team": "TEN",
+    "adp_overall": 170.8,
+    "adp_by_position": 66,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Philadelphia Eagles (PHI)",
+    "position": "UNKNOWN",
+    "team": "PHI",
+    "adp_overall": 171.9,
+    "adp_by_position": 4,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Los Angeles Rams (LAR)",
+    "position": "UNKNOWN",
+    "team": "LAR",
+    "adp_overall": 172.5,
+    "adp_by_position": 5,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Keaton Mitchell (BAL)",
+    "position": "RB",
+    "team": "BAL",
+    "adp_overall": 173.4,
+    "adp_by_position": 54,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Pat Bryant (DEN)",
+    "position": "WR",
+    "team": "DEN",
+    "adp_overall": 173.5,
+    "adp_by_position": 67,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kayshon Boutte (NE)",
+    "position": "WR",
+    "team": "NE",
+    "adp_overall": 174.0,
+    "adp_by_position": 68,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brian Robinson Jr. (SF)",
+    "position": "RB",
+    "team": "SF",
+    "adp_overall": 176.1,
+    "adp_by_position": 55,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kendre Miller (NO)",
+    "position": "RB",
+    "team": "NO",
+    "adp_overall": 178.5,
+    "adp_by_position": 56,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Theo Johnson (NYG)",
+    "position": "TE",
+    "team": "NYG",
+    "adp_overall": 179.5,
+    "adp_by_position": 21,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Michael Penix Jr. (ATL)",
+    "position": "QB",
+    "team": "ATL",
+    "adp_overall": 180.9,
+    "adp_by_position": 28,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Carnell Tate (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 181.6,
+    "adp_by_position": 69,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jordyn Tyson (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 182.9,
+    "adp_by_position": 70,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Minnesota Vikings (MIN)",
+    "position": "UNKNOWN",
+    "team": "MIN",
+    "adp_overall": 183.0,
+    "adp_by_position": 6,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tre Tucker (LV)",
+    "position": "WR",
+    "team": "LV",
+    "adp_overall": 183.9,
+    "adp_by_position": 71,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "New England Patriots (NE)",
+    "position": "UNKNOWN",
+    "team": "NE",
+    "adp_overall": 185.0,
+    "adp_by_position": 7,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jacksonville Jaguars (JAC)",
+    "position": "UNKNOWN",
+    "team": "JAC",
+    "adp_overall": 186.0,
+    "adp_by_position": 8,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brandon Aubrey (DAL)",
+    "position": "K",
+    "team": "DAL",
+    "adp_overall": 187.0,
+    "adp_by_position": 1,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Los Angeles Chargers (LAC)",
+    "position": "UNKNOWN",
+    "team": "LAC",
+    "adp_overall": 188.0,
+    "adp_by_position": 9,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Darnell Mooney (ATL)",
+    "position": "WR",
+    "team": "ATL",
+    "adp_overall": 188.5,
+    "adp_by_position": 72,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Green Bay Packers (GB)",
+    "position": "UNKNOWN",
+    "team": "GB",
+    "adp_overall": 190.0,
+    "adp_by_position": 10,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ryan Flournoy (DAL)",
+    "position": "WR",
+    "team": "DAL",
+    "adp_overall": 190.3,
+    "adp_by_position": 73,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isaiah Davis (NYJ)",
+    "position": "RB",
+    "team": "NYJ",
+    "adp_overall": 190.5,
+    "adp_by_position": 57,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Pittsburgh Steelers (PIT)",
+    "position": "UNKNOWN",
+    "team": "PIT",
+    "adp_overall": 191.0,
+    "adp_by_position": 11,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ka'imi Fairbairn (HOU)",
+    "position": "K",
+    "team": "HOU",
+    "adp_overall": 192.0,
+    "adp_by_position": 2,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jeremiyah Love (FA)",
+    "position": "RB",
+    "team": "FA",
+    "adp_overall": 174.6,
+    "adp_by_position": 58,
+    "round": 15,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cam Little (JAC)",
+    "position": "K",
+    "team": "JAC",
+    "adp_overall": 193.0,
+    "adp_by_position": 3,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jalen McMillan (TB)",
+    "position": "WR",
+    "team": "TB",
+    "adp_overall": 194.4,
+    "adp_by_position": 74,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cleveland Browns (CLE)",
+    "position": "UNKNOWN",
+    "team": "CLE",
+    "adp_overall": 195.5,
+    "adp_by_position": 12,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cameron Dicker (LAC)",
+    "position": "K",
+    "team": "LAC",
+    "adp_overall": 198.0,
+    "adp_by_position": 4,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Evan McPherson (CIN)",
+    "position": "K",
+    "team": "CIN",
+    "adp_overall": 201.0,
+    "adp_by_position": 5,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "T.J. Hockenson (MIN)",
+    "position": "TE",
+    "team": "MIN",
+    "adp_overall": 201.4,
+    "adp_by_position": 22,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Makai Lemon (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 185.6,
+    "adp_by_position": 75,
+    "round": 16,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Emanuel Wilson (GB)",
+    "position": "RB",
+    "team": "GB",
+    "adp_overall": 203.0,
+    "adp_by_position": 59,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaylen Wright (MIA)",
+    "position": "RB",
+    "team": "MIA",
+    "adp_overall": 203.4,
+    "adp_by_position": 60,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jason Myers (SEA)",
+    "position": "K",
+    "team": "SEA",
+    "adp_overall": 204.4,
+    "adp_by_position": 6,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Keon Coleman (BUF)",
+    "position": "WR",
+    "team": "BUF",
+    "adp_overall": 207.4,
+    "adp_by_position": 76,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyler Loop (BAL)",
+    "position": "K",
+    "team": "BAL",
+    "adp_overall": 207.6,
+    "adp_by_position": 7,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mack Hollins (NE)",
+    "position": "WR",
+    "team": "NE",
+    "adp_overall": 208.0,
+    "adp_by_position": 77,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Marvin Mims Jr. (DEN)",
+    "position": "WR",
+    "team": "DEN",
+    "adp_overall": 208.9,
+    "adp_by_position": 78,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kansas City Chiefs (KC)",
+    "position": "UNKNOWN",
+    "team": "KC",
+    "adp_overall": 209.0,
+    "adp_by_position": 13,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Andy Borregales (NE)",
+    "position": "K",
+    "team": "NE",
+    "adp_overall": 209.5,
+    "adp_by_position": 8,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Terrance Ferguson (LAR)",
+    "position": "TE",
+    "team": "LAR",
+    "adp_overall": 211.0,
+    "adp_by_position": 23,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isaac TeSlaa (DET)",
+    "position": "WR",
+    "team": "DET",
+    "adp_overall": 211.4,
+    "adp_by_position": 79,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Detroit Lions (DET)",
+    "position": "UNKNOWN",
+    "team": "DET",
+    "adp_overall": 212.0,
+    "adp_by_position": 14,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mason Taylor (NYJ)",
+    "position": "TE",
+    "team": "NYJ",
+    "adp_overall": 212.3,
+    "adp_by_position": 24,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "AJ Barner (SEA)",
+    "position": "TE",
+    "team": "SEA",
+    "adp_overall": 212.3,
+    "adp_by_position": 25,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Calvin Ridley (TEN)",
+    "position": "WR",
+    "team": "TEN",
+    "adp_overall": 213.0,
+    "adp_by_position": 80,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Eddy Pineiro (SF)",
+    "position": "K",
+    "team": "SF",
+    "adp_overall": 213.0,
+    "adp_by_position": 9,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jerome Ford (CLE)",
+    "position": "RB",
+    "team": "CLE",
+    "adp_overall": 199.4,
+    "adp_by_position": 61,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Rashod Bateman (BAL)",
+    "position": "WR",
+    "team": "BAL",
+    "adp_overall": 214.9,
+    "adp_by_position": 81,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chase McLaughlin (TB)",
+    "position": "K",
+    "team": "TB",
+    "adp_overall": 215.1,
+    "adp_by_position": 10,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cairo Santos (CHI)",
+    "position": "K",
+    "team": "CHI",
+    "adp_overall": 216.1,
+    "adp_by_position": 11,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kyle Williams (NE)",
+    "position": "WR",
+    "team": "NE",
+    "adp_overall": 216.9,
+    "adp_by_position": 82,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Brashard Smith (KC)",
+    "position": "RB",
+    "team": "KC",
+    "adp_overall": 217.1,
+    "adp_by_position": 62,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Xavier Legette (CAR)",
+    "position": "WR",
+    "team": "CAR",
+    "adp_overall": 218.9,
+    "adp_by_position": 83,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Najee Harris (LAC)",
+    "position": "RB",
+    "team": "LAC",
+    "adp_overall": 219.5,
+    "adp_by_position": 63,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Joe Mixon (HOU)",
+    "position": "RB",
+    "team": "HOU",
+    "adp_overall": 205.6,
+    "adp_by_position": 64,
+    "round": 18,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Buffalo Bills (BUF)",
+    "position": "UNKNOWN",
+    "team": "BUF",
+    "adp_overall": 220.0,
+    "adp_by_position": 15,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Harrison Mevis (LAR)",
+    "position": "K",
+    "team": "LAR",
+    "adp_overall": 221.0,
+    "adp_by_position": 12,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jonathon Brooks (CAR)",
+    "position": "RB",
+    "team": "CAR",
+    "adp_overall": 222.4,
+    "adp_by_position": 65,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Sean Tucker (TB)",
+    "position": "RB",
+    "team": "TB",
+    "adp_overall": 224.1,
+    "adp_by_position": 66,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Keenan Allen (LAC)",
+    "position": "WR",
+    "team": "LAC",
+    "adp_overall": 224.4,
+    "adp_by_position": 84,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Denzel Boston (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 130.8,
+    "adp_by_position": 85,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Daniel Jones (IND)",
+    "position": "QB",
+    "team": "IND",
+    "adp_overall": 226.1,
+    "adp_by_position": 29,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dontayvion Wicks (GB)",
+    "position": "WR",
+    "team": "GB",
+    "adp_overall": 229.6,
+    "adp_by_position": 86,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Gunnar Helm (TEN)",
+    "position": "TE",
+    "team": "TEN",
+    "adp_overall": 230.0,
+    "adp_by_position": 26,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ray Davis (BUF)",
+    "position": "RB",
+    "team": "BUF",
+    "adp_overall": 230.6,
+    "adp_by_position": 67,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Rodriguez Jr. (WAS)",
+    "position": "RB",
+    "team": "WAS",
+    "adp_overall": 231.6,
+    "adp_by_position": 68,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cooper Kupp (SEA)",
+    "position": "WR",
+    "team": "SEA",
+    "adp_overall": 231.9,
+    "adp_by_position": 87,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Darius Slayton (NYG)",
+    "position": "WR",
+    "team": "NYG",
+    "adp_overall": 234.4,
+    "adp_by_position": 88,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "David Njoku (CLE)",
+    "position": "TE",
+    "team": "CLE",
+    "adp_overall": 235.8,
+    "adp_by_position": 27,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jake Bates (DET)",
+    "position": "K",
+    "team": "DET",
+    "adp_overall": 237.1,
+    "adp_by_position": 13,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Baltimore Ravens (BAL)",
+    "position": "UNKNOWN",
+    "team": "BAL",
+    "adp_overall": 238.5,
+    "adp_by_position": 16,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tory Horton (SEA)",
+    "position": "WR",
+    "team": "SEA",
+    "adp_overall": 238.9,
+    "adp_by_position": 89,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ollie Gordon II (MIA)",
+    "position": "RB",
+    "team": "MIA",
+    "adp_overall": 240.4,
+    "adp_by_position": 69,
+    "round": 20,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaleel McLaughlin (DEN)",
+    "position": "RB",
+    "team": "DEN",
+    "adp_overall": 241.8,
+    "adp_by_position": 70,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chig Okonkwo (TEN)",
+    "position": "TE",
+    "team": "TEN",
+    "adp_overall": 242.3,
+    "adp_by_position": 28,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jadarian Price (FA)",
+    "position": "RB",
+    "team": "FA",
+    "adp_overall": 114.7,
+    "adp_by_position": 71,
+    "round": 10,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ty Johnson (BUF)",
+    "position": "RB",
+    "team": "BUF",
+    "adp_overall": 243.0,
+    "adp_by_position": 72,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isaiah Bond (CLE)",
+    "position": "WR",
+    "team": "CLE",
+    "adp_overall": 245.3,
+    "adp_by_position": 90,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Emmett Johnson (FA)",
+    "position": "RB",
+    "team": "FA",
+    "adp_overall": 125.0,
+    "adp_by_position": 73,
+    "round": 11,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Shedeur Sanders (CLE)",
+    "position": "QB",
+    "team": "CLE",
+    "adp_overall": 250.4,
+    "adp_by_position": 30,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jonah Coleman (FA)",
+    "position": "RB",
+    "team": "FA",
+    "adp_overall": 134.7,
+    "adp_by_position": 74,
+    "round": 12,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Boswell (PIT)",
+    "position": "K",
+    "team": "PIT",
+    "adp_overall": 252.0,
+    "adp_by_position": 14,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tank Dell (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 252.3,
+    "adp_by_position": 91,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Colby Parkinson (LAR)",
+    "position": "TE",
+    "team": "LAR",
+    "adp_overall": 253.5,
+    "adp_by_position": 29,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Konata Mumpfield (LAR)",
+    "position": "WR",
+    "team": "LAR",
+    "adp_overall": 254.6,
+    "adp_by_position": 92,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Atlanta Falcons (ATL)",
+    "position": "UNKNOWN",
+    "team": "ATL",
+    "adp_overall": 256.9,
+    "adp_by_position": 17,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jack Bech (LV)",
+    "position": "WR",
+    "team": "LV",
+    "adp_overall": 257.6,
+    "adp_by_position": 93,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Evan Engram (DEN)",
+    "position": "TE",
+    "team": "DEN",
+    "adp_overall": 259.0,
+    "adp_by_position": 30,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Pat Freiermuth (PIT)",
+    "position": "TE",
+    "team": "PIT",
+    "adp_overall": 259.4,
+    "adp_by_position": 31,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Charlie Smyth (NO)",
+    "position": "K",
+    "team": "NO",
+    "adp_overall": 251.3,
+    "adp_by_position": 15,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Isaac Guerendo (SF)",
+    "position": "RB",
+    "team": "SF",
+    "adp_overall": 252.3,
+    "adp_by_position": 75,
+    "round": 21,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Wil Lutz (DEN)",
+    "position": "K",
+    "team": "DEN",
+    "adp_overall": 261.3,
+    "adp_by_position": 16,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Andrei Iosivas (CIN)",
+    "position": "WR",
+    "team": "CIN",
+    "adp_overall": 253.3,
+    "adp_by_position": 94,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cade Otton (TB)",
+    "position": "TE",
+    "team": "TB",
+    "adp_overall": 263.8,
+    "adp_by_position": 32,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Harrison Butker (KC)",
+    "position": "K",
+    "team": "KC",
+    "adp_overall": 264.8,
+    "adp_by_position": 17,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jalen Royals (KC)",
+    "position": "WR",
+    "team": "KC",
+    "adp_overall": 258.4,
+    "adp_by_position": 95,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Devaughn Vele (NO)",
+    "position": "WR",
+    "team": "NO",
+    "adp_overall": 268.3,
+    "adp_by_position": 96,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jacoby Brissett (ARI)",
+    "position": "QB",
+    "team": "ARI",
+    "adp_overall": 268.4,
+    "adp_by_position": 31,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Bam Knight (ARI)",
+    "position": "RB",
+    "team": "ARI",
+    "adp_overall": 261.1,
+    "adp_by_position": 76,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Audric Estime (NO)",
+    "position": "RB",
+    "team": "NO",
+    "adp_overall": 263.6,
+    "adp_by_position": 77,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "New Orleans Saints (NO)",
+    "position": "UNKNOWN",
+    "team": "NO",
+    "adp_overall": 271.5,
+    "adp_by_position": 18,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Christian Kirk (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 265.9,
+    "adp_by_position": 97,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Malik Davis (DAL)",
+    "position": "RB",
+    "team": "DAL",
+    "adp_overall": 267.1,
+    "adp_by_position": 78,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Calvin Austin III (PIT)",
+    "position": "WR",
+    "team": "PIT",
+    "adp_overall": 269.3,
+    "adp_by_position": 98,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Luke McCaffrey (WAS)",
+    "position": "WR",
+    "team": "WAS",
+    "adp_overall": 276.4,
+    "adp_by_position": 99,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "DJ Giddens (IND)",
+    "position": "RB",
+    "team": "IND",
+    "adp_overall": 279.1,
+    "adp_by_position": 79,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "LeQuint Allen Jr. (JAC)",
+    "position": "RB",
+    "team": "JAC",
+    "adp_overall": 274.0,
+    "adp_by_position": 80,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyquan Thornton (KC)",
+    "position": "WR",
+    "team": "KC",
+    "adp_overall": 274.0,
+    "adp_by_position": 100,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mac Jones (SF)",
+    "position": "QB",
+    "team": "SF",
+    "adp_overall": 280.4,
+    "adp_by_position": 32,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dont'e Thornton Jr. (LV)",
+    "position": "WR",
+    "team": "LV",
+    "adp_overall": 274.9,
+    "adp_by_position": 101,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "San Francisco 49ers (SF)",
+    "position": "UNKNOWN",
+    "team": "SF",
+    "adp_overall": 257.4,
+    "adp_by_position": 19,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Marquise Brown (KC)",
+    "position": "WR",
+    "team": "KC",
+    "adp_overall": 276.1,
+    "adp_by_position": 102,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Omar Cooper Jr. (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 168.0,
+    "adp_by_position": 103,
+    "round": 14,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Cedric Tillman (CLE)",
+    "position": "WR",
+    "team": "CLE",
+    "adp_overall": 283.8,
+    "adp_by_position": 104,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kenyon Sadiq (FA)",
+    "position": "TE",
+    "team": "FA",
+    "adp_overall": 225.0,
+    "adp_by_position": 33,
+    "round": 19,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Malik Washington (MIA)",
+    "position": "WR",
+    "team": "MIA",
+    "adp_overall": 287.0,
+    "adp_by_position": 105,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaydon Blue (DAL)",
+    "position": "RB",
+    "team": "DAL",
+    "adp_overall": 285.9,
+    "adp_by_position": 81,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Devin Singletary (NYG)",
+    "position": "RB",
+    "team": "NYG",
+    "adp_overall": 282.0,
+    "adp_by_position": 82,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Brooks (GB)",
+    "position": "RB",
+    "team": "GB",
+    "adp_overall": 283.0,
+    "adp_by_position": 83,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jake Tonges (SF)",
+    "position": "TE",
+    "team": "SF",
+    "adp_overall": 268.2,
+    "adp_by_position": 34,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tua Tagovailoa (MIA)",
+    "position": "QB",
+    "team": "MIA",
+    "adp_overall": 289.0,
+    "adp_by_position": 33,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Chris Brazzell II (FA)",
+    "position": "WR",
+    "team": "FA",
+    "adp_overall": 197.0,
+    "adp_by_position": 106,
+    "round": 17,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Noah Gray (KC)",
+    "position": "TE",
+    "team": "KC",
+    "adp_overall": 273.0,
+    "adp_by_position": 35,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "George Holani (SEA)",
+    "position": "RB",
+    "team": "SEA",
+    "adp_overall": 292.8,
+    "adp_by_position": 84,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Justice Hill (BAL)",
+    "position": "RB",
+    "team": "BAL",
+    "adp_overall": 288.6,
+    "adp_by_position": 85,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Trevor Etienne (CAR)",
+    "position": "RB",
+    "team": "CAR",
+    "adp_overall": 288.6,
+    "adp_by_position": 86,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Olamide Zaccheaus (CHI)",
+    "position": "WR",
+    "team": "CHI",
+    "adp_overall": 295.1,
+    "adp_by_position": 107,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Aaron Rodgers (PIT)",
+    "position": "QB",
+    "team": "PIT",
+    "adp_overall": 271.0,
+    "adp_by_position": 34,
+    "round": 23,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jarquez Hunter (LAR)",
+    "position": "RB",
+    "team": "LAR",
+    "adp_overall": 290.7,
+    "adp_by_position": 87,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "John Metchie III (NYJ)",
+    "position": "WR",
+    "team": "NYJ",
+    "adp_overall": 294.1,
+    "adp_by_position": 108,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tez Johnson (TB)",
+    "position": "WR",
+    "team": "TB",
+    "adp_overall": 296.9,
+    "adp_by_position": 109,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Mike Gesicki (CIN)",
+    "position": "TE",
+    "team": "CIN",
+    "adp_overall": 281.2,
+    "adp_by_position": 36,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "John Bates (WAS)",
+    "position": "TE",
+    "team": "WAS",
+    "adp_overall": 288.4,
+    "adp_by_position": 37,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Eli Stowers (FA)",
+    "position": "TE",
+    "team": "FA",
+    "adp_overall": 259.3,
+    "adp_by_position": 38,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "MarShawn Lloyd (GB)",
+    "position": "RB",
+    "team": "GB",
+    "adp_overall": 294.0,
+    "adp_by_position": 88,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Indianapolis Colts (IND)",
+    "position": "UNKNOWN",
+    "team": "IND",
+    "adp_overall": 295.0,
+    "adp_by_position": 20,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Joshua Palmer (BUF)",
+    "position": "WR",
+    "team": "BUF",
+    "adp_overall": 301.0,
+    "adp_by_position": 110,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jaylin Lane (WAS)",
+    "position": "WR",
+    "team": "WAS",
+    "adp_overall": 301.4,
+    "adp_by_position": 111,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Xavier Hutchinson (HOU)",
+    "position": "WR",
+    "team": "HOU",
+    "adp_overall": 305.6,
+    "adp_by_position": 112,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Will Shipley (PHI)",
+    "position": "RB",
+    "team": "PHI",
+    "adp_overall": 305.1,
+    "adp_by_position": 89,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Michael Carter (ARI)",
+    "position": "RB",
+    "team": "ARI",
+    "adp_overall": 302.6,
+    "adp_by_position": 90,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ben Sinnott (WAS)",
+    "position": "TE",
+    "team": "WAS",
+    "adp_overall": 286.0,
+    "adp_by_position": 39,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Samaje Perine (CIN)",
+    "position": "RB",
+    "team": "CIN",
+    "adp_overall": 308.3,
+    "adp_by_position": 91,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Emari Demercado (ARI)",
+    "position": "RB",
+    "team": "ARI",
+    "adp_overall": 304.6,
+    "adp_by_position": 92,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Will Reichard (MIN)",
+    "position": "K",
+    "team": "MIN",
+    "adp_overall": 258.5,
+    "adp_by_position": 18,
+    "round": 22,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Darren Waller (MIA)",
+    "position": "TE",
+    "team": "MIA",
+    "adp_overall": 279.0,
+    "adp_by_position": 40,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Anthony Richardson Sr. (IND)",
+    "position": "QB",
+    "team": "IND",
+    "adp_overall": 304.3,
+    "adp_by_position": 35,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "DeMario Douglas (NE)",
+    "position": "WR",
+    "team": "NE",
+    "adp_overall": 310.2,
+    "adp_by_position": 113,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tommy Myers (FA)",
+    "position": "TE",
+    "team": "FA",
+    "adp_overall": 285.7,
+    "adp_by_position": 41,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tahj Brooks (CIN)",
+    "position": "RB",
+    "team": "CIN",
+    "adp_overall": 312.1,
+    "adp_by_position": 93,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jalen Nailor (MIN)",
+    "position": "WR",
+    "team": "MIN",
+    "adp_overall": 312.2,
+    "adp_by_position": 114,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Austin Ekeler (WAS)",
+    "position": "RB",
+    "team": "WAS",
+    "adp_overall": 312.3,
+    "adp_by_position": 94,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Kareem Hunt (KC)",
+    "position": "RB",
+    "team": "KC",
+    "adp_overall": 312.9,
+    "adp_by_position": 95,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Nick Chubb (HOU)",
+    "position": "RB",
+    "team": "HOU",
+    "adp_overall": 313.6,
+    "adp_by_position": 96,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Geno Smith (LV)",
+    "position": "QB",
+    "team": "LV",
+    "adp_overall": 314.6,
+    "adp_by_position": 36,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Elijah Arroyo (SEA)",
+    "position": "TE",
+    "team": "SEA",
+    "adp_overall": 281.0,
+    "adp_by_position": 42,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Zane Gonzalez (ATL)",
+    "position": "K",
+    "team": "ATL",
+    "adp_overall": 312.4,
+    "adp_by_position": 19,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Michael Mayer (LV)",
+    "position": "TE",
+    "team": "LV",
+    "adp_overall": 284.0,
+    "adp_by_position": 43,
+    "round": 24,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Greg Dulcich (MIA)",
+    "position": "TE",
+    "team": "MIA",
+    "adp_overall": 297.5,
+    "adp_by_position": 44,
+    "round": 25,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Joe Milton III (DAL)",
+    "position": "QB",
+    "team": "DAL",
+    "adp_overall": 318.7,
+    "adp_by_position": 37,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Darnell Washington (PIT)",
+    "position": "TE",
+    "team": "PIT",
+    "adp_overall": 305.0,
+    "adp_by_position": 45,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jordan James (SF)",
+    "position": "RB",
+    "team": "SF",
+    "adp_overall": 322.7,
+    "adp_by_position": 97,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Miami Dolphins (MIA)",
+    "position": "UNKNOWN",
+    "team": "MIA",
+    "adp_overall": 317.6,
+    "adp_by_position": 21,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Terrell Jennings (NE)",
+    "position": "RB",
+    "team": "NE",
+    "adp_overall": 326.2,
+    "adp_by_position": 98,
+    "round": 28,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Antonio Gibson (NE)",
+    "position": "RB",
+    "team": "NE",
+    "adp_overall": 312.2,
+    "adp_by_position": 99,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Jawhar Jordan (HOU)",
+    "position": "RB",
+    "team": "HOU",
+    "adp_overall": 314.7,
+    "adp_by_position": 100,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Tyler Higbee (LAR)",
+    "position": "TE",
+    "team": "LAR",
+    "adp_overall": 322.0,
+    "adp_by_position": 46,
+    "round": 27,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Ty Simpson (FA)",
+    "position": "QB",
+    "team": "FA",
+    "adp_overall": 303.5,
+    "adp_by_position": 38,
+    "round": 26,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Raheim Sanders (CLE)",
+    "position": "RB",
+    "team": "CLE",
+    "adp_overall": 325.8,
+    "adp_by_position": 101,
+    "round": 28,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Dameon Pierce (KC)",
+    "position": "RB",
+    "team": "KC",
+    "adp_overall": 330.2,
+    "adp_by_position": 102,
+    "round": 28,
+    "scoring_format": "ppr"
+  },
+  {
+    "player_name": "Marcus Mariota (WAS)",
+    "position": "QB",
+    "team": "WAS",
+    "adp_overall": 351.0,
+    "adp_by_position": 39,
+    "round": 30,
+    "scoring_format": "ppr"
+  }
+]

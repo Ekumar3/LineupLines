@@ -10,7 +10,18 @@
       "Bash(pkill:*)",
       "Bash(pip install:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm create:*)",
+      "Bash(node:*)",
+      "Bash(npm --version:*)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" --version)",
+      "Bash(\"/c/Program Files \\(x86\\)/nodejs/node.exe\" --version)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(./node_modules/.bin/tailwindcss init:*)",
+      "Bash(npm run dev:*)",
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\ekumar\\\\Documents\\\\repos\\\\LineupLines\\\\infra\"\" && ls -la \"C:UsersekumarDocumentsreposLineupLinespublic\"\")"
     ]
   }
 }
