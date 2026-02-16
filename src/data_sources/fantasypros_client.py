@@ -401,13 +401,6 @@ class FantasyProsClient:
 
             return []
 
-        # Save table for debugging
-        try:
-            table_html = str(table)[:50000]  # Limit to first 50k chars
-            self._save_html_debug(table_html, scoring_format, "table")
-        except Exception as e:
-            logger.debug(f"Failed to save table debug file: {e}")
-
         # Get rows from tbody (more precise than getting all tr and skipping first)
         tbody = table.find("tbody")
         if not tbody:
@@ -480,10 +473,6 @@ class FantasyProsClient:
             except (ValueError, IndexError) as e:
                 logger.debug(f"Skipped row {idx}: {e}")
                 continue
-
-        # Save parsed players to JSON for debugging
-        if players:
-            self._save_players_json(players, scoring_format)
 
         return players
 
