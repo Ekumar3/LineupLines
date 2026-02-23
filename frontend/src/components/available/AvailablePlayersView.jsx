@@ -38,6 +38,7 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
                 position={position}
                 players={players}
                 positionSummary={null}
+                showCount={false}
               />
             );
           })}

@@ -1,7 +1,7 @@
 import PositionHeader from './PositionHeader';
 import PlayerRow from './PlayerRow';
 
-export default function PositionTable({ position, players, positionSummary }) {
+export default function PositionTable({ position, players, positionSummary, showCount = true }) {
   const isEmpty = !players || players.length === 0;
 
   return (
@@ -12,6 +12,7 @@ export default function PositionTable({ position, players, positionSummary }) {
         count={positionSummary?.count || 0}
         priority={positionSummary?.priority}
         needsMore={positionSummary?.needs_more}
+        showCount={showCount}
       />
 
       {/* Player Table */}

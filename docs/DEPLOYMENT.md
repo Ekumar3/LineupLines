@@ -6,9 +6,10 @@ Comprehensive guide for running the Draft Helper API locally and deploying to pr
 
 1. [Local Development](#local-development)
 2. [Running Tests](#running-tests)
-3. [Daily Player Data Sync](#daily-player-data-sync)
-4. [Production Deployment](#production-deployment)
-5. [Monitoring & Troubleshooting](#monitoring--troubleshooting)
+3. [Frontend Build & Preview](#frontend-build--preview)
+4. [Daily Player Data Sync](#daily-player-data-sync)
+5. [Production Deployment](#production-deployment)
+6. [Monitoring & Troubleshooting](#monitoring--troubleshooting)
 
 ---
 
@@ -156,6 +157,101 @@ EOF
 source .env
 ```
 
+### Frontend
+
+#### Prerequisites
+
+**System Requirements:**
+- Node.js 18+
+- npm 9+
+
+**Verify Setup:**
+```bash
+node --version         # Should be 18+
+npm --version          # Should be 9+
+```
+
+#### Installation
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+```
+
+**Verify Installation:**
+```bash
+npm list react react-dom vite
+```
+
+#### Start Development Server
+
+```bash
+npm run dev
+```
+
+**Expected Output:**
+```
+  VITE v5.0.0  ready in 245 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  press h to show help
+```
+
+**Access the App:**
+
+- Frontend: [http://localhost:3000/](http://localhost:3000/)
+- API will proxy `/api` and `/health` requests to the backend at [http://localhost:8000](http://localhost:8000)
+
+**Important:** The backend API server (running on port 8000) must be running for the frontend to work correctly. In another terminal, run:
+```bash
+python scripts/run_api.py
+# or
+uvicorn src.api.main:app --reload --port 8000
+```
+
+### Running Frontend & Backend Together
+
+To develop with both frontend and backend running simultaneously:
+
+**Terminal 1 (Backend) — From project root:**
+```bash
+python scripts/run_api.py
+# or: uvicorn src.api.main:app --reload --port 8000
+```
+
+**Expected output:**
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000
+INFO:     Application startup complete
+```
+
+**Terminal 2 (Frontend) — From project root:**
+```bash
+cd frontend
+npm run dev
+```
+
+**Expected output:**
+```
+  VITE v5.0.0  ready in 245 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  press h to show help
+```
+
+**Access the application:**
+
+- Open your browser to [http://localhost:3000](http://localhost:3000)
+
+**How it works:**
+
+- The Vite dev server automatically proxies all `/api` and `/health` requests to the backend at port 8000
+- Frontend and backend communicate seamlessly without any additional configuration
+- Changes to either frontend or backend code trigger hot-reload, so you see updates instantly
+
 ---
 
 ## Running Tests
@@ -224,7 +320,145 @@ pytest tests/test_draft_endpoints.py::TestGetAvailablePlayers::test_get_availabl
 pytest tests/test_draft_endpoints.py::test_name -v -s
 ```
 
-### Generate Coverage Report
+### Frontend Linting
+
+Since the frontend does not have a test framework configured, linting is the primary code quality check.
+
+#### Run ESLint
+
+```bash
+cd frontend
+npm run lint
+```
+
+**Expected Output (with no issues):**
+```
+No files matching the pattern were found: ""
+```
+
+Or if files are checked:
+```
+✓ All files pass ESLint checks
+```
+
+**Fix linting errors automatically:**
+```bash
+npm run lint -- --fix
+```
+
+This will automatically fix formatting and common code issues in all JavaScript/JSX files.
+
+---
+
+## Frontend Build & Preview
+
+### Build for Production
+
+```bash
+cd frontend
+npm run build
+```
+
+**Expected Output:**
+```
+vite v5.0.0 building for production...
+✓ 1234 modules transformed.
+dist/index.html                   0.45 kB
+dist/assets/index-xxx.css         45.67 kB │ gzip: 7.89 kB
+dist/assets/index-yyy.js          123.45 kB │ gzip: 35.67 kB
+
+✓ built in 5.23s
+```
+
+The production bundle is now in `frontend/dist/` and ready to be served.
+
+### Preview Production Build Locally
+
+To test the production build before deployment:
+
+```bash
+cd frontend
+npm run preview
+```
+
+**Expected Output:**
+```
+  ➜  Local:   http://localhost:4173/
+```
+
+Visit [http://localhost:4173](http://localhost:4173) to view the production build.
+
+**Note:** The `preview` mode does NOT proxy to the backend API. It serves only the static frontend files. This is useful for testing the UI and build output but won't connect to the backend. For full testing with API integration, use `npm run dev` instead.
+
+### Serving the Production Build with Backend
+
+In production, serve the `dist/` folder as static files alongside the backend API.
+
+#### Option 1: Nginx (Recommended)
+
+Configure Nginx to serve frontend from `dist/` and proxy API requests to the backend:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    # Serve static frontend files
+    location / {
+        alias /path/to/LineupLines/frontend/dist/;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to backend
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Proxy health check
+    location /health {
+        proxy_pass http://127.0.0.1:8000/health;
+        access_log off;
+    }
+}
+```
+
+#### Option 2: Quick Testing with Python
+
+For quick local testing without Nginx:
+
+```bash
+cd frontend/dist
+python -m http.server 4173
+```
+
+Then visit [http://localhost:4173](http://localhost:4173). The API calls will fail without a backend running, but you can verify the frontend builds and loads correctly.
+
+#### Option 3: Include in FastAPI
+
+Serve frontend static files directly from FastAPI:
+
+```python
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# In src/api/main.py
+app.mount("/", StaticFiles(directory=Path("frontend/dist"), html=True), name="frontend")
+```
+
+Then run the API normally:
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+The frontend will be available at [http://localhost:8000](http://localhost:8000) along with all API endpoints.
+
+---
+
+## Generate Coverage Report
 
 ```bash
 # Generate HTML coverage report

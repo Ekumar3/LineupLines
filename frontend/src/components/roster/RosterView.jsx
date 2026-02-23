@@ -33,6 +33,11 @@ export default function RosterView({ draftId, userId }) {
                 Next Pick: #{nextPickNumber}
               </span>
             )}
+            {availableData?.current_overall_pick && (
+              <span className="text-sleeper-green">
+                Current Pick: #{availableData.current_overall_pick}
+              </span>
+            )}
           </div>
         </div>
 
@@ -61,6 +66,7 @@ export default function RosterView({ draftId, userId }) {
                       position={position}
                       players={availablePlayers}
                       positionSummary={null}
+                      showCount={false}
                     />
                   </div>
                 )}

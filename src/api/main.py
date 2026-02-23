@@ -396,7 +396,7 @@ def get_draft_picks(draft_id: str):
 
 
 @app.get(
-    "/api/v1/draft/{draft_id}",
+    "/api/v1/drafts/{draft_id}",
     response_model=DraftDetails,
     responses={
         200: {"description": "Successfully retrieved draft details"},
@@ -667,7 +667,7 @@ def get_available_by_position(
         # Step 2: Get all picks to determine current pick and drafted players
         draft_picks = sleeper_client.get_draft_picks(draft_id)
         drafted_player_ids = {pick.player_id for pick in draft_picks}
-        current_overall_pick = len(draft_picks) + 1
+        current_overall_pick = draft_picks[-1].pick_no + 1 if draft_picks else 1
 
         # Step 3: Get scoring format for ADP matching
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
@@ -705,12 +705,12 @@ def get_available_by_position(
             # Get ADP for this player
             adp_value = adp_service.get_player_adp(player_name, scoring_format)
 
-            # Calculate ADP delta: adp_ppr - current_overall_pick
-            # Positive = player expected later (good value now)
+            # Calculate ADP delta: current_overall_pick - adp_ppr
+            # Positive = player available later than ADP (value)
             # Negative = player expected earlier (reaching if drafted now)
             adp_delta = None
             if adp_value:
-                adp_delta = adp_value - current_overall_pick
+                adp_delta = current_overall_pick - adp_value
 
             # Create player detail
             available_player = AvailablePlayerDetail(
@@ -836,12 +836,8 @@ def get_user_roster(draft_id: str, user_id: str):
         current_round = max((pick.round for pick in user_picks), default=0) + 1
 
         # Calculate current pick number for ADP value scoring
-        current_pick_number = None
-        if draft_details and user_picks:
-            teams = draft_details.get("settings", {}).get("teams", 12)
-            last_pick_round = user_picks[-1].round
-            # Estimate current pick (simplified)
-            current_pick_number = (last_pick_round * teams) + 1
+        # Use the actual pick number from the most recent draft pick
+        current_pick_number = all_picks[-1].pick_no + 1 if all_picks else 1
 
         # Get available players by position for value calculation
         available_by_position = None

@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { draftAPI } from '../utils/api';
 
 export const useRosterData = (draftId, userId) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     const fetchRoster = async () => {
       try {
-        setLoading(true);
+        if (!initialLoadDone.current) setLoading(true);
 
         // Fetch both roster and picks data
         const [rosterData, picksData] = await Promise.all([
@@ -41,7 +42,9 @@ export const useRosterData = (draftId, userId) => {
         }
 
         setData(enrichedRoster);
+        initialLoadDone.current = true;
         setError(null);
+        console.log(`[useRosterData] Refreshed at ${new Date().toLocaleTimeString()} — total picks: ${enrichedRoster.total_picks}`);
       } catch (err) {
         setError(err.message || 'Failed to fetch roster');
         setData(null);
@@ -52,6 +55,12 @@ export const useRosterData = (draftId, userId) => {
 
     if (draftId && userId) {
       fetchRoster();
+
+      // Poll for updates every 5 seconds
+      const interval = setInterval(fetchRoster, 5000);
+
+      // Cleanup interval on unmount or when dependencies change
+      return () => clearInterval(interval);
     }
   }, [draftId, userId]);
 

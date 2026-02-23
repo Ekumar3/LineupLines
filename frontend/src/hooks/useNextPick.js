@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { draftAPI } from '../utils/api';
 
 export const useNextPick = (draftId, userId) => {
   const [nextPickNumber, setNextPickNumber] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     const calculateNextPick = async () => {
       try {
-        setLoading(true);
+        if (!initialLoadDone.current) setLoading(true);
 
         // Get draft details and all picks
         const [draftDetails, picksData] = await Promise.all([
@@ -38,7 +39,9 @@ export const useNextPick = (draftId, userId) => {
         }
 
         setNextPickNumber(nextPick);
+        initialLoadDone.current = true;
         setError(null);
+        console.log(`[useNextPick] Refreshed at ${new Date().toLocaleTimeString()} — next pick: #${nextPick}`);
       } catch (err) {
         console.error('Failed to calculate next pick:', err);
         setError(err.message || 'Failed to calculate next pick');
@@ -49,6 +52,12 @@ export const useNextPick = (draftId, userId) => {
 
     if (draftId && userId) {
       calculateNextPick();
+
+      // Poll for updates every 5 seconds
+      const interval = setInterval(calculateNextPick, 5000);
+
+      // Cleanup interval on unmount or when dependencies change
+      return () => clearInterval(interval);
     }
   }, [draftId, userId]);
 
