@@ -25,6 +25,8 @@ from src.api.models import (
     LeagueSettingsResponse,
     UserRosterResponse,
     PositionNeed,
+    AvailablePlayerDetail,
+    AvailableByPositionResponse,
 )
 from src.api.storage import load_player_universe, save_player_universe
 
@@ -620,6 +622,140 @@ def get_available_players(
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}"
         )
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/available-by-position",
+    response_model=AvailableByPositionResponse,
+    responses={
+        404: {"description": "Draft not found"},
+        500: {"description": "Server error"},
+    },
+    summary="Get available players by position with ADP delta analysis",
+    description="Returns top available players at each position sorted by ADP delta relative to current overall pick",
+    tags=["Drafts"],
+)
+def get_available_by_position(
+    draft_id: str,
+    limit: int = Query(default=20, ge=1, le=100, description="Max players per position"),
+) -> AvailableByPositionResponse:
+    """Get available players grouped by position with ADP delta analysis.
+
+    Returns the top available players at each position sorted by ADP delta
+    relative to the current overall pick in the draft. Helps identify best
+    value picks available right now.
+
+    Args:
+        draft_id: The draft ID
+        limit: Maximum players to return per position (1-100, default 20)
+
+    Returns:
+        Available players grouped by position with ADP deltas
+    """
+    from collections import defaultdict
+
+    try:
+        logger.info(f"Fetching available players by position for draft {draft_id}")
+
+        # Step 1: Get draft details for league_id
+        draft_details = sleeper_client.get_draft_details(draft_id)
+        if not draft_details:
+            raise HTTPException(404, f"Draft not found: {draft_id}")
+
+        league_id = draft_details.get("league_id")
+
+        # Step 2: Get all picks to determine current pick and drafted players
+        draft_picks = sleeper_client.get_draft_picks(draft_id)
+        drafted_player_ids = {pick.player_id for pick in draft_picks}
+        current_overall_pick = len(draft_picks) + 1
+
+        # Step 3: Get scoring format for ADP matching
+        scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
+
+        # Step 4: Load player universe
+        all_players = load_player_universe()
+        if not all_players:
+            all_players = sleeper_client.get_players()
+            if all_players:
+                save_player_universe(all_players)
+
+        if not all_players:
+            raise HTTPException(500, "Unable to load player data")
+
+        # Step 5: Filter available players and enrich with ADP
+        available_by_position = defaultdict(list)
+        positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
+
+        for player_id, player_data in all_players.items():
+            # Skip drafted players
+            if player_id in drafted_player_ids:
+                continue
+
+            position = player_data.get("position")
+            if not position or position not in positions:
+                continue
+
+            # Build player name
+            first = player_data.get("first_name", "")
+            last = player_data.get("last_name", "")
+            player_name = f"{first} {last}".strip()
+            if not player_name:
+                continue
+
+            # Get ADP for this player
+            adp_value = adp_service.get_player_adp(player_name, scoring_format)
+
+            # Calculate ADP delta: adp_ppr - current_overall_pick
+            # Positive = player expected later (good value now)
+            # Negative = player expected earlier (reaching if drafted now)
+            adp_delta = None
+            if adp_value:
+                adp_delta = adp_value - current_overall_pick
+
+            # Create player detail
+            available_player = AvailablePlayerDetail(
+                player_id=player_id,
+                player_name=player_name,
+                position=position,
+                team=player_data.get("team") or "FA",
+                age=player_data.get("age"),
+                years_exp=player_data.get("years_exp"),
+                adp_ppr=adp_value,
+                adp_delta=adp_delta,
+            )
+
+            available_by_position[position].append(available_player)
+
+        # Step 6: Sort each position by ADP delta (descending - best value first)
+        # Players with no ADP data go to end
+        for position in available_by_position:
+            available_by_position[position].sort(
+                key=lambda p: (p.adp_delta is None, -(p.adp_delta or 0))
+            )
+
+        # Step 7: Limit to top N per position
+        limited_by_position = {}
+        for position in positions:
+            limited_by_position[position] = available_by_position[position][:limit]
+
+        logger.info(
+            f"Returning available players by position for draft {draft_id} "
+            f"at pick {current_overall_pick}"
+        )
+
+        return AvailableByPositionResponse(
+            draft_id=draft_id,
+            current_overall_pick=current_overall_pick,
+            scoring_format=scoring_format,
+            limit=limit,
+            players_by_position=limited_by_position,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching available by position: {e}", exc_info=True)
+        raise HTTPException(500, f"Internal server error: {str(e)}")
 
 
 @app.get(

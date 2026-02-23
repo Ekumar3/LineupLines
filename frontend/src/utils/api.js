@@ -31,6 +31,14 @@ export const draftAPI = {
   getLeagueSettings: async (leagueId) => {
     const response = await api.get(`/leagues/${leagueId}/settings`);
     return response.data;
+  },
+
+  // Get available players by position with ADP delta
+  getAvailableByPosition: async (draftId, limit = 20) => {
+    const response = await api.get(
+      `/drafts/${draftId}/available-by-position?limit=${limit}`
+    );
+    return response.data;
   }
 };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useNextPick } from '../../hooks/useNextPick';
+import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import PositionTable from './PositionTable';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
@@ -10,6 +11,7 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
   const { nextPickNumber } = useNextPick(draftId, userId);
+  const { data: availableData } = useAvailableByPosition(draftId, 10);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} />;
@@ -36,14 +38,35 @@ export default function RosterView({ draftId, userId }) {
 
         {/* Position Tables - Each in its own section */}
         <div className="space-y-6">
-          {POSITION_ORDER.map(position => (
-            <PositionTable
-              key={position}
-              position={position}
-              players={rosterData.roster_by_position?.[position] || []}
-              positionSummary={rosterData.position_summary?.[position]}
-            />
-          ))}
+          {POSITION_ORDER.map(position => {
+            const draftedPlayers = rosterData.roster_by_position?.[position] || [];
+            const availablePlayers = availableData?.players_by_position?.[position] || [];
+
+            return (
+              <div key={position} className="space-y-4">
+                {/* Drafted Roster */}
+                <PositionTable
+                  position={position}
+                  players={draftedPlayers}
+                  positionSummary={rosterData.position_summary?.[position]}
+                />
+
+                {/* Available Players (if any) */}
+                {availablePlayers.length > 0 && (
+                  <div className="ml-4 border-l-2 border-sleeper-gray-800 pl-4">
+                    <h3 className="text-sm font-medium text-sleeper-gray-400 mb-2">
+                      Available {position}s (Top {availableData.limit})
+                    </h3>
+                    <PositionTable
+                      position={position}
+                      players={availablePlayers}
+                      positionSummary={null}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

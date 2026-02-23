@@ -232,6 +232,72 @@ class DraftPicksResponse(BaseModel):
     picks: List[PickDetail] = Field(..., description="List of all picks in order")
 
 
+class AvailablePlayerDetail(BaseModel):
+    """Individual available player with ADP data."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "player_id": "2307",
+                "player_name": "Christian McCaffrey",
+                "position": "RB",
+                "team": "SF",
+                "age": 27,
+                "years_exp": 7,
+                "adp_ppr": 35.2,
+                "adp_delta": 10.2,
+            }
+        }
+    )
+
+    player_id: str = Field(..., description="Sleeper player ID")
+    player_name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Position (QB, RB, WR, TE, K, DEF)")
+    team: str = Field(..., description="NFL team abbreviation or FA")
+    age: Optional[int] = Field(None, description="Player age")
+    years_exp: Optional[int] = Field(None, description="Years of NFL experience")
+    adp_ppr: Optional[float] = Field(None, description="Player's ADP in scoring format")
+    adp_delta: Optional[float] = Field(
+        None,
+        description="Delta: adp_ppr - current_overall_pick. Positive = player expected later (value), Negative = player expected earlier (reaching)",
+    )
+
+
+class AvailableByPositionResponse(BaseModel):
+    """Response containing available players grouped by position with ADP analysis."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "draft_id": "789012345",
+                "current_overall_pick": 25,
+                "scoring_format": "ppr",
+                "limit": 20,
+                "players_by_position": {
+                    "QB": [],
+                    "RB": [],
+                    "WR": [],
+                    "TE": [],
+                    "K": [],
+                    "DEF": [],
+                },
+            }
+        }
+    )
+
+    draft_id: str = Field(..., description="Draft ID")
+    current_overall_pick: int = Field(
+        ..., description="Current pick number (picks made + 1)"
+    )
+    scoring_format: str = Field(
+        ..., description="Scoring format (ppr, half_ppr, standard)"
+    )
+    limit: int = Field(..., description="Max players returned per position")
+    players_by_position: Dict[str, List[AvailablePlayerDetail]] = Field(
+        ..., description="Available players by position, sorted by ADP delta descending"
+    )
+
+
 class PlayerSummary(BaseModel):
     """Summary of a player for recommendations."""
 
