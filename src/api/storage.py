@@ -21,7 +21,8 @@ except Exception:
 
 # Player Universe Storage
 
-PLAYER_DATA_DIR = Path("data/players")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PLAYER_DATA_DIR = PROJECT_ROOT / "data" / "players"
 PLAYER_DATA_FILE = PLAYER_DATA_DIR / "nfl_players.json"
 
 

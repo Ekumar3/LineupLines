@@ -4,7 +4,11 @@ import sys
 from pathlib import Path
 
 # Ensure the project root is on sys.path so 'src' is importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
+# Set CWD to project root so relative paths resolve correctly
+os.chdir(project_root)
 
 import uvicorn
 

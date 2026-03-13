@@ -14,6 +14,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 @dataclass
 class Player:
@@ -67,16 +69,14 @@ class FantasyProsClient:
             logger.info(f"Returning cached ADP data for {scoring_format}")
             return self.data_cache[scoring_format]
 
-        # Try to fetch from FantasyPros
-        logger.info(f"Fetching ADP data from FantasyPros for {scoring_format}")
-        players = self._scrape_adp_data(scoring_format)
-
-        # If fetch failed, try to load saved players from debug files
-        if not players:
-            logger.info(f"Fetch failed, attempting to load saved players for {scoring_format}")
-            players = self._load_saved_players(scoring_format)
-            if players:
-                logger.info(f"Loaded {len(players)} players from saved file")
+        # Try to load from static file first (avoids slow scraping)
+        players = self._load_saved_players(scoring_format)
+        if players:
+            logger.info(f"Loaded {len(players)} players from saved file")
+        else:
+            # Fall back to scraping if no saved file exists
+            logger.info(f"No saved ADP file found, fetching from FantasyPros for {scoring_format}")
+            players = self._scrape_adp_data(scoring_format)
 
         # Cache the data
         self.data_cache[scoring_format] = players
@@ -85,10 +85,10 @@ class FantasyProsClient:
         return players
 
     def _load_saved_players(self, scoring_format: str) -> Optional[List[Player]]:
-        """Load previously saved players from JSON debug file.
+        """Load previously saved players from JSON file.
 
-        Looks for the most recent {scoring_format}_*_players.json file
-        in ./debug_html/ directory. Useful for testing without re-fetching.
+        Searches for the most recent {scoring_format}_*_players.json file,
+        first in data/players/ then in debug_html/ as fallback.
 
         Args:
             scoring_format: The scoring format (ppr, half_ppr, standard)
@@ -97,13 +97,19 @@ class FantasyProsClient:
             List of Player objects from saved file, or None if not found
         """
         try:
-            debug_dir = Path("./debug_html")
-            if not debug_dir.exists():
-                return None
-
-            # Find the most recent players JSON file
             pattern = f"{scoring_format}_*_players.json"
-            files = sorted(debug_dir.glob(pattern), reverse=True)
+            files = []
+
+            # Search data/players/ first (primary location)
+            data_dir = PROJECT_ROOT / "data" / "players"
+            if data_dir.exists():
+                files = sorted(data_dir.glob(pattern), reverse=True)
+
+            # Fall back to debug_html/
+            if not files:
+                debug_dir = PROJECT_ROOT / "debug_html"
+                if debug_dir.exists():
+                    files = sorted(debug_dir.glob(pattern), reverse=True)
 
             if not files:
                 logger.debug(f"No saved players file found for {scoring_format}")
@@ -299,7 +305,7 @@ class FantasyProsClient:
             scoring_format: The scoring format (ppr, half_ppr, standard)
         """
         try:
-            debug_dir = Path("./debug_html")
+            debug_dir = PROJECT_ROOT / "debug_html"
             debug_dir.mkdir(exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -338,7 +344,7 @@ class FantasyProsClient:
             filename_suffix: Optional suffix for the filename (e.g., "table")
         """
         try:
-            debug_dir = Path("./debug_html")
+            debug_dir = PROJECT_ROOT / "debug_html"
             debug_dir.mkdir(exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
