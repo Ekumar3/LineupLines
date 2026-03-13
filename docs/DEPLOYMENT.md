@@ -879,13 +879,25 @@ print(client.get_players())
 **Symptom:** `ModuleNotFoundError: No module named 'src'`
 
 **Solution:**
-```bash
-# Ensure PYTHONPATH is set
-export PYTHONPATH=/path/to/project:$PYTHONPATH
 
-# Or use absolute imports
-cd /path/to/project
-python -c "import sys; sys.path.insert(0, '.'); from src.api.main import app; print('OK')"
+The `src/` directory requires `__init__.py` files to be recognized as a Python package.
+Verify these files exist:
+```bash
+# These should all exist (can be empty files)
+ls src/__init__.py src/api/__init__.py
+```
+
+If missing, create them:
+```bash
+touch src/__init__.py src/api/__init__.py
+```
+
+The `scripts/run_api.py` script automatically adds the project root to `sys.path`,
+so running via `python scripts/run_api.py` should work from any directory. If running
+`uvicorn` directly, ensure you run from the project root:
+```bash
+cd /path/to/LineupLines
+uvicorn src.api.main:app --reload --port 8000
 ```
 
 #### Issue: Tests fail with "Permission denied"
