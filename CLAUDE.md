@@ -45,21 +45,13 @@ After starting the backend: http://localhost:8000/docs
 
 ## Architecture
 
-**Backend** (`src/`): Python FastAPI with layered architecture:
-- `src/api/main.py` - All API endpoints (`/api/v1/...`). Uses a `SleeperClient` singleton.
-- `src/api/models.py` - Pydantic models for validation. All IDs normalized to strings.
-- `src/api/storage.py` - Player data persistence (local JSON now, designed for S3/DynamoDB migration).
-- `src/data_sources/sleeper_client.py` - Sleeper API wrapper with 0.1s rate limiting, 24hr player cache, defensive defaults ("UNKNOWN"/"FA" for None).
-- `src/data_sources/fantasypros_client.py` - FantasyPros ADP scraper (BeautifulSoup). Supports PPR/standard/half-PPR.
-- `src/analytics/adp_service.py` - ADP caching and lookup coordination.
-- `src/analytics/adp_analyzer.py` - Pattern analysis: round patterns, positional tiers, value picks.
-- `src/sleeper_pipeline/` - AWS Lambda functions for scheduled data fetching.
+**Key File Ownership**:
+- `src/api/main.py` - All API endpoints. Uses `SleeperClient` singleton.
+- `src/api/models.py` - Pydantic models for validation + OpenAPI docs. All IDs are strings.
+- `src/data_sources/sleeper_client.py` - Sleeper API wrapper, rate limiting, player caching.
+- `src/api/storage.py` - Player data persistence layer.
 
-**Frontend** (`frontend/`): React 19 + Vite + Tailwind CSS + React Router. Axios for API calls. Vite proxies `/api` and `/health` to the backend on port 8000.
-
-**Data**: Player universe cached in `data/players/nfl_players.json` (~19MB, 11.5K players).
-
-**Infra**: AWS SAM template in `infra/template.yaml` (Lambda + S3 + EventBridge).
+**Full architectural details**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (layers, testing strategy, scaling path)
 
 ### Data Flow
 1. User lookup via Sleeper username → `get_user()` → `user_id`
@@ -86,11 +78,10 @@ This convention applies to ALL frontend display of ADP deltas in the roster view
 
 ## Testing Conventions
 
-- Tests use `pytest` with `unittest.mock.patch`
+- Mock `sleeper_client` methods rather than real HTTP calls — patch at `src.api.main.sleeper_client.<method>`
 - API tests use `fastapi.testclient.TestClient`
-- Mock `sleeper_client` methods rather than real HTTP calls
-- Storage tests use `tmp_path` fixture
-- Test structure: class-based with `client` and `mock_data` fixtures, patch at `src.api.main.sleeper_client.<method>`
+
+**Full testing guide**: See [docs/TESTING.md](docs/TESTING.md) (test organization, patterns, coverage)
 
 ## Code Patterns
 
@@ -98,3 +89,17 @@ This convention applies to ALL frontend display of ADP deltas in the roster view
 - **Error handling**: Defensive at data source layer, not in API responses. SleeperClient converts None → "UNKNOWN"/"FA".
 - **ID normalization**: All IDs are strings throughout the API.
 - **Rate limiting**: SleeperClient enforces 0.1s between requests (Sleeper limit: 1000/min).
+
+## On Push: Documentation Review
+
+Before every `git push`, spend 2-3 minutes reviewing documentation for staleness:
+
+1. **API Changes**: If you added/modified endpoints → update `docs/API.md` with endpoint signature, response schema, and examples
+2. **Model Changes**: If you modified Pydantic models → update model count in `docs/ARCHITECTURE.md`
+3. **Test Changes**: If tests grew significantly → run `pytest --collect-only -q | tail -1` and update counts in `docs/TESTING.md` and `docs/DEPLOYMENT.md`
+4. **Feature Completion**: If you completed a major feature → add entry to `docs/PHASE_1_COMPLETE.md` (e.g., "Phase 1.8: Feature Name")
+5. **Code Fixes**: If you fixed a bug in models.py or main.py → check if docstrings/comments in that code match CLAUDE.md conventions
+
+**Only update if there are noticeable changes** — skip cosmetic diffs, comment tweaks, or one-line fixes. Focus on substantive API/feature changes that affect future developers' understanding.
+
+**Goal**: Keep docs in sync so future Claude sessions inherit accurate context.

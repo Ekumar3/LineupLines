@@ -1,6 +1,5 @@
 import React from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
-import { useNextPick } from '../../hooks/useNextPick';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import PositionTable from './PositionTable';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -10,7 +9,6 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
-  const { nextPickNumber } = useNextPick(draftId, userId);
   const { data: availableData } = useAvailableByPosition(draftId, 10);
 
   if (loading) return <LoadingSpinner />;
@@ -28,13 +26,9 @@ export default function RosterView({ draftId, userId }) {
           <div className="flex gap-4 text-sleeper-gray-400 flex-wrap">
             <span>Draft Slot: {rosterData.draft_slot}</span>
             <span>Total Picks: {rosterData.total_picks}</span>
-            {nextPickNumber && (
-              <span className="text-sleeper-blue">
-                Next Pick: #{nextPickNumber}
-              </span>
-            )}
+            <span>Current Round: {availableData.current_round}</span>
             {availableData?.current_overall_pick && (
-              <span className="text-sleeper-green">
+              <span className="text-sleeper-blue">
                 Current Pick: #{availableData.current_overall_pick}
               </span>
             )}

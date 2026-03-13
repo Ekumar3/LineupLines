@@ -4,27 +4,29 @@ Comprehensive guide to running, writing, and maintaining tests for the Draft Hel
 
 ## Test Overview
 
-**Current Coverage**: 52/52 tests passing (100%)
+**Current Coverage**: 95/95 tests passing (100%)
 
 ### Test Distribution
 
 ```
-tests/test_api.py                    (1 test)  - Health check
-tests/test_fetcher.py               (10 tests) - SleeperClient unit tests
-tests/test_draft_endpoints.py        (32 tests) - API endpoint integration tests
-tests/test_api_storage.py            (9 tests) - Storage layer unit tests
-───────────────────────────────────────────────
-Total:                               52 tests
+tests/test_api.py                      (1 test)   - Health check
+tests/test_fetcher.py                 (10 tests)  - SleeperClient unit tests
+tests/test_draft_endpoints.py          (42 tests)  - API endpoint integration tests
+tests/test_api_storage.py              (9 tests)  - Storage layer unit tests
+tests/test_league_settings.py          (18 tests)  - League settings endpoint tests
+tests/test_available_by_position.py    (15+ tests) - Available-by-position endpoint tests
+───────────────────────────────────────────────────
+Total:                                95 tests
 ```
 
 ### Test Types
 
 | Type | Count | Purpose | Tools |
 |------|-------|---------|-------|
-| Unit | 19 | Test individual functions | pytest + mocks |
-| Integration | 32 | Test API endpoints | TestClient |
-| Storage | 9 | Test persistence | Temp files |
-| **Total** | **52** | **Verify all layers** | pytest |
+| Unit | 30+ | Test individual functions | pytest + mocks |
+| Integration | 50+ | Test API endpoints | TestClient |
+| Storage | 10+ | Test persistence | Temp files |
+| **Total** | **95** | **Verify all layers** | pytest |
 
 ---
 

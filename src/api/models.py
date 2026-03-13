@@ -200,7 +200,7 @@ class PickDetail(BaseModel):
     team: str = Field(..., description="NFL team abbreviation")
     timestamp: str = Field(..., description="When the pick was made (ISO format)")
     adp_ppr: Optional[float] = Field(None, description="Player's ADP in PPR format from FantasyPros (e.g., 8.1)")
-    adp_delta: Optional[float] = Field(None, description="Delta between pick and ADP (positive=reach, negative=value). Calculated as: pick_no - adp_ppr")
+    adp_delta: Optional[float] = Field(None, description="Delta between pick and ADP (positive=value/picked later than ADP, negative=reach/picked earlier). Calculated as: pick_no - adp_ppr")
 
 
 class DraftPicksResponse(BaseModel):
@@ -271,6 +271,7 @@ class AvailableByPositionResponse(BaseModel):
             "example": {
                 "draft_id": "789012345",
                 "current_overall_pick": 25,
+                "current_round": 3,
                 "scoring_format": "ppr",
                 "limit": 20,
                 "players_by_position": {
@@ -289,6 +290,7 @@ class AvailableByPositionResponse(BaseModel):
     current_overall_pick: int = Field(
         ..., description="Current pick number (picks made + 1)"
     )
+    current_round: int = Field(..., description="Current round number")
     scoring_format: str = Field(
         ..., description="Scoring format (ppr, half_ppr, standard)"
     )

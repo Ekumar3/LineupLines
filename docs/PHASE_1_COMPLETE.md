@@ -302,28 +302,104 @@ Phase 2 (Historical Analysis) will:
 
 ---
 
+## Phase 1.8: Roster Intelligence & League Settings ✓ COMPLETE
+
+**Purpose**: Provide real-time roster analysis with position needs, league scoring detection, and ADP-based recommendations.
+
+**Key Features**:
+- League scoring format detection (PPR, half-PPR, standard)
+- User roster retrieval with position grouping
+- Position strength analysis (high/medium/low priority)
+- Available players ranked by ADP delta
+- Real-time draft recommendations per position
+
+**API Endpoints Added**:
+- `GET /api/v1/drafts/{draft_id}/league-settings` - Detect PPR/half-PPR/standard
+- `GET /api/v1/drafts/{draft_id}/available-by-position` - Available players grouped by position with ADP delta ranking
+- `GET /api/v1/drafts/{draft_id}/users/{user_id}/roster` - User's roster with position needs analysis
+
+**Models Added**:
+- `LeagueSettings`, `LeagueSettingsResponse`
+- `AvailablePlayerDetail`, `AvailableByPositionResponse`
+- `PositionNeed`, `UserRosterResponse`
+
+**Key Implementation**:
+- `PickDetail` and `AvailablePlayerDetail` now include `adp_ppr` and `adp_delta` fields
+- ADP delta sign convention: positive = value (picked later than ADP), negative = reach (picked earlier)
+- Position priority calculation considers roster construction + ADP value
+- 23 new tests covering all endpoints and edge cases
+
+**Files Modified**:
+- `src/api/main.py` - Added 3 new endpoints + position analysis logic
+- `src/api/models.py` - Added 6 new models
+- `src/data_sources/sleeper_client.py` - Added league settings retrieval
+
+---
+
+## Phase 2.0: Frontend Development ✓ IN PROGRESS
+
+**Purpose**: Build user-facing draft interface with real-time roster and recommendation display.
+
+**Technology Stack**:
+- React 19 + Vite (dev server with hot reload)
+- Tailwind CSS (styling)
+- React Router v7 (navigation)
+- Axios (API calls)
+- No external state management (Context API when needed)
+- No UI component library
+
+**Features Built**:
+- User lookup and draft selection flow
+- Roster view grouped by position
+- Real-time available players panel
+- ADP delta visualization (green/red badges)
+- Position need indicators
+- Responsive mobile-first design
+
+**Routes**:
+- `/` - Home: user lookup → select draft
+- `/roster/:draftId/:userId` - Draft roster with real-time available players
+
+**Components**:
+- `RosterView` - Main roster display
+- `AvailablePlayersView` - Available players panel
+- `ADPBadge` - ADP delta indicator
+- `PlayerRow`, `PositionTable` - Roster tables
+- Custom hooks: `useRosterData`, `useAvailableByPosition`, `useNextPick`
+
+**Status**:
+- Core functionality complete and working
+- Integrated with all backend endpoints
+- Ready for further UI refinements
+
+---
+
 ## Current State Summary
 
 ### ✅ What's Working Now
 
 - ✅ User lookup by username
 - ✅ Draft retrieval with filtering
-- ✅ Draft picks with player enrichment
+- ✅ Draft picks with player enrichment and ADP analysis
 - ✅ Player universe storage (11,546 players)
 - ✅ Daily sync capability
-- ✅ Available player filtering
-- ✅ Draft-aware filtering
+- ✅ Available player filtering by position with ADP delta ranking
+- ✅ League scoring format detection (PPR/half-PPR/standard)
+- ✅ User roster analysis with position needs
+- ✅ Draft-aware recommendations
 - ✅ Full OpenAPI docs
-- ✅ 52/52 tests passing
+- ✅ React frontend with draft roster view
+- ✅ 95/95 tests passing
 
 ### 📊 Project Statistics
 
-- **Total Code**: ~2,100 lines (production-ready)
-- **Test Coverage**: 52/52 passing (100%)
-- **API Endpoints**: 7 (health + 6 draft helper endpoints)
-- **Pydantic Models**: 11 (validation + docs)
-- **Test Files**: 4 (comprehensive coverage)
+- **Total Code**: ~3,500 lines (production-ready)
+- **Test Coverage**: 95/95 passing (100%)
+- **API Endpoints**: 10 (health + 9 draft helper endpoints)
+- **Pydantic Models**: 17 (validation + docs)
+- **Test Files**: 6 (comprehensive coverage)
 - **Data Sources**: 2 (Sleeper API + local storage)
+- **Frontend**: React 19 + Tailwind (2 routes, 6 custom hooks)
 
 ### 🚀 Getting Started
 

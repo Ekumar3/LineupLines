@@ -576,7 +576,7 @@ Register-ScheduledTask -TaskName "DraftHelperSync" -Trigger $trigger -Action $ac
 
 ### Pre-Deployment Checklist
 
-- [ ] All 52 tests passing locally
+- [ ] All 95 tests passing locally (`pytest tests/ -v`)
 - [ ] Player data synced within last 24 hours
 - [ ] Environment variables configured
 - [ ] API docs generated at `/docs`

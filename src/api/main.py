@@ -668,7 +668,7 @@ def get_available_by_position(
         draft_picks = sleeper_client.get_draft_picks(draft_id)
         drafted_player_ids = {pick.player_id for pick in draft_picks}
         current_overall_pick = draft_picks[-1].pick_no + 1 if draft_picks else 1
-
+        current_round = draft_picks[-1].round if draft_picks else 1
         # Step 3: Get scoring format for ADP matching
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
 
@@ -746,6 +746,7 @@ def get_available_by_position(
         return AvailableByPositionResponse(
             draft_id=draft_id,
             current_overall_pick=current_overall_pick,
+            current_round=current_round,
             scoring_format=scoring_format,
             limit=limit,
             players_by_position=limited_by_position,
@@ -832,8 +833,8 @@ def get_user_roster(draft_id: str, user_id: str):
             )
             picks_by_position[pick.position].append(pick_detail)
 
-        # Calculate current round (round of last pick + 1, or 1 if no picks)
-        current_round = max((pick.round for pick in user_picks), default=0) + 1
+        # Calculate current round (round of last pick, or 1 if no picks)
+        current_round = max((pick.round for pick in user_picks), default=1)
 
         # Calculate current pick number for ADP value scoring
         # Use the actual pick number from the most recent draft pick

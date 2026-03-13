@@ -98,7 +98,7 @@ class SleeperClient:
                     player_name=self._get_player_name(pick_data.get("player_id", "")),
                     position=self._get_player_position(pick_data.get("player_id", "")),
                     team=self._get_player_team(pick_data.get("player_id", "")),
-                    round=self._calculate_round(pick_data.get("pick_no", 0)),
+                    round=pick_data.get("round", self._calculate_round(pick_data.get("pick_no", 0))),
                     timestamp=datetime.fromisoformat(
                         pick_data.get("timestamp", datetime.now().isoformat()).rstrip("Z")
                     ) if pick_data.get("timestamp") else datetime.now()

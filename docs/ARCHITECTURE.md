@@ -267,12 +267,16 @@ def _get_player_position(self, player_id: str) -> str:
 ### Path Hierarchy
 
 ```
-/api/v1/users/lookup/{username}              # GET user info by username
-/api/v1/users/{username}/drafts              # GET drafts by username
-/api/v1/users/by-id/{user_id}/drafts         # GET drafts by user ID
-/api/v1/users/by-id/{user_id}/drafts/active  # GET active drafts only (convenience)
-/api/v1/drafts/{draft_id}/picks              # GET picks from draft
-/api/v1/drafts/{draft_id}/available-players  # GET available players
+/api/v1/users/lookup/{username}                    # GET user info by username
+/api/v1/users/{username}/drafts                    # GET drafts by username
+/api/v1/users/by-id/{user_id}/drafts               # GET drafts by user ID
+/api/v1/users/by-id/{user_id}/drafts/active        # GET active drafts only (convenience)
+/api/v1/drafts/{draft_id}                          # GET draft details + roster mapping
+/api/v1/drafts/{draft_id}/picks                    # GET picks from draft
+/api/v1/drafts/{draft_id}/league-settings          # GET league settings (PPR/half-PPR/standard)
+/api/v1/drafts/{draft_id}/available-players        # GET available players
+/api/v1/drafts/{draft_id}/available-by-position    # GET available players grouped by position with ADP delta
+/api/v1/drafts/{draft_id}/users/{user_id}/roster  # GET user's roster with position analysis
 ```
 
 **Design Principles**:
@@ -344,10 +348,10 @@ All responses follow consistent structure:
 
 | Layer | Tests | Type | Example |
 |-------|-------|------|---------|
-| Unit | 19 | Mocked | SleeperClient.get_user() |
-| Integration | 32 | TestClient | GET /api/v1/users/by-id/{id}/drafts |
-| Storage | 9 | File I/O | save_player_universe() |
-| **Total** | **52** | **100% pass** | All scenarios |
+| Unit | 30+ | Mocked | SleeperClient.get_user(), ADP calculation |
+| Integration | 50+ | TestClient | GET /api/v1/users/by-id/{id}/drafts |
+| Storage | 10+ | File I/O | save_player_universe() |
+| **Total** | **95** | **100% pass** | All scenarios |
 
 ### Mocking Strategy
 
@@ -476,13 +480,52 @@ logger.error(f"Failed to fetch picks: {e}", exc_info=True)
 - Recommendation engine as separate module
 - Storage layer abstraction ready for Redis
 
-### Phase 4: Frontend
+### Phase 2: Frontend (Currently In Progress)
 
-**API readiness**:
-- ✅ CORS configured
-- ✅ Complete OpenAPI docs
-- ✅ Type hints for client generation
-- ✅ Consistent error responses
+**Status**: Core frontend built and functional.
+
+**Stack**:
+- React 19 + Vite + Tailwind CSS + React Router v7
+- No external state management library (Context when needed)
+- No UI component library
+- Axios for API calls
+
+**Routes**:
+- `/` - User lookup and draft selection
+- `/roster/:draftId/:userId` - Draft roster view with available players
+
+**Key Components**:
+- `RosterView` - Main roster display grouped by position
+- `AvailablePlayersView` - Real-time available players panel
+- `ADPBadge` - ADP delta visualization
+- Custom hooks: `useRosterData`, `useAvailableByPosition`, `useNextPick`
+
+**API Integration**:
+- ✅ CORS configured for `localhost:3000`
+- ✅ Vite proxy routes `/api` and `/health` to `:8000`
+- ✅ Consumes all backend endpoints
+- ✅ Responsive design for mobile/tablet
+
+---
+
+## Data Models
+
+The API uses **17 Pydantic models** for type safety and validation:
+
+**Core Models**:
+- `DraftSummary`, `DraftDetails`, `DraftSettings`, `DraftMetadata`
+- `UserInfo`, `UserLookupResponse`, `UserDraftsResponse`
+- `PickDetail`, `DraftPicksResponse`
+- `PlayerSummary`, `AvailablePlayersResponse`, `AvailablePlayerDetail`, `AvailableByPositionResponse`
+- `LeagueSettings`, `LeagueSettingsResponse`
+- `PositionNeed`, `UserRosterResponse`
+- `ErrorResponse`, `RosterMapping`
+
+Each model includes:
+- Full type hints and docstrings
+- Field validation via Pydantic
+- OpenAPI schema generation
+- Example data for Swagger UI
 
 ---
 
@@ -491,10 +534,10 @@ logger.error(f"Failed to fetch picks: {e}", exc_info=True)
 **Key Architectural Decisions**:
 
 1. **FastAPI** - Async, auto-docs, Pydantic integration
-2. **Pydantic** - Validation, type safety, auto-docs
+2. **Pydantic** - 17 models for validation, type safety, auto-docs
 3. **Local JSON** - Simple for Phase 1, easy to upgrade
 4. **Defensive Programming** - Handle errors at data source
-5. **Test Pyramid** - 52 tests covering all layers
+5. **Test Pyramid** - 95 tests covering all layers
 6. **Fallback Mechanisms** - Resilient to failures
 7. **Storage Abstraction** - Ready for S3/DynamoDB upgrade
 

@@ -381,6 +381,162 @@ curl "http://localhost:8000/api/v1/drafts/789012345/available-players?position=Q
 
 ---
 
+### Get League Settings
+
+**GET /api/v1/drafts/{draft_id}/league-settings**
+
+Get league scoring settings to determine the appropriate ADP format (PPR, half-PPR, or standard).
+
+**Parameters**:
+- `draft_id` (path, required): Sleeper draft ID
+
+**Response** (200):
+```json
+{
+  "draft_id": "789012345",
+  "league_id": "456789012",
+  "settings": {
+    "league_id": "456789012",
+    "scoring_format": "ppr",
+    "roster_positions": ["QB", "RB", "RB", "WR", "WR", "WR", "TE", "FLEX", "K", "DEF"],
+    "total_rosters": 12
+  }
+}
+```
+
+**Errors**:
+- 404: Draft or league not found
+- 500: Server error
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/drafts/789012345/league-settings
+```
+
+---
+
+### Get Available Players by Position
+
+**GET /api/v1/drafts/{draft_id}/available-by-position**
+
+Get available (undrafted) players grouped by position, sorted by ADP delta. This is useful for real-time draft recommendations at each pick.
+
+**Parameters**:
+- `draft_id` (path, required): Sleeper draft ID
+- `limit` (query, optional): Max players to return per position (default: 20, max: 100)
+
+**Response** (200):
+```json
+{
+  "draft_id": "789012345",
+  "current_overall_pick": 25,
+  "current_round": 3,
+  "scoring_format": "ppr",
+  "limit": 20,
+  "players_by_position": {
+    "QB": [
+      {
+        "player_id": "2307",
+        "player_name": "Christian McCaffrey",
+        "position": "QB",
+        "team": "SF",
+        "age": 27,
+        "years_exp": 7,
+        "adp_ppr": 15.2,
+        "adp_delta": 9.8
+      }
+    ],
+    "RB": [],
+    "WR": [],
+    "TE": [],
+    "K": [],
+    "DEF": []
+  }
+}
+```
+
+**Key Fields**:
+- `current_overall_pick`: The next pick number to be made (total picks made + 1)
+- `current_round`: Current draft round
+- `scoring_format`: League's scoring format (ppr, half_ppr, standard)
+- `adp_delta` in AvailablePlayerDetail: Positive means player is available later than their ADP (good value), negative means they're expected to go earlier (reaching if drafted now)
+
+**Errors**:
+- 404: Draft not found
+- 500: Server error
+
+**Example**:
+```bash
+curl "http://localhost:8000/api/v1/drafts/789012345/available-by-position?limit=10"
+```
+
+---
+
+### Get User Roster
+
+**GET /api/v1/drafts/{draft_id}/users/{user_id}/roster**
+
+Get a user's drafted picks organized by position with position strength analysis.
+
+**Parameters**:
+- `draft_id` (path, required): Sleeper draft ID
+- `user_id` (path, required): Sleeper user ID
+
+**Response** (200):
+```json
+{
+  "draft_id": "789012345",
+  "user_id": "942348475046494208",
+  "draft_slot": 3,
+  "total_picks": 7,
+  "roster_by_position": {
+    "QB": [],
+    "RB": [
+      {
+        "pick_no": 3,
+        "round": 1,
+        "user_id": "942348475046494208",
+        "player_id": "2307",
+        "player_name": "Christian McCaffrey",
+        "position": "RB",
+        "team": "SF",
+        "timestamp": "2026-08-15T19:30:00"
+      }
+    ],
+    "WR": [],
+    "TE": [],
+    "K": [],
+    "DEF": []
+  },
+  "position_summary": {
+    "QB": {"count": 0, "needs_more": true, "priority": "high"},
+    "RB": {"count": 1, "needs_more": true, "priority": "medium"},
+    "WR": {"count": 0, "needs_more": true, "priority": "medium"},
+    "TE": {"count": 0, "needs_more": true, "priority": "high"},
+    "K": {"count": 0, "needs_more": false, "priority": "low"},
+    "DEF": {"count": 0, "needs_more": false, "priority": "low"}
+  }
+}
+```
+
+**Key Fields**:
+- `draft_slot`: User's draft position (1-based)
+- `position_summary`: Analysis of position needs with priority (high/medium/low)
+  - `count`: Number of players at this position
+  - `needs_more`: Whether roster still needs players at this position
+  - `priority`: Drafting priority based on roster construction and ADP-based value
+
+**Errors**:
+- 404: Draft or user not found
+- 500: Server error
+
+**Example**:
+```bash
+curl "http://localhost:8000/api/v1/drafts/789012345/users/942348475046494208/roster"
+```
+
+---
+
 ## Status Values
 
 Sleeper uses these draft status values:
@@ -430,12 +586,14 @@ For the `status_filter` parameter:
 {
   "pick_no": number,
   "round": number,
-  "roster_id": number,
+  "user_id": "string",
   "player_id": "string",
   "player_name": "string",
   "position": "RB|WR|QB|TE|etc",
   "team": "SF|DAL|etc",
-  "timestamp": "2026-08-15T19:30:00 (ISO format)"
+  "timestamp": "2026-08-15T19:30:00 (ISO format)",
+  "adp_ppr": number (optional, player's ADP in PPR format),
+  "adp_delta": number (optional, positive=value/picked later than ADP, negative=reach/picked earlier)
 }
 ```
 
