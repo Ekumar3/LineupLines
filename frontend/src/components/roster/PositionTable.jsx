@@ -5,7 +5,7 @@ export default function PositionTable({ position, players, positionSummary, show
   const isEmpty = !players || players.length === 0;
 
   return (
-    <div className="card">
+    <div className="card w-fit">
       {/* Position Header */}
       <PositionHeader
         position={position}
@@ -17,30 +17,28 @@ export default function PositionTable({ position, players, positionSummary, show
 
       {/* Player Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="max-w-3xl">
           <thead className="bg-sleeper-gray-900 border-b border-sleeper-gray-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
+                ADP Delta
+              </th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-16">
                 Pick
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
                 Player
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
-                Team
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
+              
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-20">
                 Round
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
-                ADP Delta
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-sleeper-gray-800">
             {isEmpty ? (
               <tr>
-                <td colSpan="5" className="px-6 py-8 text-center text-sleeper-gray-500">
+                <td colSpan="5" className="px-3 py-6 text-center text-sleeper-gray-500">
                   No {position}s drafted yet
                 </td>
               </tr>

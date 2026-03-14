@@ -2,6 +2,7 @@ import React from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import PositionTable from './PositionTable';
+import AvailableTable from './AvailableTable';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 
@@ -35,8 +36,8 @@ export default function RosterView({ draftId, userId }) {
           </div>
         </div>
 
-        {/* Position Tables - Each in its own section */}
-        <div className="space-y-6">
+        {/* Position Tables - 2 per row, 3 rows */}
+        <div className="grid grid-cols-3 gap-6">
           {POSITION_ORDER.map(position => {
             const draftedPlayers = rosterData.roster_by_position?.[position] || [];
             const availablePlayers = availableData?.players_by_position?.[position] || [];
@@ -52,16 +53,11 @@ export default function RosterView({ draftId, userId }) {
 
                 {/* Available Players (if any) */}
                 {availablePlayers.length > 0 && (
-                  <div className="ml-4 border-l-2 border-sleeper-gray-800 pl-4">
-                    <h3 className="text-sm font-medium text-sleeper-gray-400 mb-2">
+                  <div>
+                    <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
                       Available {position}s (Top {availableData.limit})
                     </h3>
-                    <PositionTable
-                      position={position}
-                      players={availablePlayers}
-                      positionSummary={null}
-                      showCount={false}
-                    />
+                    <AvailableTable players={availablePlayers} position={position} />
                   </div>
                 )}
               </div>
