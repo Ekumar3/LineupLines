@@ -6,8 +6,11 @@ export const useRosterData = (draftId, userId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
+  const prevDataJson = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchRoster = async () => {
       try {
         if (!initialLoadDone.current) setLoading(true);
@@ -17,6 +20,8 @@ export const useRosterData = (draftId, userId) => {
           draftAPI.getUserRoster(draftId, userId),
           draftAPI.getDraftPicks(draftId)
         ]);
+
+        if (cancelled) return;
 
         // Create a map of picks by player_id for quick lookup
         const picksByPlayerId = {};
@@ -41,15 +46,20 @@ export const useRosterData = (draftId, userId) => {
           });
         }
 
-        setData(enrichedRoster);
+        const json = JSON.stringify(enrichedRoster);
+        if (json !== prevDataJson.current) {
+          prevDataJson.current = json;
+          setData(enrichedRoster);
+          console.log(`[useRosterData] Updated at ${new Date().toLocaleTimeString()} — total picks: ${enrichedRoster.total_picks}`);
+        }
         initialLoadDone.current = true;
         setError(null);
-        console.log(`[useRosterData] Refreshed at ${new Date().toLocaleTimeString()} — total picks: ${enrichedRoster.total_picks}`);
       } catch (err) {
+        if (cancelled) return;
         setError(err.message || 'Failed to fetch roster');
         setData(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -60,7 +70,10 @@ export const useRosterData = (draftId, userId) => {
       const interval = setInterval(fetchRoster, 5000);
 
       // Cleanup interval on unmount or when dependencies change
-      return () => clearInterval(interval);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
   }, [draftId, userId]);
 

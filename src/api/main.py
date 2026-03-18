@@ -686,6 +686,9 @@ def get_available_by_position(
         available_by_position = defaultdict(list)
         positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
+        # Build ADP lookup dict once for O(1) lookups instead of O(M) per player
+        adp_lookup = adp_service.get_adp_lookup(scoring_format)
+
         for player_id, player_data in all_players.items():
             # Skip drafted players
             if player_id in drafted_player_ids:
@@ -702,8 +705,8 @@ def get_available_by_position(
             if not player_name:
                 continue
 
-            # Get ADP for this player
-            adp_value = adp_service.get_player_adp(player_name, scoring_format)
+            # Get ADP for this player via O(1) dict lookup
+            adp_value = adp_lookup.get(player_name.lower().strip())
 
             # Calculate ADP delta: current_overall_pick - adp_ppr
             # Positive = player available later than ADP (value)

@@ -1,4 +1,6 @@
-export default function PositionHeader({ position, count, priority, needsMore, showCount = true }) {
+import { memo } from 'react';
+
+export default memo(function PositionHeader({ position, count, priority, needsMore, showCount = true }) {
   const priorityColors = {
     high: 'bg-sleeper-red/10 text-sleeper-red',
     medium: 'bg-sleeper-purple/10 text-sleeper-purple',
@@ -24,4 +26,4 @@ export default function PositionHeader({ position, count, priority, needsMore, s
       )}
     </div>
   );
-}
+})

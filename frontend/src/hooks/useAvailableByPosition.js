@@ -6,21 +6,30 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
+  const prevDataJson = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchAvailable = async () => {
       try {
         if (!initialLoadDone.current) setLoading(true);
         const availableData = await draftAPI.getAvailableByPosition(draftId, limit);
-        setData(availableData);
+        if (cancelled) return;
+        const json = JSON.stringify(availableData);
+        if (json !== prevDataJson.current) {
+          prevDataJson.current = json;
+          setData(availableData);
+          console.log(`[useAvailableByPosition] Updated at ${new Date().toLocaleTimeString()} — current pick: #${availableData?.current_overall_pick}`);
+        }
         initialLoadDone.current = true;
         setError(null);
-        console.log(`[useAvailableByPosition] Refreshed at ${new Date().toLocaleTimeString()} — current pick: #${availableData?.current_overall_pick}`);
       } catch (err) {
+        if (cancelled) return;
         setError(err.message || 'Failed to fetch available players');
         setData(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -31,7 +40,10 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
       const interval = setInterval(fetchAvailable, 5000);
 
       // Cleanup interval on unmount or when dependencies change
-      return () => clearInterval(interval);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
   }, [draftId, limit]);
 

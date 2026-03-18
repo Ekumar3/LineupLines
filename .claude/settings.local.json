@@ -22,7 +22,8 @@
       "Bash(npm run dev:*)",
       "Bash(PYTHONPATH=. python:*)",
       "Bash(ls -la \"C:\\\\Users\\\\ekumar\\\\Documents\\\\repos\\\\LineupLines\\\\infra\"\" && ls -la \"C:UsersekumarDocumentsreposLineupLinespublic\"\")",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(wc -l /c/Users/ekumar/Documents/repos/LineupLines/frontend/src/components/roster/*.jsx)"
     ]
   }
 }

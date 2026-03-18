@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import ADPBadge from '../common/ADPBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
 
-export default function PlayerRow({ player }) {
+export default memo(function PlayerRow({ player }) {
   return (
     <tr className="hover:bg-sleeper-gray-900 transition-colors">
       <td className="px-3 py-3 whitespace-nowrap text-center">
@@ -26,10 +27,6 @@ export default function PlayerRow({ player }) {
           </span>
         </div>
       </td>
-    
-      <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-sleeper-gray-400">
-        Round {player.round}
-      </td>
     </tr>
   );
-}
+})

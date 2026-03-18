@@ -1,4 +1,6 @@
-export default function ADPBadge({ adpDelta, adpPpr }) {
+import { memo } from 'react';
+
+export default memo(function ADPBadge({ adpDelta, adpPpr }) {
   if (!adpDelta && adpDelta !== 0 || !adpPpr) {
     return <span className="text-sleeper-gray-500">-</span>;
   }
@@ -39,4 +41,4 @@ export default function ADPBadge({ adpDelta, adpPpr }) {
       </span>
     </div>
   );
-}
+})

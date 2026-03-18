@@ -87,6 +87,32 @@ class ADPService:
 
         return self.analyzers.get(scoring_format)
 
+    def get_adp_lookup(self, scoring_format: str) -> Dict[str, float]:
+        """Build a normalized name -> ADP lookup dict for fast bulk lookups.
+
+        Args:
+            scoring_format: One of "ppr", "half_ppr", "standard"
+
+        Returns:
+            Dict mapping lowercase player name to ADP overall value
+        """
+        players = self.get_adp_data(scoring_format)
+        if not players:
+            return {}
+
+        lookup = {}
+        for player in players:
+            name = getattr(player, "player_name", None)
+            if not name:
+                continue
+            normalized = name.lower().strip()
+            if "(" in normalized:
+                normalized = normalized[: normalized.rfind("(")].strip()
+            adp = getattr(player, "adp_overall", None)
+            if adp is not None:
+                lookup[normalized] = adp
+        return lookup
+
     def get_player_adp(self, player_name: str, scoring_format: str) -> Optional[float]:
         """Get ADP for a specific player by name.
 

@@ -4,11 +4,16 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from src.api.main import app
+from src.api.main import app, sleeper_client
 
 
 class TestLeagueSettings:
     """Tests for GET /api/v1/drafts/{draft_id}/league-settings endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def clear_scoring_cache(self):
+        """Clear scoring format cache between tests."""
+        sleeper_client._scoring_format_cache.clear()
 
     @pytest.fixture
     def client(self):

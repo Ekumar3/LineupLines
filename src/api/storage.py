@@ -25,6 +25,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 PLAYER_DATA_DIR = PROJECT_ROOT / "data" / "players"
 PLAYER_DATA_FILE = PLAYER_DATA_DIR / "nfl_players.json"
 
+# In-memory cache for player universe (avoids re-reading 19MB file per request)
+_player_universe_cache: Optional[Dict[str, Dict[str, Any]]] = None
+
 
 def save_player_universe(players: Dict[str, Dict[str, Any]]) -> None:
     """Save player universe to local JSON file.
@@ -32,6 +35,9 @@ def save_player_universe(players: Dict[str, Dict[str, Any]]) -> None:
     Args:
         players: Dictionary mapping player_id to player data
     """
+    global _player_universe_cache
+    _player_universe_cache = None  # Invalidate cache so next load picks up new data
+
     # Create parent directories for the file
     PLAYER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -50,9 +56,16 @@ def save_player_universe(players: Dict[str, Dict[str, Any]]) -> None:
 def load_player_universe() -> Optional[Dict[str, Dict[str, Any]]]:
     """Load player universe from local JSON file.
 
+    Uses in-memory cache to avoid re-reading the 19MB file on every request.
+
     Returns:
         Dictionary mapping player_id to player data, or None if file doesn't exist
     """
+    global _player_universe_cache
+
+    if _player_universe_cache is not None:
+        return _player_universe_cache
+
     if not PLAYER_DATA_FILE.exists():
         logger.warning(f"Player data file not found: {PLAYER_DATA_FILE}")
         return None
@@ -66,6 +79,7 @@ def load_player_universe() -> Optional[Dict[str, Dict[str, Any]]]:
         players = data.get("players", {})
 
         logger.info(f"Loaded {player_count} players (updated: {updated_at})")
+        _player_universe_cache = players
         return players
 
     except Exception as e:

@@ -115,8 +115,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp",
-            side_effect=lambda name, fmt: 45.2 if "Mahomes" in name else 35.0,
+            "src.api.main.adp_service.get_adp_lookup",
+            return_value={"patrick mahomes": 45.2, "christian mccaffrey": 35.0, "ceedee lamb": 35.0, "travis kelce": 35.0, "harrison butker": 35.0, "defense sf": 35.0},
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -143,7 +143,7 @@ class TestGetAvailableByPosition:
         mahomes = next((p for p in qbs if "Mahomes" in p["player_name"]), None)
         assert mahomes is not None
         assert mahomes["adp_ppr"] == 45.2
-        assert abs(mahomes["adp_delta"] - 20.2) < 0.01  # 45.2 - 25 = 20.2 (good value)
+        assert abs(mahomes["adp_delta"] - (-20.2)) < 0.01  # 25 - 45.2 = -20.2 (available before ADP)
 
     def test_custom_limit(self, client, mock_draft_details, mock_draft_picks, mock_player_universe):
         """Test custom limit parameter restricts results."""
@@ -159,7 +159,7 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp", return_value=None
+            "src.api.main.adp_service.get_adp_lookup", return_value={}
         ):
             response = client.get("/api/v1/drafts/123/available-by-position?limit=5")
 
@@ -204,17 +204,12 @@ class TestGetAvailableByPosition:
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
         """Test that players are sorted by ADP delta descending (best value first)."""
-        # Mock ADP values that will create different deltas
-        def mock_adp(name, fmt):
-            adp_map = {
-                "Christian McCaffrey": 30.0,  # delta = 5.0 (picked at 25)
-                "CeeDee Lamb": 40.0,  # delta = 15.0 (best value)
-                "Patrick Mahomes": 50.0,  # delta = 25.0 (best value)
-            }
-            for key, val in adp_map.items():
-                if key in name:
-                    return val
-            return None
+        # Mock ADP lookup dict with values that create different deltas
+        adp_lookup = {
+            "christian mccaffrey": 30.0,  # delta = 5.0 (picked at 25)
+            "ceedee lamb": 40.0,  # delta = 15.0 (best value)
+            "patrick mahomes": 50.0,  # delta = 25.0 (best value)
+        }
 
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
@@ -228,8 +223,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp",
-            side_effect=mock_adp,
+            "src.api.main.adp_service.get_adp_lookup",
+            return_value=adp_lookup,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -240,7 +235,7 @@ class TestGetAvailableByPosition:
         qbs = data["players_by_position"]["QB"]
         if len(qbs) > 0 and qbs[0]["adp_delta"] is not None:
             assert qbs[0]["player_name"] == "Patrick Mahomes"
-            assert qbs[0]["adp_delta"] == 25.0
+            assert qbs[0]["adp_delta"] == -25.0  # 25 - 50.0 = -25.0
 
     def test_no_adp_data_handling(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
@@ -258,8 +253,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp",
-            return_value=None,
+            "src.api.main.adp_service.get_adp_lookup",
+            return_value={},
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -276,11 +271,8 @@ class TestGetAvailableByPosition:
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
         """Test that players with ADP data are sorted before those without."""
-        def mock_adp(name, fmt):
-            # Only return ADP for some players
-            if "Mahomes" in name:
-                return 50.0
-            return None
+        # Only Mahomes has ADP data
+        adp_lookup = {"patrick mahomes": 50.0}
 
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
@@ -294,8 +286,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp",
-            side_effect=mock_adp,
+            "src.api.main.adp_service.get_adp_lookup",
+            return_value=adp_lookup,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -336,8 +328,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_player_adp",
-            return_value=None,
+            "src.api.main.adp_service.get_adp_lookup",
+            return_value={},
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 

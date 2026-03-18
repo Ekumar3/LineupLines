@@ -62,6 +62,7 @@ class SleeperClient:
         self.last_request_time = 0
         self._player_cache: Optional[Dict[str, Dict[str, Any]]] = None
         self._player_cache_time: Optional[datetime] = None
+        self._scoring_format_cache: Dict[str, Optional[str]] = {}
 
     def get_draft_picks(self, draft_id: str) -> List[DraftPick]:
         """Fetch all picks from a draft.
@@ -318,8 +319,12 @@ class SleeperClient:
         Returns:
             One of "ppr", "half_ppr", "standard", or None if cannot determine
         """
+        if league_id in self._scoring_format_cache:
+            return self._scoring_format_cache[league_id]
+
         league_info = self.get_league_info(league_id)
         if not league_info:
+            self._scoring_format_cache[league_id] = None
             return None
 
         scoring_settings = league_info.get("scoring_settings", {})
@@ -327,19 +332,22 @@ class SleeperClient:
 
         # Map reception points to format
         if rec_points == 1.0:
-            return "ppr"
+            result = "ppr"
         elif rec_points == 0.5:
-            return "half_ppr"
+            result = "half_ppr"
         elif rec_points == 0.0:
-            return "standard"
+            result = "standard"
         else:
             # Custom scoring - default to closest match
             if rec_points > 0.75:
-                return "ppr"
+                result = "ppr"
             elif rec_points > 0.25:
-                return "half_ppr"
+                result = "half_ppr"
             else:
-                return "standard"
+                result = "standard"
+
+        self._scoring_format_cache[league_id] = result
+        return result
 
     def get_league_drafts(self, league_id: str) -> List[Dict[str, Any]]:
         """Get all drafts for a league.

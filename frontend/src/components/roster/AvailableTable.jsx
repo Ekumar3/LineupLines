@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import ADPBadge from '../common/ADPBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
 
-export default function AvailableTable({ players, position }) {
+export default memo(function AvailableTable({ players, position }) {
   if (!players || players.length === 0) return null;
 
   return (
@@ -19,8 +20,8 @@ export default function AvailableTable({ players, position }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-sleeper-gray-800">
-          {players.map((player, idx) => (
-            <tr key={`${player.player_id}-${idx}`} className="hover:bg-sleeper-gray-900 transition-colors">
+          {players.map((player) => (
+            <tr key={player.player_id} className="hover:bg-sleeper-gray-900 transition-colors">
               <td className="px-3 py-3 whitespace-nowrap text-center">
                 <ADPBadge
                   adpDelta={player.adp_delta}
@@ -45,4 +46,4 @@ export default function AvailableTable({ players, position }) {
       </table>
     </div>
   );
-}
+})

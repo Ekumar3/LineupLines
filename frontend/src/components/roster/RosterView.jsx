@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import PositionTable from './PositionTable';
@@ -11,6 +11,16 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
   const { data: availableData } = useAvailableByPosition(draftId, 10);
+
+  const positionData = useMemo(() =>
+    POSITION_ORDER.map(pos => ({
+      position: pos,
+      drafted: rosterData?.roster_by_position?.[pos] || [],
+      available: availableData?.players_by_position?.[pos] || [],
+      summary: rosterData?.position_summary?.[pos],
+    })),
+    [rosterData, availableData]
+  );
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} />;
@@ -27,7 +37,7 @@ export default function RosterView({ draftId, userId }) {
           <div className="flex gap-4 text-sleeper-gray-400 flex-wrap">
             <span>Draft Slot: {rosterData.draft_slot}</span>
             <span>Total Picks: {rosterData.total_picks}</span>
-            <span>Current Round: {availableData.current_round}</span>
+            <span>Current Round: {availableData?.current_round}</span>
             {availableData?.current_overall_pick && (
               <span className="text-sleeper-blue">
                 Current Pick: #{availableData.current_overall_pick}
@@ -38,31 +48,26 @@ export default function RosterView({ draftId, userId }) {
 
         {/* Position Tables - 2 per row, 3 rows */}
         <div className="grid grid-cols-3 gap-6">
-          {POSITION_ORDER.map(position => {
-            const draftedPlayers = rosterData.roster_by_position?.[position] || [];
-            const availablePlayers = availableData?.players_by_position?.[position] || [];
+          {positionData.map(({ position, drafted, available, summary }) => (
+            <div key={position} className="space-y-4">
+              {/* Drafted Roster */}
+              <PositionTable
+                position={position}
+                players={drafted}
+                positionSummary={summary}
+              />
 
-            return (
-              <div key={position} className="space-y-4">
-                {/* Drafted Roster */}
-                <PositionTable
-                  position={position}
-                  players={draftedPlayers}
-                  positionSummary={rosterData.position_summary?.[position]}
-                />
-
-                {/* Available Players (if any) */}
-                {availablePlayers.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
-                      Available {position}s (Top {availableData.limit})
-                    </h3>
-                    <AvailableTable players={availablePlayers} position={position} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              {/* Available Players (if any) */}
+              {available.length > 0 && (
+                <div>
+                  <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
+                    Available {position}s (Top {availableData?.limit})
+                  </h3>
+                  <AvailableTable players={available} position={position} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

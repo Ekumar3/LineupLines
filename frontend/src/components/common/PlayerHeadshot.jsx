@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
-export default function PlayerHeadshot({ playerId, playerName, position }) {
+export default memo(function PlayerHeadshot({ playerId, playerName, position }) {
   const [imgError, setImgError] = useState(false);
 
   const showFallback = imgError || position === 'DEF';
@@ -28,4 +28,4 @@ export default function PlayerHeadshot({ playerId, playerName, position }) {
       className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-sleeper-gray-800"
     />
   );
-}
+})

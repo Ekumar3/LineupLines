@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import tempfile
 
+import src.api.storage as storage_module
 from src.api.storage import (
     save_player_universe,
     load_player_universe,
@@ -15,6 +16,13 @@ from src.api.storage import (
 
 class TestPlayerUniverseStorage:
     """Tests for player universe storage and loading."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        """Clear the in-memory player universe cache before each test."""
+        storage_module._player_universe_cache = None
+        yield
+        storage_module._player_universe_cache = None
 
     @pytest.fixture
     def sample_players(self):
