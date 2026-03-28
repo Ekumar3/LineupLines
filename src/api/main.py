@@ -454,6 +454,8 @@ def get_draft_details(draft_id: str):
                 rounds=draft_details["settings"]["rounds"],
                 reversal_round=draft_details["settings"].get("reversal_round"),
                 type=draft_details["settings"]["type"],
+                slots_qb=draft_details["settings"].get("slots_qb", 1),
+                slots_super_flex=draft_details["settings"].get("slots_super_flex", 0),
             ),
             metadata=DraftMetadata(
                 name=draft_details["metadata"].get("name"),
@@ -1047,6 +1049,8 @@ def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:
                     "rounds": draft.get("settings", {}).get("rounds", 0),
                     "reversal_round": draft.get("settings", {}).get("reversal_round"),
                     "type": draft.get("type", "snake"),
+                    "slots_qb": draft.get("settings", {}).get("slots_qb", 1),
+                    "slots_super_flex": draft.get("settings", {}).get("slots_super_flex", 0),
                 },
                 metadata={
                     "name": draft.get("metadata", {}).get("name"),

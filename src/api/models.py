@@ -16,6 +16,8 @@ class DraftSettings(BaseModel):
         None, description="Round where snake draft reverses direction"
     )
     type: str = Field(..., description="Draft type (snake, linear, auction)")
+    slots_qb: Optional[int] = Field(None, description="Number of QB slots")
+    slots_super_flex: Optional[int] = Field(None, description="Number of Superflex slots")
 
 
 class DraftMetadata(BaseModel):

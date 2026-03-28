@@ -184,9 +184,19 @@ export default function Home() {
                     </div>
 
                     <div className="flex items-center justify-between text-sm">
+                      <span className="text-sleeper-gray-500">Teams</span>
+                      <span className="text-sleeper-gray-300 font-medium">
+                        {draft.settings?.teams} Team
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
                       <span className="text-sleeper-gray-500">Format</span>
                       <span className="text-sleeper-gray-300 font-medium">
-                        {draft.settings?.teams} Team {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'}
+                        {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'} 
+                        {draft.settings?.slots_super_flex > 0 
+                          ? ' SFX' 
+                          : (draft.settings?.slots_qb > 1 ? ` ${draft.settings.slots_qb}QB` : '')}
                       </span>
                     </div>
 
