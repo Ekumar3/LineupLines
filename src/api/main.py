@@ -719,7 +719,8 @@ def get_available_by_position(
                 continue
 
             # Get ADP for this player via O(1) dict lookup
-            adp_value = adp_lookup.get(player_name.lower().strip())
+            normalized_name = adp_service.normalize_player_name(player_name)
+            adp_value = adp_lookup.get(normalized_name)
 
             # Skip players without ADP data for the Top Available list 
             # so we don't return random historical/practice squad players

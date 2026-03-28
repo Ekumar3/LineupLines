@@ -31,6 +31,22 @@ class ADPService:
         self.last_refresh: Dict[str, datetime] = {}
         self.cache_duration = timedelta(hours=24)
 
+    def normalize_player_name(self, name: str) -> str:
+        """Normalize player name by removing suffixes and punctuation for reliable matching."""
+        if not name:
+            return ""
+        name = name.lower().strip()
+        # Remove team abbreviation in parentheses
+        if "(" in name:
+            name = name[: name.rfind("(")].strip()
+        # Remove common punctuation
+        name = name.replace("'", "").replace(".", "").replace("-", "")
+        # Remove common suffixes
+        for suffix in [" ii", " iii", " iv", " jr", " sr"]:
+            if name.endswith(suffix):
+                name = name[:-len(suffix)].strip()
+        return name
+
     def get_adp_data(self, scoring_format: str, force_refresh: bool = False) -> Optional[List]:
         """Get ADP data for a scoring format, using cache if available.
 
@@ -105,11 +121,10 @@ class ADPService:
             name = getattr(player, "player_name", None)
             if not name:
                 continue
-            normalized = name.lower().strip()
-            if "(" in normalized:
-                normalized = normalized[: normalized.rfind("(")].strip()
+            normalized = self.normalize_player_name(name)
             adp = getattr(player, "adp_overall", None)
             if adp is not None:
+                # Store normalized name
                 lookup[normalized] = adp
         return lookup
 
@@ -131,21 +146,16 @@ class ADPService:
             if not players:
                 return None
 
-            # Normalize search name - remove team if present
-            normalized_name = player_name.lower().strip()
-            # Remove team abbreviation in parentheses if present
-            if "(" in normalized_name:
-                normalized_name = normalized_name[: normalized_name.rfind("(")].strip()
+            # Normalize search name
+            normalized_name = self.normalize_player_name(player_name)
 
             for player in players:
                 player_match_name = getattr(player, "player_name", None)
                 if not player_match_name:
                     continue
 
-                # Normalize database name - remove team abbreviation
-                db_name = player_match_name.lower().strip()
-                if "(" in db_name:
-                    db_name = db_name[: db_name.rfind("(")].strip()
+                # Normalize database name
+                db_name = self.normalize_player_name(player_match_name)
 
                 # Match if names are equal
                 if db_name == normalized_name:
