@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+ENV/
+
+# AWS SAM (legacy)
+.aws-sam/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+.cursor/
+
+# Frontend
+frontend/
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
