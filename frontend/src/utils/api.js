@@ -9,6 +9,12 @@ const api = axios.create({
 });
 
 export const draftAPI = {
+  // Get user drafts
+  getUserDrafts: async (username) => {
+    const response = await api.get(`/users/${username}/drafts`);
+    return response.data;
+  },
+
   // Get user roster grouped by position
   getUserRoster: async (draftId, userId) => {
     const response = await api.get(`/drafts/${draftId}/users/${userId}/roster`);
