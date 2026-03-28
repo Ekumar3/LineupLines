@@ -8,6 +8,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [draftsData, setDraftsData] = useState(null);
+  const [userData, setUserData] = useState(null);
   
   const navigate = useNavigate();
 
@@ -25,13 +26,18 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const data = await draftAPI.getUserDrafts(uname);
-      setDraftsData(data);
+      const [userRes, draftsRes] = await Promise.all([
+        draftAPI.lookupUser(uname).catch(() => null), // Ignore lookup failure if drafts succeed
+        draftAPI.getUserDrafts(uname)
+      ]);
+      setUserData(userRes);
+      setDraftsData(draftsRes);
       // Only save to local storage if the fetch is successful
       localStorage.setItem('sleeper_username', uname);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to find user or drafts.');
       setDraftsData(null);
+      setUserData(null);
       // Don't clear local storage on network errors, just in case
       if (err.response?.status === 404) {
         localStorage.removeItem('sleeper_username');
@@ -52,12 +58,17 @@ export default function Home() {
     localStorage.removeItem('sleeper_username');
     setUsername('');
     setDraftsData(null);
+    setUserData(null);
     setError(null);
   };
 
   const handleDraftClick = (draftId, userId) => {
     navigate(`/roster/${draftId}/${userId}`);
   };
+
+  const avatarUrl = userData?.avatar 
+    ? `https://sleepercdn.com/avatars/${userData.avatar}` 
+    : null;
 
   return (
     <div className="min-h-screen bg-sleeper-darker py-8 px-4 sm:px-6 lg:px-8 font-sans">
@@ -109,11 +120,28 @@ export default function Home() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-center bg-sleeper-dark p-4 sm:p-6 rounded-xl border border-sleeper-gray-800 shadow-sm gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-sleeper-blue to-sleeper-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt={username} 
+                    className="w-12 h-12 rounded-full border border-sleeper-gray-700 shadow-lg object-cover bg-sleeper-gray-800"
+                    onError={(e) => {
+                      // Fallback to initials if image fails to load
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`w-12 h-12 bg-gradient-to-br from-sleeper-blue to-sleeper-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg ${avatarUrl ? 'hidden' : ''}`}
+                >
                   {username.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold text-lg leading-tight">{username}</h3>
+                  <h3 className="text-white font-semibold text-lg leading-tight">
+                    {userData?.display_name || username}
+                  </h3>
                   <p className="text-sleeper-gray-400 text-sm mt-0.5">{draftsData.total_drafts} Total Drafts</p>
                 </div>
               </div>

@@ -9,6 +9,12 @@ const api = axios.create({
 });
 
 export const draftAPI = {
+  // Look up user details (like avatar)
+  lookupUser: async (username) => {
+    const response = await api.get(`/users/lookup/${username}`);
+    return response.data;
+  },
+
   // Get user drafts
   getUserDrafts: async (username) => {
     const response = await api.get(`/users/${username}/drafts`);
