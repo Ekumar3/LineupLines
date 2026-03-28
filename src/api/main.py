@@ -181,8 +181,12 @@ def get_user_drafts_by_username(
                 detail=f"No drafts found for user {username} in {sport} {season}",
             )
 
+        # Fetch leagues to enrich metadata (e.g. TE Premium)
+        raw_leagues = sleeper_client.get_user_leagues(user_id, sport, season)
+        user_leagues = {l.get("league_id"): l for l in raw_leagues}
+
         # Transform to DraftSummary objects
-        draft_summaries = _transform_drafts(raw_drafts)
+        draft_summaries = _transform_drafts(raw_drafts, user_leagues)
 
         # Apply status filtering
         if status_filter == "active":
@@ -267,8 +271,12 @@ def get_user_drafts_by_id(
                 detail=f"No drafts found for user_id: {user_id} in {sport} {season}",
             )
 
+        # Fetch leagues to enrich metadata (e.g. TE Premium)
+        raw_leagues = sleeper_client.get_user_leagues(user_id, sport, season)
+        user_leagues = {l.get("league_id"): l for l in raw_leagues}
+
         # Transform to DraftSummary objects
-        draft_summaries = _transform_drafts(raw_drafts)
+        draft_summaries = _transform_drafts(raw_drafts, user_leagues)
 
         # Apply status filtering
         if status_filter == "active":
@@ -1027,22 +1035,46 @@ def _calculate_position_needs(
     return needs
 
 
-def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:
+def _transform_drafts(raw_drafts: list, user_leagues: dict = None) -> list[DraftSummary]:
     """Transform raw Sleeper API response to DraftSummary objects.
 
     Args:
         raw_drafts: List of draft dicts from Sleeper API
+        user_leagues: Optional dict of league_id -> league dict for enriching metadata
 
     Returns:
         List of DraftSummary objects
     """
+    user_leagues = user_leagues or {}
     summaries = []
 
     for draft in raw_drafts:
         try:
+            league_id = draft.get("league_id", "")
+            league_data = user_leagues.get(league_id)
+            
+            scoring_type = draft.get("metadata", {}).get("scoring_type")
+            league_type = draft.get("metadata", {}).get("league_type", "0")
+            te_premium = None
+            
+            # Enrich scoring_type from league_data if available and draft metadata is vague
+            if league_data:
+                scoring_settings = league_data.get("scoring_settings", {})
+                rec = scoring_settings.get("rec", 0)
+                if rec == 1.0:
+                    scoring_type = "ppr"
+                elif rec == 0.5:
+                    scoring_type = "half_ppr"
+                elif rec == 0.0:
+                    scoring_type = "standard"
+                
+                bonus_rec_te = scoring_settings.get("bonus_rec_te", 0)
+                if bonus_rec_te > 0:
+                    te_premium = bonus_rec_te
+            
             summary = DraftSummary(
                 draft_id=draft.get("draft_id", ""),
-                league_id=draft.get("league_id", ""),
+                league_id=league_id,
                 status=draft.get("status", "unknown"),
                 settings={
                     "teams": draft.get("settings", {}).get("teams", 0),
@@ -1054,7 +1086,9 @@ def _transform_drafts(raw_drafts: list) -> list[DraftSummary]:
                 },
                 metadata={
                     "name": draft.get("metadata", {}).get("name"),
-                    "scoring_type": draft.get("metadata", {}).get("scoring_type"),
+                    "scoring_type": scoring_type,
+                    "league_type": league_type,
+                    "te_premium": te_premium,
                 }
                 if draft.get("metadata")
                 else None,

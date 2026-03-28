@@ -27,6 +27,12 @@ class DraftMetadata(BaseModel):
     scoring_type: Optional[str] = Field(
         None, description="Scoring format (ppr, half_ppr, standard)"
     )
+    league_type: Optional[str] = Field(
+        "0", description="League type: 0=Redraft, 1=Keeper, 2=Dynasty"
+    )
+    te_premium: Optional[float] = Field(
+        None, description="TE Premium bonus points per reception"
+    )
 
 
 class DraftSummary(BaseModel):

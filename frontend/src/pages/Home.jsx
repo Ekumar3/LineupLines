@@ -163,8 +163,15 @@ export default function Home() {
                   <div className="absolute top-0 left-0 w-1 h-full bg-sleeper-gray-800 group-hover:bg-sleeper-blue transition-colors" />
                   
                   <div className="flex justify-between items-start mb-4 pl-2">
-                    <h4 className="text-white font-semibold text-lg group-hover:text-sleeper-blue transition-colors truncate pr-3 flex-1">
-                      {draft.metadata?.name || 'Unnamed League'}
+                    <h4 className="text-white font-semibold text-lg group-hover:text-sleeper-blue transition-colors truncate pr-3 flex-1 flex items-center gap-2">
+                      {draft.metadata?.league_type === "2" ? (
+                        <span title="Dynasty" className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded bg-sleeper-blue/20 text-sleeper-blue text-xs font-bold border border-sleeper-blue/30">D</span>
+                      ) : draft.metadata?.league_type === "1" ? (
+                        <span title="Keeper" className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded bg-sleeper-purple/20 text-sleeper-purple text-xs font-bold border border-sleeper-purple/30">K</span>
+                      ) : (
+                        <span title="Redraft" className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded bg-sleeper-gray-800 text-sleeper-gray-400 text-xs font-bold border border-sleeper-gray-700">R</span>
+                      )}
+                      <span className="truncate">{draft.metadata?.name || 'Unnamed League'}</span>
                     </h4>
                   </div>
                   
@@ -194,9 +201,8 @@ export default function Home() {
                       <span className="text-sleeper-gray-500">Format</span>
                       <span className="text-sleeper-gray-300 font-medium">
                         {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'} 
-                        {draft.settings?.slots_super_flex > 0 
-                          ? ' SFX' 
-                          : (draft.settings?.slots_qb > 1 ? ` ${draft.settings.slots_qb}QB` : '')}
+                        {draft.metadata?.te_premium ? ` +${draft.metadata.te_premium} TEP` : ''}
+                        {draft.settings?.slots_super_flex > 0 ? ' SFX' : ''}
                       </span>
                     </div>
 

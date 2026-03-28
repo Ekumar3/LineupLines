@@ -365,6 +365,16 @@ class SleeperClient:
             logger.error(f"Failed to fetch league drafts: {e}")
             return []
 
+    def get_user_leagues(
+        self, user_id: str, sport: str = "nfl", season: str = "2026"
+    ) -> List[Dict[str, Any]]:
+        """Get all leagues for a user in a specific sport and season."""
+        try:
+            return self._make_request(f"/user/{user_id}/leagues/{sport}/{season}") or []
+        except Exception as e:
+            logger.error(f"Failed to fetch user leagues: {e}")
+            return []
+
     def get_user_drafts(
         self, user_id: str, sport: str = "nfl", season: str = "2026"
     ) -> List[Dict[str, Any]]:
