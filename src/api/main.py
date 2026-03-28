@@ -32,17 +32,30 @@ from src.api.storage import load_player_universe, save_player_universe
 
 logger = logging.getLogger(__name__)
 
+import os
+
 app = FastAPI(
     title="Draft Helper API",
     version="1.0",
     description="Fantasy football draft helper using Sleeper API and historical ADP data",
 )
 
+# Set up CORS origins
+origins = [
+    "http://localhost:5173",  # Local Vite dev server
+    "http://localhost:3000",  # Local React dev server
+]
+
+# Add production Vercel frontend URL from environment variable
+frontend_url = os.environ.get("FRONTEND_URL")
+if frontend_url:
+    origins.extend([url.strip() for url in frontend_url.split(",")])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "OPTIONS", "POST"],
+    allow_methods=["*"],  # Allow all methods including PUT/DELETE
     allow_headers=["*"],
 )
 
