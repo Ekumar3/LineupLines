@@ -201,7 +201,7 @@ export default function Home() {
                       <span className="text-sleeper-gray-500">Format</span>
                       <span className="text-sleeper-gray-300 font-medium">
                         {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'} 
-                        {draft.metadata?.te_premium ? ` +${draft.metadata.te_premium} TEP` : ''}
+                        {draft.metadata?.te_premium ? ` TEP +${draft.metadata.te_premium}` : ''}
                         {draft.settings?.slots_super_flex > 0 ? ' SFX' : ''}
                       </span>
                     </div>
