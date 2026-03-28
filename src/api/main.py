@@ -721,12 +721,15 @@ def get_available_by_position(
             # Get ADP for this player via O(1) dict lookup
             adp_value = adp_lookup.get(player_name.lower().strip())
 
+            # Skip players without ADP data for the Top Available list 
+            # so we don't return random historical/practice squad players
+            if adp_value is None:
+                continue
+
             # Calculate ADP delta: current_overall_pick - adp_ppr
             # Positive = player available later than ADP (value)
             # Negative = player expected earlier (reaching if drafted now)
-            adp_delta = None
-            if adp_value:
-                adp_delta = current_overall_pick - adp_value
+            adp_delta = current_overall_pick - adp_value
 
             # Create player detail
             available_player = AvailablePlayerDetail(

@@ -20,8 +20,10 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy the application code and local data caches
 COPY src/ /app/src/
+COPY data/ /app/data/
+COPY debug_html/ /app/debug_html/
 
 # Expose the port the app runs on
 EXPOSE 8000
