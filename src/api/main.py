@@ -1054,11 +1054,17 @@ def _transform_drafts(raw_drafts: list, user_leagues: dict = None) -> list[Draft
             league_data = user_leagues.get(league_id)
             
             scoring_type = draft.get("metadata", {}).get("scoring_type")
-            league_type = draft.get("metadata", {}).get("league_type", "0")
+            league_type = draft.get("metadata", {}).get("league_type")
             te_premium = None
             
             # Enrich scoring_type from league_data if available and draft metadata is vague
             if league_data:
+                # Get league type from league settings (0=redraft, 1=keeper, 2=dynasty)
+                # Sleeper stores this in settings.type on the league object
+                l_type = league_data.get("settings", {}).get("type")
+                if l_type is not None:
+                    league_type = str(l_type)
+
                 scoring_settings = league_data.get("scoring_settings", {})
                 rec = scoring_settings.get("rec", 0)
                 if rec == 1.0:
@@ -1071,6 +1077,21 @@ def _transform_drafts(raw_drafts: list, user_leagues: dict = None) -> list[Draft
                 bonus_rec_te = scoring_settings.get("bonus_rec_te", 0)
                 if bonus_rec_te > 0:
                     te_premium = bonus_rec_te
+
+            # Fallback if league_type is still null/None (legacy drafts or missing league data)
+            if not league_type:
+                # Sometimes sleeper shoves 'dynasty_2qb' or 'keeper' into the scoring_type string
+                if scoring_type and 'dynasty' in scoring_type.lower():
+                    league_type = "2"
+                elif scoring_type and 'keeper' in scoring_type.lower():
+                    league_type = "1"
+                else:
+                    league_type = "0"
+            
+            # If scoring type is something like 'dynasty_2qb', clean it up since we show SFX elsewhere
+            if scoring_type and ('dynasty' in scoring_type.lower() or 'keeper' in scoring_type.lower()):
+                # Fallback to PPR if we couldn't resolve it from actual league settings
+                scoring_type = "ppr"
             
             summary = DraftSummary(
                 draft_id=draft.get("draft_id", ""),
