@@ -1191,19 +1191,19 @@ def get_vor_calculator():
 )
 def get_draft_vor_analysis(
     draft_id: str,
-    limit: int = 20,
+    limit_per_position: int = 5,
 ):
     """
     Get VOR (Value Over Replacement) analysis for available players in a draft.
     
-    Returns recommendations ranked by VOR score (highest value first).
+    Returns top 5 recommendations per position, ranked by VOR score (highest value first).
     
     Args:
         draft_id: Draft ID
-        limit: Maximum number of recommendations to return (default 20)
+        limit_per_position: Maximum recommendations per position (default 5)
     
     Returns:
-        VORAnalysisResponse with top recommendations and replacement levels
+        VORAnalysisResponse with top recommendations by position and replacement levels
     """
     try:
         # Fetch draft details
@@ -1267,18 +1267,30 @@ def get_draft_vor_analysis(
                 logger.warning(f"Could not calculate VOR for {player['player_name']}: {e}")
                 continue
         
-        # Sort by VOR score (descending - highest value first)
-        recommendations.sort(key=lambda x: x['vor_score'], reverse=True)
+        # Group by position and sort by VOR within each position
+        by_position = {}
+        for rec in recommendations:
+            pos = rec['position']
+            if pos not in by_position:
+                by_position[pos] = []
+            by_position[pos].append(rec)
         
-        # Limit results
-        top_recommendations = recommendations[:limit]
+        # Sort each position by VOR (descending) and limit to top N per position
+        all_top_recommendations = []
+        for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
+            if pos in by_position:
+                sorted_pos = sorted(by_position[pos], key=lambda x: x['vor_score'], reverse=True)
+                all_top_recommendations.extend(sorted_pos[:limit_per_position])
         
-        if not top_recommendations:
+        # Re-sort all recommendations by VOR globally for consistency
+        all_top_recommendations.sort(key=lambda x: x['vor_score'], reverse=True)
+        
+        if not all_top_recommendations:
             raise HTTPException(status_code=400, detail="No available players to analyze")
         
         # Get replacement levels by position
         replacement_by_position = {}
-        for pos in ['QB', 'RB', 'WR', 'TE']:
+        for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             try:
                 replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
             except:
@@ -1287,8 +1299,8 @@ def get_draft_vor_analysis(
         return VORAnalysisResponse(
             league_id=league_id,
             draft_id=draft_id,
-            recommendations=top_recommendations,
-            top_value_pick=top_recommendations[0],
+            recommendations=all_top_recommendations,
+            top_value_pick=all_top_recommendations[0],
             replacement_level_by_position=replacement_by_position,
         )
     
@@ -1297,7 +1309,6 @@ def get_draft_vor_analysis(
     except Exception as e:
         logger.error(f"Error calculating VOR for draft {draft_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to calculate VOR")
-
 
 @app.get(
     "/api/v1/draft/{draft_id}/player/{player_id}/vor",
