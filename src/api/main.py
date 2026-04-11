@@ -1221,8 +1221,8 @@ def get_draft_vor_analysis(
         # Get drafted player IDs so we can exclude them
         drafted_player_ids = set()
         for pick in available:
-            if pick.get("player_id"):
-                drafted_player_ids.add(pick["player_id"])
+            if pick.player_id:
+                drafted_player_ids.add(pick.player_id)
         
         # Initialize VOR calculator
         vor = get_vor_calculator()
