@@ -11,12 +11,13 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
   const { data, loading, error } = useAvailableByPosition(draftId, limit);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
 
-  // Build a map of player_id -> VOR data for quick lookup
+  // Build a map of player_name -> VOR data (matching key)
   const vorMap = useMemo(() => {
     if (!vorData?.recommendations) return {};
     
     return vorData.recommendations.reduce((acc, rec) => {
-      acc[rec.player_id] = rec;
+      // Key by player_name since it's the common identifier across endpoints
+      acc[rec.player_name] = rec;
       return acc;
     }, {});
   }, [vorData]);

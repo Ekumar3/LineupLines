@@ -4,6 +4,14 @@ import VORBadge from '../common/VORBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
 
+/**
+ * AvailableTable with VOR display
+ * 
+ * Props:
+ *   - players: Array of player objects from available endpoint
+ *   - position: Position being displayed
+ *   - vorMap: Map of player_name -> VOR data (keyed by name, not ID)
+ */
 export default memo(function AvailableTable({ players, position, vorMap }) {
   if (!players || players.length === 0) return null;
 
@@ -15,9 +23,11 @@ export default memo(function AvailableTable({ players, position, vorMap }) {
             <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-20">
               ADP Delta
             </th>
-            <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
-              VOR
-            </th>
+            {vorMap && Object.keys(vorMap).length > 0 && (
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
+                VOR
+              </th>
+            )}
             <th className="px-3 py-2 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
               Player
             </th>
@@ -25,7 +35,8 @@ export default memo(function AvailableTable({ players, position, vorMap }) {
         </thead>
         <tbody className="divide-y divide-sleeper-gray-800">
           {players.map((player) => {
-            const vorData = vorMap?.[player.player_id];
+            // Look up VOR by player_name
+            const vorData = vorMap?.[player.player_name];
 
             return (
               <tr key={player.player_id} className="hover:bg-sleeper-gray-900 transition-colors">
@@ -35,16 +46,18 @@ export default memo(function AvailableTable({ players, position, vorMap }) {
                     adpPpr={player.adp_ppr}
                   />
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
-                  {vorData ? (
-                    <VORBadge
-                      vorScore={vorData.vor_score}
-                      interpretation={vorData.interpretation}
-                    />
-                  ) : (
-                    <span className="text-xs text-sleeper-gray-500">--</span>
-                  )}
-                </td>
+                {vorMap && Object.keys(vorMap).length > 0 && (
+                  <td className="px-3 py-3 whitespace-nowrap text-center">
+                    {vorData ? (
+                      <VORBadge
+                        vorScore={vorData.vor_score}
+                        interpretation={vorData.interpretation}
+                      />
+                    ) : (
+                      <span className="text-xs text-sleeper-gray-500">--</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-3 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <PlayerHeadshot

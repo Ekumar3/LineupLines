@@ -3,13 +3,7 @@ import { useState, useEffect } from 'react';
 /**
  * Hook to fetch VOR (Value Over Replacement) analysis for a draft.
  * 
- * Usage:
- *   const { data, loading, error } = useVORAnalysis(draftId);
- * 
- * Returns:
- *   - data.recommendations: Array of top VOR picks (top 5 per position)
- *   - data.top_value_pick: Single best recommendation
- *   - data.replacement_level_by_position: Baseline ADP for each position
+ * Returns vorMap keyed by PLAYER_NAME (not player_id, since IDs don't match across endpoints)
  */
 export function useVORAnalysis(draftId) {
   const [data, setData] = useState(null);
