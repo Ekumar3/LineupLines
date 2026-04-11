@@ -1207,7 +1207,7 @@ def get_draft_vor_analysis(
     """
     try:
         # Fetch draft details
-        draft = sleeper_client.get_draft(draft_id)
+        draft = sleeper_client.get_draft_details(draft_id)
         if not draft:
             raise HTTPException(status_code=404, detail="Draft not found")
         

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
+import { useVORAnalysis } from '../../hooks/useVORAnalysis';
+
 import PositionTable from './PositionTable';
 import AvailableTable from './AvailableTable';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -11,6 +13,7 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
   const { data: availableData } = useAvailableByPosition(draftId, 10);
+  const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
 
   const positionData = useMemo(() =>
     POSITION_ORDER.map(pos => ({
@@ -63,7 +66,7 @@ export default function RosterView({ draftId, userId }) {
                   <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
                     Available {position}s (Top {availableData?.limit})
                   </h3>
-                  <AvailableTable players={available} position={position} />
+                  <AvailableTable players={available} position={position} vorMap={vorData} />
                 </div>
               )}
             </div>
