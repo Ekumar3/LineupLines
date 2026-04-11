@@ -1246,15 +1246,16 @@ def get_draft_vor_analysis(
         
         # Get drafted player names from Sleeper picks
         drafted_names = set()
+        sleeper_players_map = sleeper_client.get_players() or {}
+        
         for pick in available:
-            player_id = pick.get("player_id")
-            if player_id:
-                # Try to get player name from Sleeper
-                sleeper_players = sleeper_client.get_players()
-                if isinstance(sleeper_players, dict) and player_id in sleeper_players:
-                    player_name = sleeper_players[player_id].get("full_name", sleeper_players[player_id].get("player_name"))
-                    if player_name:
-                        drafted_names.add(player_name)
+            player_id = pick.player_id  # Access as object attribute, not dict
+            if player_id and player_id in sleeper_players_map:
+                sleeper_player = sleeper_players_map[player_id]
+                # Get player name from Sleeper
+                player_name = sleeper_player.get("full_name") or sleeper_player.get("player_name")
+                if player_name:
+                    drafted_names.add(player_name)
         
         # Get our VOR data and filter to undrafted
         undrafted_players = [
