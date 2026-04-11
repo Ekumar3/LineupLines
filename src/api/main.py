@@ -1244,32 +1244,25 @@ def get_draft_vor_analysis(
         # Initialize VOR calculator
         vor = get_vor_calculator()
         
-        # Get all players from Sleeper (which have player_id)
-        sleeper_players = sleeper_client.get_players()
-        if not sleeper_players:
-            raise HTTPException(status_code=500, detail="Could not load player data from Sleeper")
+        # Get drafted player names from Sleeper picks
+        drafted_names = set()
+        for pick in available:
+            player_id = pick.get("player_id")
+            if player_id:
+                # Try to get player name from Sleeper
+                sleeper_players = sleeper_client.get_players()
+                if isinstance(sleeper_players, dict) and player_id in sleeper_players:
+                    player_name = sleeper_players[player_id].get("full_name", sleeper_players[player_id].get("player_name"))
+                    if player_name:
+                        drafted_names.add(player_name)
         
-        # Get our VOR data (has ADP but not player_id)
-        vor_players_by_name = {p['player_name']: p for p in vor.players}
+        # Get our VOR data and filter to undrafted
+        undrafted_players = [
+            p for p in vor.players
+            if p['player_name'] not in drafted_names
+        ]
         
-        # Filter to undrafted players and add VOR data
-        undrafted_players = []
-        for sleeper_player in sleeper_players.values() if isinstance(sleeper_players, dict) else sleeper_players:
-            if sleeper_player.get("player_id") in drafted_player_ids:
-                continue  # Skip drafted
-            
-            # Try to find matching VOR data by player name
-            player_name = sleeper_player.get("full_name", sleeper_player.get("player_name", ""))
-            vor_data = vor_players_by_name.get(player_name)
-            
-            if vor_data:
-                # Add Sleeper's player_id to VOR data
-                vor_data_with_id = {**vor_data, "player_id": sleeper_player.get("player_id")}
-                undrafted_players.append(vor_data_with_id)
-            else:
-                # If we don't have ADP data, skip this player
-                logger.debug(f"No VOR data for Sleeper player: {player_name}")
-                continue
+        logger.info(f"Drafted {len(drafted_names)} players, {len(undrafted_players)} undrafted with VOR data")
         
         # Calculate VOR for each undrafted player
         recommendations = []
@@ -1286,10 +1279,17 @@ def get_draft_vor_analysis(
                     replacement_percentile=50
                 )
                 
+                # Generate a deterministic player_id if not present
+                player_id = player.get("player_id")
+                if not player_id:
+                    # Use a hash of player name + position as fallback
+                    import hashlib
+                    player_id = hashlib.md5(f"{player['player_name']}{player['position']}".encode()).hexdigest()[:16]
+                
                 recommendations.append({
                     "league_id": league_id,
                     "draft_id": draft_id,
-                    "player_id": player.get("player_id"),  # From Sleeper
+                    "player_id": player_id,
                     "player_name": player['player_name'],
                     "position": player['position'],
                     "adp_overall": player['adp_overall'],
