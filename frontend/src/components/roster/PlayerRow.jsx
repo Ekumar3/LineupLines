@@ -1,9 +1,10 @@
 import { memo } from 'react';
 import ADPBadge from '../common/ADPBadge';
+import VORBadge from '../common/VORBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
 
-export default memo(function PlayerRow({ player }) {
+export default memo(function PlayerRow({ player, vorData }) {
   return (
     <tr className="hover:bg-sleeper-gray-900 transition-colors">
       <td className="px-3 py-3 whitespace-nowrap text-center">
@@ -12,6 +13,14 @@ export default memo(function PlayerRow({ player }) {
           adpPpr={player.adp_ppr}
         />
       </td>
+      {vorData && (
+        <td className="px-3 py-3 whitespace-nowrap text-center">
+          <VORBadge
+            vorScore={vorData.vor_score}
+            interpretation={vorData.interpretation}
+          />
+        </td>
+      )}
       <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-sleeper-gray-400">
         #{player.pick_no}
       </td>
