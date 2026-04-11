@@ -1254,7 +1254,7 @@ def get_draft_vor_analysis(
                 recommendations.append({
                     "league_id": league_id,
                     "draft_id": draft_id,
-                    "player_id": player.get("player_id", ""),
+                    "player_id": player['player_name'],  # Use player_name as unique identifier
                     "player_name": player['player_name'],
                     "position": player['position'],
                     "adp_overall": player['adp_overall'],
