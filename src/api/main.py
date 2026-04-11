@@ -27,6 +27,9 @@ from src.api.models import (
     PositionNeed,
     AvailablePlayerDetail,
     AvailableByPositionResponse,
+    VORPlayerDetail,
+    VORDraftRecommendation,
+    VORAnalysisResponse,
 )
 from src.api.storage import load_player_universe, save_player_universe
 
@@ -1147,3 +1150,212 @@ def _sort_drafts(drafts: list[DraftSummary]) -> list[DraftSummary]:
         return (priority, start)
 
     return sorted(drafts, key=sort_key)
+
+
+# ============================================================================
+# VOR (Value Over Replacement) Analysis Endpoints
+# ============================================================================
+
+# Initialize VOR calculator (lazy-loaded on first use)
+vor_calculator = None
+
+def get_vor_calculator():
+    """Get or initialize VOR calculator."""
+    global vor_calculator
+    if vor_calculator is None:
+        from src.services.vor_calculator import VORCalculator
+        from pathlib import Path
+        
+        # Find the ADP data file
+        repo_root = Path(__file__).parent.parent.parent
+        players_file = repo_root / "data/players/ppr_20260205_163143_players.json"
+        
+        if not players_file.exists():
+            raise FileNotFoundError(f"Player data not found at {players_file}")
+        
+        vor_calculator = VORCalculator(str(players_file))
+    
+    return vor_calculator
+
+
+@app.get(
+    "/api/v1/draft/{draft_id}/vor",
+    response_model=VORAnalysisResponse,
+    responses={
+        200: {"description": "VOR analysis for available players"},
+        404: {"model": ErrorResponse, "description": "Draft not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get VOR analysis for draft",
+    tags=["Draft Analysis"],
+)
+def get_draft_vor_analysis(
+    draft_id: str,
+    limit: int = 20,
+):
+    """
+    Get VOR (Value Over Replacement) analysis for available players in a draft.
+    
+    Returns recommendations ranked by VOR score (highest value first).
+    
+    Args:
+        draft_id: Draft ID
+        limit: Maximum number of recommendations to return (default 20)
+    
+    Returns:
+        VORAnalysisResponse with top recommendations and replacement levels
+    """
+    try:
+        # Fetch draft details
+        draft = sleeper_client.get_draft(draft_id)
+        if not draft:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        
+        league_id = draft.get("league_id")
+        
+        # Fetch draft picks
+        available = sleeper_client.get_draft_picks(draft_id)
+        if not available:
+            available = []
+        
+        # Get drafted player IDs so we can exclude them
+        drafted_player_ids = set()
+        for pick in available:
+            if pick.get("player_id"):
+                drafted_player_ids.add(pick["player_id"])
+        
+        # Initialize VOR calculator
+        vor = get_vor_calculator()
+        
+        # Get all players from our data
+        all_players = vor.players
+        
+        # Filter to undrafted players only
+        undrafted_players = [
+            p for p in all_players
+            if p.get("player_id") not in drafted_player_ids
+        ]
+        
+        # Calculate VOR for each undrafted player
+        recommendations = []
+        for player in undrafted_players:
+            try:
+                vor_score = vor.calculate_vor(
+                    position=player['position'],
+                    adp=player['adp_overall'],
+                    replacement_percentile=50
+                )
+                
+                replacement_level = vor.get_replacement_level(
+                    position=player['position'],
+                    replacement_percentile=50
+                )
+                
+                recommendations.append({
+                    "league_id": league_id,
+                    "draft_id": draft_id,
+                    "player_id": player.get("player_id", ""),
+                    "player_name": player['player_name'],
+                    "position": player['position'],
+                    "adp_overall": player['adp_overall'],
+                    "replacement_level_adp": replacement_level,
+                    "vor_score": vor_score,
+                    "interpretation": vor._interpret_vor(vor_score),
+                    "picks_remaining": len(undrafted_players),
+                })
+            except Exception as e:
+                logger.warning(f"Could not calculate VOR for {player['player_name']}: {e}")
+                continue
+        
+        # Sort by VOR score (descending - highest value first)
+        recommendations.sort(key=lambda x: x['vor_score'], reverse=True)
+        
+        # Limit results
+        top_recommendations = recommendations[:limit]
+        
+        if not top_recommendations:
+            raise HTTPException(status_code=400, detail="No available players to analyze")
+        
+        # Get replacement levels by position
+        replacement_by_position = {}
+        for pos in ['QB', 'RB', 'WR', 'TE']:
+            try:
+                replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
+            except:
+                pass
+        
+        return VORAnalysisResponse(
+            league_id=league_id,
+            draft_id=draft_id,
+            recommendations=top_recommendations,
+            top_value_pick=top_recommendations[0],
+            replacement_level_by_position=replacement_by_position,
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating VOR for draft {draft_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate VOR")
+
+
+@app.get(
+    "/api/v1/draft/{draft_id}/player/{player_id}/vor",
+    response_model=VORPlayerDetail,
+    responses={
+        200: {"description": "VOR for specific player"},
+        404: {"model": ErrorResponse, "description": "Player not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get VOR for specific player",
+    tags=["Draft Analysis"],
+)
+def get_player_vor(draft_id: str, player_id: str):
+    """
+    Get VOR analysis for a specific player.
+    
+    Args:
+        draft_id: Draft ID (for context)
+        player_id: Player ID to analyze
+    
+    Returns:
+        VORPlayerDetail with VOR score and interpretation
+    """
+    try:
+        vor = get_vor_calculator()
+        
+        # Find player in our dataset
+        player = next(
+            (p for p in vor.players if p.get("player_id") == player_id),
+            None
+        )
+        
+        if not player:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        replacement_level = vor.get_replacement_level(
+            player['position'],
+            replacement_percentile=50
+        )
+        
+        vor_score = vor.calculate_vor(
+            player['position'],
+            player['adp_overall'],
+            replacement_percentile=50
+        )
+        
+        return VORPlayerDetail(
+            player_id=player_id,
+            player_name=player['player_name'],
+            position=player['position'],
+            adp_overall=player['adp_overall'],
+            replacement_level_adp=replacement_level,
+            vor_score=vor_score,
+            interpretation=vor._interpret_vor(vor_score),
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error calculating VOR for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to calculate VOR")

@@ -505,3 +505,51 @@ class UserRosterResponse(BaseModel):
     position_summary: Dict[str, PositionNeed] = Field(
         ..., description="Summary of position needs and priorities"
     )
+"""VOR Response Models - Add these to src/api/models.py"""
+
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, List
+
+
+class VORPlayerDetail(BaseModel):
+    """VOR analysis for a single player."""
+    player_id: str = Field(..., description="Player ID")
+    player_name: str = Field(..., description="Player name")
+    position: str = Field(..., description="Player position (QB, RB, WR, TE)")
+    adp_overall: float = Field(..., description="Player's ADP (lower is better)")
+    replacement_level_adp: float = Field(..., description="Median ADP for position")
+    vor_score: float = Field(..., description="Value Over Replacement score (higher = more elite)")
+    interpretation: str = Field(..., description="Human-readable VOR interpretation")
+
+
+class VORDraftRecommendation(BaseModel):
+    """VOR recommendation for a player in context of draft state."""
+    league_id: str = Field(..., description="League ID")
+    draft_id: str = Field(..., description="Draft ID")
+    player_id: str = Field(..., description="Player ID")
+    player_name: str = Field(..., description="Player name")
+    position: str = Field(..., description="Player position")
+    adp_overall: float = Field(..., description="Player's ADP")
+    replacement_level_adp: float = Field(..., description="Replacement level ADP for position")
+    vor_score: float = Field(..., description="VOR score (higher = better value)")
+    interpretation: str = Field(..., description="Value interpretation (Elite, Strong, Moderate, etc)")
+    draft_position: Optional[int] = Field(None, description="What pick # this player would be")
+    picks_remaining: int = Field(..., description="Total undrafted players remaining")
+
+
+class VORAnalysisResponse(BaseModel):
+    """Complete VOR analysis response for a draft."""
+    league_id: str = Field(..., description="League ID")
+    draft_id: str = Field(..., description="Draft ID")
+    recommendations: List[VORDraftRecommendation] = Field(
+        ..., 
+        description="Top VOR recommendations ranked by value (highest first)"
+    )
+    top_value_pick: VORDraftRecommendation = Field(
+        ..., 
+        description="Single best value recommendation right now"
+    )
+    replacement_level_by_position: Dict[str, float] = Field(
+        ..., 
+        description="Median ADP for each position (defines 'replacement level')"
+    )
