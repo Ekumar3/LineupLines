@@ -1165,15 +1165,32 @@ def get_vor_calculator():
     if vor_calculator is None:
         from src.services.vor_calculator import VORCalculator
         from pathlib import Path
+        import glob
         
-        # Find the ADP data file
+        # Find the ADP data file (latest ppr_*.json file)
         repo_root = Path(__file__).parent.parent.parent
-        players_file = repo_root / "data/players/ppr_20260205_163143_players.json"
+        data_dir = repo_root / "data/players"
         
-        if not players_file.exists():
-            raise FileNotFoundError(f"Player data not found at {players_file}")
+        # Try data/players first
+        if data_dir.exists():
+            ppr_files = sorted(glob.glob(str(data_dir / "ppr_*.json")), reverse=True)
+            if ppr_files:
+                players_file = ppr_files[0]
+                logger.info(f"Loading VOR player data from: {players_file}")
+                vor_calculator = VORCalculator(players_file)
+                return vor_calculator
         
-        vor_calculator = VORCalculator(str(players_file))
+        # Fallback: check debug_html directory
+        debug_dir = repo_root / "debug_html"
+        if debug_dir.exists():
+            ppr_files = sorted(glob.glob(str(debug_dir / "ppr_*.json")), reverse=True)
+            if ppr_files:
+                players_file = ppr_files[0]
+                logger.info(f"Loading VOR player data from debug: {players_file}")
+                vor_calculator = VORCalculator(players_file)
+                return vor_calculator
+        
+        raise FileNotFoundError(f"No player data found in {data_dir} or {debug_dir}")
     
     return vor_calculator
 
@@ -1227,14 +1244,32 @@ def get_draft_vor_analysis(
         # Initialize VOR calculator
         vor = get_vor_calculator()
         
-        # Get all players from our data
-        all_players = vor.players
+        # Get all players from Sleeper (which have player_id)
+        sleeper_players = sleeper_client.get_players()
+        if not sleeper_players:
+            raise HTTPException(status_code=500, detail="Could not load player data from Sleeper")
         
-        # Filter to undrafted players only
-        undrafted_players = [
-            p for p in all_players
-            if p.get("player_id") not in drafted_player_ids
-        ]
+        # Get our VOR data (has ADP but not player_id)
+        vor_players_by_name = {p['player_name']: p for p in vor.players}
+        
+        # Filter to undrafted players and add VOR data
+        undrafted_players = []
+        for sleeper_player in sleeper_players.values() if isinstance(sleeper_players, dict) else sleeper_players:
+            if sleeper_player.get("player_id") in drafted_player_ids:
+                continue  # Skip drafted
+            
+            # Try to find matching VOR data by player name
+            player_name = sleeper_player.get("full_name", sleeper_player.get("player_name", ""))
+            vor_data = vor_players_by_name.get(player_name)
+            
+            if vor_data:
+                # Add Sleeper's player_id to VOR data
+                vor_data_with_id = {**vor_data, "player_id": sleeper_player.get("player_id")}
+                undrafted_players.append(vor_data_with_id)
+            else:
+                # If we don't have ADP data, skip this player
+                logger.debug(f"No VOR data for Sleeper player: {player_name}")
+                continue
         
         # Calculate VOR for each undrafted player
         recommendations = []
@@ -1254,7 +1289,7 @@ def get_draft_vor_analysis(
                 recommendations.append({
                     "league_id": league_id,
                     "draft_id": draft_id,
-                    "player_id": player['player_name'],  # Use player_name as unique identifier
+                    "player_id": player.get("player_id"),  # From Sleeper
                     "player_name": player['player_name'],
                     "position": player['position'],
                     "adp_overall": player['adp_overall'],
