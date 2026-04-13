@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 
 /**
  * Hook to fetch VOR (Value Over Replacement) analysis for a draft.
- * 
- * Returns vorMap keyed by PLAYER_NAME (not player_id, since IDs don't match across endpoints)
  */
 export function useVORAnalysis(draftId) {
   const [data, setData] = useState(null);
@@ -21,8 +19,7 @@ export function useVORAnalysis(draftId) {
         setLoading(true);
         setError(null);
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/v1/draft/${draftId}/vor`);
+        const response = await fetch(`/api/v1/draft/${draftId}/vor`);
 
         if (!response.ok) {
           throw new Error(`VOR API error: ${response.status}`);

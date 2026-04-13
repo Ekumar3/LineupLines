@@ -5,6 +5,7 @@ import { useVORAnalysis } from '../../hooks/useVORAnalysis';
 
 import PositionTable from './PositionTable';
 import AvailableTable from './AvailableTable';
+import BestAvailableTable from '../available/BestAvailableTable';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 
@@ -57,6 +58,11 @@ export default function RosterView({ draftId, userId }) {
           </div>
         </div>
 
+        {/* Best Available by VOR */}
+        {vorData?.recommendations?.length > 0 && (
+          <BestAvailableTable recommendations={vorData.recommendations} />
+        )}
+
         {/* Position Tables - 2 per row, 3 rows */}
         <div className="grid grid-cols-3 gap-6">
           {positionData.map(({ position, drafted, available, summary }) => (
@@ -66,6 +72,7 @@ export default function RosterView({ draftId, userId }) {
                 position={position}
                 players={drafted}
                 positionSummary={summary}
+                vorMap={vorMap}
               />
 
               {/* Available Players (if any) */}
