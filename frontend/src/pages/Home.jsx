@@ -62,8 +62,13 @@ export default function Home() {
     setError(null);
   };
 
-  const handleDraftClick = (draftId, userId) => {
-    navigate(`/roster/${draftId}/${userId}`);
+  const handleDraftClick = (draft, userId) => {
+    const isLive = ['drafting', 'in_progress'].includes(draft.status);
+    if (isLive) {
+      navigate(`/draftassist/${draft.draft_id}/${userId}`);
+    } else {
+      navigate(`/roster/${draft.league_id}/${userId}`);
+    }
   };
 
   const avatarUrl = userData?.avatar 
@@ -157,7 +162,7 @@ export default function Home() {
               {draftsData.drafts?.map((draft) => (
                 <div
                   key={draft.draft_id}
-                  onClick={() => handleDraftClick(draft.draft_id, draftsData.user_id)}
+                  onClick={() => handleDraftClick(draft, draftsData.user_id)}
                   className="bg-sleeper-dark rounded-xl border border-sleeper-gray-800 p-5 cursor-pointer hover:border-sleeper-blue transition-all group relative overflow-hidden flex flex-col h-full"
                 >
                   <div className="absolute top-0 left-0 w-1 h-full bg-sleeper-gray-800 group-hover:bg-sleeper-blue transition-colors" />

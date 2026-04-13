@@ -39,7 +39,13 @@ export const draftAPI = {
     return response.data;
   },
 
-  // Get league settings for scoring format
+  // Get league settings for scoring format (via draft)
+  getDraftLeagueSettings: async (draftId) => {
+    const response = await api.get(`/drafts/${draftId}/league-settings`);
+    return response.data;
+  },
+
+  // Get league settings directly by league ID
   getLeagueSettings: async (leagueId) => {
     const response = await api.get(`/leagues/${leagueId}/settings`);
     return response.data;
