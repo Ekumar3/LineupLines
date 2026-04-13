@@ -10,7 +10,7 @@ import { formatPlayerName } from '../../utils/formatPlayerName';
  * Props:
  *   - players: Array of player objects from available endpoint
  *   - position: Position being displayed
- *   - vorMap: Map of player_name -> VOR data (keyed by name, not ID)
+ *   - vorMap: Map of player_id -> VOR data
  */
 export default memo(function AvailableTable({ players, position, vorMap }) {
   if (!players || players.length === 0) return null;
@@ -35,8 +35,7 @@ export default memo(function AvailableTable({ players, position, vorMap }) {
         </thead>
         <tbody className="divide-y divide-sleeper-gray-800">
           {players.map((player) => {
-            // Look up VOR by player_name
-            const vorData = vorMap?.[player.player_name];
+            const vorData = vorMap?.[player.player_id];
 
             return (
               <tr key={player.player_id} className="hover:bg-sleeper-gray-900 transition-colors">

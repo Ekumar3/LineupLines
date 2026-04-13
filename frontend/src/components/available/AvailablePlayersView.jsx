@@ -17,8 +17,7 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
     if (!vorData?.recommendations) return {};
     
     return vorData.recommendations.reduce((acc, rec) => {
-      // Key by player_name since it's the common identifier across endpoints
-      acc[rec.player_name] = rec;
+      acc[rec.player_id] = rec;
       return acc;
     }, {});
   }, [vorData]);
