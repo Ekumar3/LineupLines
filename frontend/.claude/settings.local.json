@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed \"s/'//g\")",
+      "Bash(wc -l src/api/main.py src/api/models.py src/data_sources/*.py src/analytics/*.py)",
+      "Bash(python -m pytest tests/ --collect-only -q)",
+      "Bash(python -m pytest tests/ --collect-only)"
+    ]
+  }
+}

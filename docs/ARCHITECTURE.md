@@ -159,7 +159,7 @@ Response (422 Unprocessable Entity):
 
 1. **No Database Setup**
    - Developers can clone and run immediately
-   - No Docker containers or database servers needed
+   - No database servers needed (Docker available for local testing — see DEPLOYMENT.md)
    - Focus on API logic, not infrastructure
 
 2. **Sufficient for Current Data**
@@ -277,6 +277,8 @@ def _get_player_position(self, player_id: str) -> str:
 /api/v1/drafts/{draft_id}/available-players        # GET available players
 /api/v1/drafts/{draft_id}/available-by-position    # GET available players grouped by position with ADP delta
 /api/v1/drafts/{draft_id}/users/{user_id}/roster  # GET user's roster with position analysis
+/api/v1/draft/{draft_id}/vor                      # GET VOR analysis for available players
+/api/v1/draft/{draft_id}/player/{player_id}/vor   # GET VOR for specific player
 ```
 
 **Design Principles**:
@@ -351,7 +353,7 @@ All responses follow consistent structure:
 | Unit | 30+ | Mocked | SleeperClient.get_user(), ADP calculation |
 | Integration | 50+ | TestClient | GET /api/v1/users/by-id/{id}/drafts |
 | Storage | 10+ | File I/O | save_player_universe() |
-| **Total** | **95** | **100% pass** | All scenarios |
+| **Total** | **88** | **100% pass** | All scenarios |
 
 ### Mocking Strategy
 
@@ -510,7 +512,7 @@ logger.error(f"Failed to fetch picks: {e}", exc_info=True)
 
 ## Data Models
 
-The API uses **17 Pydantic models** for type safety and validation:
+The API uses **20 Pydantic models** for type safety and validation:
 
 **Core Models**:
 - `DraftSummary`, `DraftDetails`, `DraftSettings`, `DraftMetadata`
@@ -519,6 +521,7 @@ The API uses **17 Pydantic models** for type safety and validation:
 - `PlayerSummary`, `AvailablePlayersResponse`, `AvailablePlayerDetail`, `AvailableByPositionResponse`
 - `LeagueSettings`, `LeagueSettingsResponse`
 - `PositionNeed`, `UserRosterResponse`
+- `VORPlayerDetail`, `VORDraftRecommendation`, `VORAnalysisResponse`
 - `ErrorResponse`, `RosterMapping`
 
 Each model includes:
@@ -534,11 +537,12 @@ Each model includes:
 **Key Architectural Decisions**:
 
 1. **FastAPI** - Async, auto-docs, Pydantic integration
-2. **Pydantic** - 17 models for validation, type safety, auto-docs
+2. **Pydantic** - 20 models for validation, type safety, auto-docs
 3. **Local JSON** - Simple for Phase 1, easy to upgrade
 4. **Defensive Programming** - Handle errors at data source
-5. **Test Pyramid** - 95 tests covering all layers
+5. **Test Pyramid** - 88 tests covering all layers
 6. **Fallback Mechanisms** - Resilient to failures
 7. **Storage Abstraction** - Ready for S3/DynamoDB upgrade
+8. **VOR Analysis** - Value Over Replacement scoring via `src/services/vor_calculator.py`
 
 These decisions prioritize **developer experience** in Phase 1 while maintaining **scalability** for future phases.

@@ -374,6 +374,40 @@ Phase 2 (Historical Analysis) will:
 
 ---
 
+## Phase 2.1: VOR Analysis & Draft Intelligence
+
+**Status:** ✓ Complete
+**Date:** April 2026
+
+### What Was Built
+
+1. **VOR Calculator** (`src/services/vor_calculator.py`)
+   - Value Over Replacement scoring engine
+   - Calculates player value relative to position-specific replacement level
+   - Configurable replacement percentile
+
+2. **VOR API Endpoints** (2 new endpoints)
+   - `GET /api/v1/draft/{draft_id}/vor` — Top VOR recommendations per position for available players
+   - `GET /api/v1/draft/{draft_id}/player/{player_id}/vor` — VOR analysis for a specific player
+
+3. **VOR Pydantic Models** (3 new models)
+   - `VORPlayerDetail` — Single player VOR analysis
+   - `VORDraftRecommendation` — Draft-context recommendation with picks remaining
+   - `VORAnalysisResponse` — Full response with recommendations and replacement levels
+
+4. **Frontend VOR Integration**
+   - `VORBadge` component — VOR score visualization
+   - `useVORAnalysis` hook — Fetch and manage VOR data
+   - VOR display integrated into draft UI
+
+5. **Additional Improvements**
+   - League type resolution (redraft/keeper/dynasty detection)
+   - TEP (Tight End Premium) detection in league settings
+   - Player name normalization for suffix handling (Jr, II, III)
+   - Player headshot display (`PlayerHeadshot` component)
+
+---
+
 ## Current State Summary
 
 ### ✅ What's Working Now
@@ -387,19 +421,24 @@ Phase 2 (Historical Analysis) will:
 - ✅ League scoring format detection (PPR/half-PPR/standard)
 - ✅ User roster analysis with position needs
 - ✅ Draft-aware recommendations
+- ✅ VOR (Value Over Replacement) analysis for draft recommendations
+- ✅ League type resolution (redraft/keeper/dynasty)
+- ✅ TEP (Tight End Premium) detection
+- ✅ Player headshot display
 - ✅ Full OpenAPI docs
-- ✅ React frontend with draft roster view
-- ✅ 95/95 tests passing
+- ✅ React frontend with draft roster view and VOR badges
+- ✅ Docker image for local testing
+- ✅ 88 tests passing
 
 ### 📊 Project Statistics
 
-- **Total Code**: ~3,500 lines (production-ready)
-- **Test Coverage**: 95/95 passing (100%)
-- **API Endpoints**: 10 (health + 9 draft helper endpoints)
-- **Pydantic Models**: 17 (validation + docs)
-- **Test Files**: 6 (comprehensive coverage)
+- **Total Code**: ~3,700 lines (production-ready)
+- **Test Coverage**: 88 tests passing across 7 files
+- **API Endpoints**: 13 (health + 12 draft helper endpoints)
+- **Pydantic Models**: 20 (validation + docs)
+- **Test Files**: 7 (comprehensive coverage)
 - **Data Sources**: 2 (Sleeper API + local storage)
-- **Frontend**: React 19 + Tailwind (2 routes, 6 custom hooks)
+- **Frontend**: React 19 + Tailwind (2 routes, 4 custom hooks, VOR integration)
 
 ### 🚀 Getting Started
 

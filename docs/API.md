@@ -537,6 +537,106 @@ curl "http://localhost:8000/api/v1/drafts/789012345/users/942348475046494208/ros
 
 ---
 
+### VOR Analysis
+
+**GET /api/v1/draft/{draft_id}/vor**
+
+Get Value Over Replacement (VOR) analysis for available players in a draft. Returns top recommendations per position, ranked by VOR score.
+
+> **Note**: This endpoint uses `/draft/` (singular), not `/drafts/`.
+
+**Path Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `draft_id` | string | Sleeper draft ID |
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit_per_position` | int | 5 | Max recommendations per position |
+
+**Response** (`VORAnalysisResponse`):
+```json
+{
+  "league_id": "string",
+  "draft_id": "string",
+  "recommendations": [
+    {
+      "league_id": "string",
+      "draft_id": "string",
+      "player_id": "string",
+      "player_name": "Bijan Robinson",
+      "position": "RB",
+      "adp_overall": 3.2,
+      "replacement_level_adp": 45.0,
+      "vor_score": 41.8,
+      "interpretation": "Elite Value",
+      "draft_position": null,
+      "picks_remaining": 150
+    }
+  ],
+  "top_value_pick": { /* same shape as above */ },
+  "replacement_level_by_position": {
+    "QB": 85.0,
+    "RB": 45.0,
+    "WR": 40.0,
+    "TE": 95.0
+  }
+}
+```
+
+**Errors**:
+| Code | Detail |
+|------|--------|
+| 400 | No available players to analyze |
+| 404 | Draft not found |
+| 500 | Failed to calculate VOR |
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/draft/12345/vor?limit_per_position=3
+```
+
+---
+
+### Player VOR
+
+**GET /api/v1/draft/{draft_id}/player/{player_id}/vor**
+
+Get VOR analysis for a specific player.
+
+**Path Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `draft_id` | string | Sleeper draft ID |
+| `player_id` | string | Player ID to analyze |
+
+**Response** (`VORPlayerDetail`):
+```json
+{
+  "player_id": "string",
+  "player_name": "CeeDee Lamb",
+  "position": "WR",
+  "adp_overall": 5.1,
+  "replacement_level_adp": 40.0,
+  "vor_score": 34.9,
+  "interpretation": "Elite Value"
+}
+```
+
+**Errors**:
+| Code | Detail |
+|------|--------|
+| 404 | Player not found |
+| 500 | Server error |
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/draft/12345/player/6786/vor
+```
+
+---
+
 ## Status Values
 
 Sleeper uses these draft status values:
@@ -607,6 +707,50 @@ For the `status_filter` parameter:
   "team": "SF|DAL|FA|etc",
   "age": number (optional),
   "years_exp": number (optional)
+}
+```
+
+### VORPlayerDetail
+
+```json
+{
+  "player_id": "string",
+  "player_name": "string",
+  "position": "QB|RB|WR|TE",
+  "adp_overall": number,
+  "replacement_level_adp": number,
+  "vor_score": number,
+  "interpretation": "Elite Value|Strong Value|Moderate Value|etc"
+}
+```
+
+### VORDraftRecommendation
+
+```json
+{
+  "league_id": "string",
+  "draft_id": "string",
+  "player_id": "string",
+  "player_name": "string",
+  "position": "string",
+  "adp_overall": number,
+  "replacement_level_adp": number,
+  "vor_score": number,
+  "interpretation": "string",
+  "draft_position": number (optional),
+  "picks_remaining": number
+}
+```
+
+### VORAnalysisResponse
+
+```json
+{
+  "league_id": "string",
+  "draft_id": "string",
+  "recommendations": [VORDraftRecommendation],
+  "top_value_pick": VORDraftRecommendation,
+  "replacement_level_by_position": {"QB": number, "RB": number, ...}
 }
 ```
 

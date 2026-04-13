@@ -33,6 +33,31 @@ HTTP client library for API communication. Chosen over `fetch` for:
 - Built-in base URL configuration
 - More concise error handling
 
+## Key Components
+
+### Common (`src/components/common/`)
+- `ADPBadge` — ADP delta visualization (green = value, red = reach)
+- `VORBadge` — VOR score indicator for draft recommendations
+- `PlayerHeadshot` — Player photo display
+- `ErrorMessage` — Standardized error display
+- `LoadingSpinner` — Loading state indicator
+
+### Roster (`src/components/roster/`)
+- `RosterView` — Main roster display grouped by position
+- `PositionTable` — Position group table within roster
+- `PositionHeader` — Position section header
+- `PlayerRow` — Individual player row in roster
+- `AvailableTable` — Available players table within roster view
+
+### Available Players (`src/components/available/`)
+- `AvailablePlayersView` — Real-time available players panel
+
+### Custom Hooks (`src/hooks/`)
+- `useRosterData` — Fetch and manage user roster state
+- `useAvailableByPosition` — Fetch available players grouped by position
+- `useNextPick` — Calculate next pick information
+- `useVORAnalysis` — Fetch and manage VOR analysis data
+
 ## Design Philosophy
 
 This stack intentionally stays **lightweight and minimal**:

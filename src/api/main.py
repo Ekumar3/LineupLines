@@ -1244,64 +1244,53 @@ def get_draft_vor_analysis(
         # Initialize VOR calculator
         vor = get_vor_calculator()
         
-        # Get drafted player names from Sleeper picks
-        drafted_names = set()
+        # Build player ID resolver to map FantasyPros names -> Sleeper IDs
         sleeper_players_map = sleeper_client.get_players() or {}
-        
-        for pick in available:
-            player_id = pick.player_id  # Access as object attribute, not dict
-            if player_id and player_id in sleeper_players_map:
-                sleeper_player = sleeper_players_map[player_id]
-                # Get player name from Sleeper
-                player_name = sleeper_player.get("full_name") or sleeper_player.get("player_name")
-                if player_name:
-                    drafted_names.add(player_name)
-        
-        # Get our VOR data and filter to undrafted
-        undrafted_players = [
-            p for p in vor.players
-            if p['player_name'] not in drafted_names
-        ]
-        
-        logger.info(f"Drafted {len(drafted_names)} players, {len(undrafted_players)} undrafted with VOR data")
-        
-        # Calculate VOR for each undrafted player
+        from src.services.player_id_resolver import PlayerIDResolver
+        resolver = PlayerIDResolver(sleeper_players_map)
+
+        # Resolve all VOR players to Sleeper IDs, filtering out drafted players
         recommendations = []
-        for player in undrafted_players:
+        skipped = 0
+        for player in vor.players:
+            sleeper_id = resolver.resolve(
+                player['player_name'], player['position'], player.get('team')
+            )
+            if not sleeper_id:
+                skipped += 1
+                continue
+            if sleeper_id in drafted_player_ids:
+                continue
+
             try:
                 vor_score = vor.calculate_vor(
                     position=player['position'],
                     adp=player['adp_overall'],
                     replacement_percentile=50
                 )
-                
+
                 replacement_level = vor.get_replacement_level(
                     position=player['position'],
                     replacement_percentile=50
                 )
-                
-                # Generate a deterministic player_id if not present
-                player_id = player.get("player_id")
-                if not player_id:
-                    # Use a hash of player name + position as fallback
-                    import hashlib
-                    player_id = hashlib.md5(f"{player['player_name']}{player['position']}".encode()).hexdigest()[:16]
-                
+
                 recommendations.append({
                     "league_id": league_id,
                     "draft_id": draft_id,
-                    "player_id": player_id,
+                    "player_id": sleeper_id,
                     "player_name": player['player_name'],
                     "position": player['position'],
                     "adp_overall": player['adp_overall'],
                     "replacement_level_adp": replacement_level,
                     "vor_score": vor_score,
                     "interpretation": vor._interpret_vor(vor_score),
-                    "picks_remaining": len(undrafted_players),
+                    "picks_remaining": len(vor.players) - len(drafted_player_ids),
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {player['player_name']}: {e}")
                 continue
+
+        logger.info(f"VOR: {len(drafted_player_ids)} drafted, {len(recommendations)} recommendations, {skipped} unresolved")
         
         # Group by position and sort by VOR within each position
         by_position = {}

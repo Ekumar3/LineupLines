@@ -798,35 +798,38 @@ aws cloudwatch put-metric-alarm \
     --comparison-operator GreaterThanThreshold
 ```
 
-### Option 3: Docker Deployment
+### Option 3: Docker (Local Testing & Deployment)
 
-**Create Dockerfile:**
+A `Dockerfile` is included in the repo root. Key characteristics:
+- **Base image**: Python 3.10-slim
+- Installs `gcc` and `python3-dev` for C extension compilation (scipy, scikit-learn)
+- Copies `src/`, `data/`, and `debug_html/` directories separately (not the whole repo)
+- Runs uvicorn on port 8000
 
-```dockerfile
-FROM python:3.11-slim
+> **Important**: The Docker image expects player data in `data/`. Run `python scripts/sync_player_data.py` on your host **before** building so the data directory is populated.
 
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-RUN python scripts/sync_player_data.py
-
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-**Build and Run:**
+#### Local Testing Workflow
 
 ```bash
-# Build image
+# 1. Ensure player data exists
+python scripts/sync_player_data.py
+
+# 2. Build the image
 docker build -t draft-helper:latest .
 
-# Run locally
+# 3. Run locally
 docker run -p 8000:8000 draft-helper:latest
 
-# Push to registry
+# 4. Verify it's running
+curl http://localhost:8000/health
+
+# 5. Access interactive API docs
+# Open http://localhost:8000/docs in your browser
+```
+
+#### Push to Registry (Production)
+
+```bash
 docker tag draft-helper:latest your-registry/draft-helper:latest
 docker push your-registry/draft-helper:latest
 ```

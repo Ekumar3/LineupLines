@@ -4,29 +4,34 @@ Comprehensive guide to running, writing, and maintaining tests for the Draft Hel
 
 ## Test Overview
 
-**Current Coverage**: 95/95 tests passing (100%)
+**Current Coverage**: 88 tests across 7 files
 
 ### Test Distribution
 
 ```
+tests/test_adp_service.py             (13 tests)  - ADP service unit tests
 tests/test_api.py                      (1 test)   - Health check
-tests/test_fetcher.py                 (10 tests)  - SleeperClient unit tests
-tests/test_draft_endpoints.py          (42 tests)  - API endpoint integration tests
 tests/test_api_storage.py              (9 tests)  - Storage layer unit tests
-tests/test_league_settings.py          (18 tests)  - League settings endpoint tests
-tests/test_available_by_position.py    (15+ tests) - Available-by-position endpoint tests
+tests/test_available_by_position.py    (9 tests)  - Available-by-position endpoint tests
+tests/test_draft_endpoints.py         (38 tests)  - API endpoint integration tests
+tests/test_fetcher.py                 (10 tests)  - SleeperClient unit tests
+tests/test_league_settings.py          (8 tests)  - League settings endpoint tests
 ───────────────────────────────────────────────────
-Total:                                95 tests
+Total:                                88 tests
 ```
 
 ### Test Types
 
 | Type | Count | Purpose | Tools |
 |------|-------|---------|-------|
-| Unit | 30+ | Test individual functions | pytest + mocks |
-| Integration | 50+ | Test API endpoints | TestClient |
-| Storage | 10+ | Test persistence | Temp files |
-| **Total** | **95** | **Verify all layers** | pytest |
+| Unit | 33 | Test individual functions | pytest + mocks |
+| Integration | 46 | Test API endpoints | TestClient |
+| Storage | 9 | Test persistence | Temp files |
+| **Total** | **88** | **Verify all layers** | pytest |
+
+### Coverage Gaps
+
+- VOR endpoints (`/api/v1/draft/{draft_id}/vor`, `/api/v1/draft/{draft_id}/player/{player_id}/vor`) do not have dedicated tests yet
 
 ---
 
@@ -43,7 +48,7 @@ Output:
 tests/test_api.py::test_health PASSED
 tests/test_api_storage.py::TestPlayerUniverseStorage::test_save_and_load_player_universe PASSED
 ...
-======================== 52 passed in 1.23s ========================
+======================== 88 passed in 1.23s ========================
 ```
 
 ### Run Specific Test File
@@ -433,7 +438,7 @@ Recommended workflow:
 5. **Run all tests** to ensure nothing broke
    ```bash
    pytest tests/ -v
-   # 52 passed
+   # 88 passed
    ```
 
 ---
@@ -496,7 +501,7 @@ pytest tests/ -v
 
 ### Test Execution Time
 
-Current: ~1.2 seconds for all 52 tests
+Current: ~1.2 seconds for all 88 tests
 
 **Optimization tips**:
 - Avoid file I/O in tests (use temp files)
