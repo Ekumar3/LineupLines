@@ -27,7 +27,9 @@
       "Bash(xargs grep:*)",
       "Bash(where python:*)",
       "Bash(where py:*)",
-      "Bash(C:/Python314/python.exe:*)"
+      "Bash(C:/Python314/python.exe:*)",
+      "Bash(python scripts/run_api.py)",
+      "Bash(echo \"Backend PID: $!\")"
     ]
   }
 }

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import { useVORAnalysis } from '../../hooks/useVORAnalysis';
+import BestAvailableTable from './BestAvailableTable';
 import PositionTable from '../roster/PositionTable';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
@@ -44,6 +45,11 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
             <span>Top {data.limit} per position</span>
           </div>
         </div>
+
+        {/* Best Available Table */}
+        {vorData?.recommendations?.length > 0 && (
+          <BestAvailableTable recommendations={vorData.recommendations} />
+        )}
 
         {/* Top Value Pick Recommendation */}
         {vorData?.top_value_pick && (
