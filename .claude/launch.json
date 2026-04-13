@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend API (FastAPI)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["scripts/run_api.py"],
+      "port": 8000
+    },
+    {
+      "name": "Frontend Dev (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

@@ -553,6 +553,55 @@ def get_league_settings(draft_id: str):
 
 
 @app.get(
+    "/api/v1/leagues/{league_id}/settings",
+    response_model=LeagueSettings,
+    responses={
+        200: {"description": "Successfully retrieved league settings"},
+        404: {"model": ErrorResponse, "description": "League not found"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get league settings by league ID",
+    description="Returns league settings including scoring format and roster positions",
+    tags=["Leagues"],
+)
+def get_league_settings_by_id(league_id: str):
+    """Get league settings directly by league ID.
+
+    Returns roster positions, scoring format, and team count.
+
+    - **league_id**: Sleeper league ID (required path parameter)
+    """
+    logger.info(f"Fetching settings for league {league_id}")
+
+    try:
+        league_info = sleeper_client.get_league_info(league_id)
+        if not league_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"League not found: {league_id}",
+            )
+
+        scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
+        roster_positions = league_info.get("roster_positions", [])
+        total_rosters = league_info.get("total_rosters", 12)
+
+        return LeagueSettings(
+            league_id=league_id,
+            scoring_format=scoring_format,
+            roster_positions=roster_positions,
+            total_rosters=total_rosters,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching league settings: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get(
     "/api/v1/drafts/{draft_id}/available-players",
     response_model=AvailablePlayersResponse,
     responses={
