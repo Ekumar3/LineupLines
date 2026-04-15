@@ -58,6 +58,7 @@ class TestGetAvailableByPosition:
                 "team": "SF",
                 "age": 27,
                 "years_exp": 7,
+                "active": True,
             },
             "4866": {
                 "first_name": "CeeDee",
@@ -66,6 +67,7 @@ class TestGetAvailableByPosition:
                 "team": "DAL",
                 "age": 25,
                 "years_exp": 4,
+                "active": True,
             },
             "5000": {
                 "first_name": "Patrick",
@@ -74,6 +76,7 @@ class TestGetAvailableByPosition:
                 "team": "KC",
                 "age": 28,
                 "years_exp": 7,
+                "active": True,
             },
             "5001": {
                 "first_name": "Travis",
@@ -82,6 +85,7 @@ class TestGetAvailableByPosition:
                 "team": "KC",
                 "age": 34,
                 "years_exp": 11,
+                "active": True,
             },
             "5002": {
                 "first_name": "Harrison",
@@ -90,12 +94,14 @@ class TestGetAvailableByPosition:
                 "team": "KC",
                 "age": 28,
                 "years_exp": 9,
+                "active": True,
             },
             "5003": {
                 "first_name": "Defense",
                 "last_name": "SF",
                 "position": "DEF",
                 "team": "SF",
+                "active": True,
             },
         }
 

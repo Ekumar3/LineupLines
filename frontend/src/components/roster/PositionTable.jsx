@@ -2,7 +2,7 @@ import { memo } from 'react';
 import PositionHeader from './PositionHeader';
 import PlayerRow from './PlayerRow';
 
-export default memo(function PositionTable({ position, players, positionSummary, showCount = true, vorMap }) {
+export default memo(function PositionTable({ position, players, positionSummary, showCount = true }) {
   const isEmpty = !players || players.length === 0;
 
   return (
@@ -24,11 +24,6 @@ export default memo(function PositionTable({ position, players, positionSummary,
               <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
                 ADP Delta
               </th>
-              {vorMap && (
-                <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
-                  VOR
-                </th>
-              )}
               <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-16">
                 Pick
               </th>
@@ -40,7 +35,7 @@ export default memo(function PositionTable({ position, players, positionSummary,
           <tbody className="divide-y divide-sleeper-gray-800">
             {isEmpty ? (
               <tr>
-                <td colSpan={vorMap ? 4 : 3} className="px-3 py-6 text-center text-sleeper-gray-500">
+                <td colSpan={3} className="px-3 py-6 text-center text-sleeper-gray-500">
                   No {position}s drafted yet
                 </td>
               </tr>
@@ -49,7 +44,6 @@ export default memo(function PositionTable({ position, players, positionSummary,
                 <PlayerRow
                   key={player.player_id}
                   player={player}
-                  vorData={vorMap?.[player.player_id]}
                 />
               ))
             )}

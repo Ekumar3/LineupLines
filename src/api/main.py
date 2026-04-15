@@ -773,6 +773,10 @@ def get_available_by_position(
             if not position or position not in positions:
                 continue
 
+            # Skip inactive players (avoids name collisions with retired/FA players)
+            if not player_data.get("active"):
+                continue
+
             # Build player name
             first = player_data.get("first_name", "")
             last = player_data.get("last_name", "")
@@ -935,7 +939,7 @@ def get_user_roster(draft_id: str, user_id: str):
                 if all_players:
                     available_by_position = defaultdict(list)
                     for pid, player in all_players.items():
-                        if pid not in drafted_ids:
+                        if pid not in drafted_ids and player.get("active"):
                             pos = player.get("position")
                             if pos:
                                 available_by_position[pos].append(
