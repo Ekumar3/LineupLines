@@ -16,14 +16,6 @@ export default function RosterView({ draftId, userId }) {
   const { data: availableData } = useAvailableByPosition(draftId, 10);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
 
-  const vorMap = useMemo(() => {
-    if (!vorData?.recommendations) return {};
-    return vorData.recommendations.reduce((acc, rec) => {
-      acc[rec.player_id] = rec;
-      return acc;
-    }, {});
-  }, [vorData]);
-
   const positionData = useMemo(() =>
     POSITION_ORDER.map(pos => ({
       position: pos,
@@ -72,7 +64,6 @@ export default function RosterView({ draftId, userId }) {
                 position={position}
                 players={drafted}
                 positionSummary={summary}
-                vorMap={vorMap}
               />
 
               {/* Available Players (if any) */}
@@ -81,7 +72,7 @@ export default function RosterView({ draftId, userId }) {
                   <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
                     Available {position}s (Top {availableData?.limit})
                   </h3>
-                  <AvailableTable players={available} position={position} vorMap={vorMap} />
+                  <AvailableTable players={available} position={position} />
                 </div>
               )}
             </div>
