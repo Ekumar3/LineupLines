@@ -878,19 +878,10 @@ def get_user_roster(draft_id: str, user_id: str):
         all_picks = sleeper_client.get_draft_picks(draft_id)
 
         if not all_picks:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No picks found for draft_id: {draft_id}",
-            )
+            all_picks = []
 
         # Filter picks to only this user
         user_picks = [pick for pick in all_picks if pick.user_id == user_id]
-
-        if not user_picks:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No picks found for user_id: {user_id} in draft {draft_id}",
-            )
 
         # Get draft details to find user's draft slot
         draft_details = sleeper_client.get_draft_details(draft_id)
@@ -932,7 +923,6 @@ def get_user_roster(draft_id: str, user_id: str):
             try:
                 from collections import defaultdict
 
-                all_picks = sleeper_client.get_draft_picks(draft_id)
                 drafted_ids = {p.player_id for p in all_picks}
                 all_players = load_player_universe()
 

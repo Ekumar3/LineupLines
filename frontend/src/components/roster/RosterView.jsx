@@ -13,7 +13,7 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
-  const { data: availableData } = useAvailableByPosition(draftId, 10);
+  const { data: availableData } = useAvailableByPosition(draftId, 5);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
 
   const positionData = useMemo(() =>

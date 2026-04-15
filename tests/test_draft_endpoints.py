@@ -904,25 +904,29 @@ class TestGetUserRoster:
         assert data["position_summary"]["QB"]["priority"] == "medium"
 
     def test_get_user_roster_no_picks_for_user(self, client, mock_picks_list, mock_draft_details):
-        """Test with user who has no picks in the draft."""
+        """Test with user who has no picks returns empty roster."""
         with patch("src.api.main.sleeper_client.get_draft_picks", return_value=mock_picks_list):
             with patch(
                 "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
             ):
                 response = client.get("/api/v1/drafts/draft_123/users/nonexistent_user/roster")
 
-        assert response.status_code == 404
-        assert "No picks found" in response.json()["detail"]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_picks"] == 0
+        assert all(len(players) == 0 for players in data["roster_by_position"].values())
 
     def test_get_user_roster_no_picks_in_draft(self, client, mock_draft_details):
-        """Test with draft that has no picks yet."""
+        """Test with draft that has no picks yet returns empty roster."""
         with patch("src.api.main.sleeper_client.get_draft_picks", return_value=[]):
             with patch(
                 "src.api.main.sleeper_client.get_draft_details", return_value=mock_draft_details
             ):
                 response = client.get("/api/v1/drafts/draft_123/users/user_1/roster")
 
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_picks"] == 0
 
     def test_get_user_roster_draft_slot_detection(self, client, mock_picks_list, mock_draft_details):
         """Test that draft slot is correctly detected from draft_order."""

@@ -36,8 +36,8 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
     if (draftId) {
       fetchAvailable();
 
-      // Poll for updates every 5 seconds
-      const interval = setInterval(fetchAvailable, 5000);
+      // Poll for updates every 3 seconds
+      const interval = setInterval(fetchAvailable, 3000);
 
       // Cleanup interval on unmount or when dependencies change
       return () => {
