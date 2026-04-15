@@ -53,8 +53,8 @@ export const useNextPick = (draftId, userId) => {
     if (draftId && userId) {
       calculateNextPick();
 
-      // Poll for updates every 5 seconds
-      const interval = setInterval(calculateNextPick, 5000);
+      // Poll for updates every 3 seconds
+      const interval = setInterval(calculateNextPick, 3000);
 
       // Cleanup interval on unmount or when dependencies change
       return () => clearInterval(interval);

@@ -17,7 +17,7 @@ function vorColor(score) {
   return 'text-red-400';
 }
 
-const DEFAULT_ROWS = 10;
+const DEFAULT_ROWS = 5;
 
 export default function BestAvailableTable({ recommendations }) {
   const [expanded, setExpanded] = useState(false);

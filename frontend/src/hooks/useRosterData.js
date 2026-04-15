@@ -56,8 +56,23 @@ export const useRosterData = (draftId, userId) => {
         setError(null);
       } catch (err) {
         if (cancelled) return;
-        setError(err.message || 'Failed to fetch roster');
-        setData(null);
+        // Treat 404 as "no picks yet" — return empty roster so the page still renders
+        if (err.response?.status === 404) {
+          const emptyRoster = {
+            draft_id: draftId,
+            user_id: userId,
+            draft_slot: 0,
+            total_picks: 0,
+            roster_by_position: { QB: [], RB: [], WR: [], TE: [], K: [], DEF: [] },
+            position_summary: {},
+          };
+          setData(emptyRoster);
+          setError(null);
+          initialLoadDone.current = true;
+        } else {
+          setError(err.message || 'Failed to fetch roster');
+          setData(null);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -66,8 +81,8 @@ export const useRosterData = (draftId, userId) => {
     if (draftId && userId) {
       fetchRoster();
 
-      // Poll for updates every 5 seconds
-      const interval = setInterval(fetchRoster, 5000);
+      // Poll for updates every 3 seconds
+      const interval = setInterval(fetchRoster, 3000);
 
       // Cleanup interval on unmount or when dependencies change
       return () => {

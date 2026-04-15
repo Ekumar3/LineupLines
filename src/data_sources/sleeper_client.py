@@ -52,17 +52,43 @@ class SleeperClient:
     BASE_URL = "https://api.sleeper.app/v1"
     RATE_LIMIT_DELAY = 0.1  # Seconds between requests (1000/min = 16.7/sec)
 
-    def __init__(self, rate_limit_delay: float = 0.1):
+    def __init__(self, rate_limit_delay: float = 0.1, draft_ttl: float = 2.0):
         """Initialize the Sleeper client.
 
         Args:
             rate_limit_delay: Minimum delay between API requests (seconds)
+            draft_ttl: TTL in seconds for draft data cache (0 to disable)
         """
         self.rate_limit_delay = rate_limit_delay
+        self.draft_ttl = draft_ttl
         self.last_request_time = 0
         self._player_cache: Optional[Dict[str, Dict[str, Any]]] = None
         self._player_cache_time: Optional[datetime] = None
         self._scoring_format_cache: Dict[str, Optional[str]] = {}
+        self._draft_cache: Dict[str, Any] = {}
+        self._draft_cache_times: Dict[str, float] = {}
+
+    def _get_cached(self, key: str) -> Optional[Any]:
+        """Return cached value if within TTL, else None."""
+        if self.draft_ttl <= 0:
+            return None
+        if key in self._draft_cache:
+            age = time.time() - self._draft_cache_times.get(key, 0)
+            if age < self.draft_ttl:
+                logger.debug(f"Cache hit: {key} (age={age:.2f}s)")
+                return self._draft_cache[key]
+        return None
+
+    def _set_cached(self, key: str, value: Any) -> None:
+        """Store a value in the draft cache."""
+        self._draft_cache[key] = value
+        self._draft_cache_times[key] = time.time()
+
+    def clear_draft_cache(self) -> None:
+        """Clear cached draft data (picks, details). Does not affect player cache."""
+        self._draft_cache.clear()
+        self._draft_cache_times.clear()
+        logger.debug("Cleared draft cache")
 
     def get_draft_picks(self, draft_id: str) -> List[DraftPick]:
         """Fetch all picks from a draft.
@@ -76,6 +102,11 @@ class SleeperClient:
         Raises:
             Exception: If API request fails
         """
+        cache_key = f"draft_picks:{draft_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         logger.info(f"Fetching picks for draft {draft_id}")
 
         try:
@@ -107,6 +138,7 @@ class SleeperClient:
                 draft_picks.append(pick)
 
             logger.info(f"Fetched {len(draft_picks)} picks from draft {draft_id}")
+            self._set_cached(cache_key, draft_picks)
             return draft_picks
 
         except Exception as e:
@@ -165,6 +197,11 @@ class SleeperClient:
         Returns:
             Dict with draft details (draft_order, settings, metadata, etc.) or None if fetch fails
         """
+        cache_key = f"draft_details:{draft_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         logger.info(f"Fetching details for draft {draft_id}")
 
         try:
@@ -195,7 +232,7 @@ class SleeperClient:
                         # Store as: roster_id (string) -> user_id (string)
                         roster_to_user[str(roster_id_int)] = user_at_slot
 
-            return {
+            result = {
                 "draft_id": draft_id,
                 "league_id": response.get("league_id", ""),
                 "status": response.get("status", "pre_draft"),
@@ -212,6 +249,8 @@ class SleeperClient:
                 "draft_order": draft_order,
                 "roster_to_user": roster_to_user,
             }
+            self._set_cached(cache_key, result)
+            return result
 
         except Exception as e:
             logger.error(f"Failed to fetch draft details: {e}")
