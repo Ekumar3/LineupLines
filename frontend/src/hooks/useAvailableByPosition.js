@@ -5,13 +5,17 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastPolled, setLastPolled] = useState(null);
   const initialLoadDone = useRef(false);
   const prevDataJson = useRef(null);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchAvailable = async () => {
+      if (inFlight.current) return; // skip if previous request still pending
+      inFlight.current = true;
       try {
         if (!initialLoadDone.current) setLoading(true);
         const availableData = await draftAPI.getAvailableByPosition(draftId, limit);
@@ -22,13 +26,20 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
           setData(availableData);
           console.log(`[useAvailableByPosition] Updated at ${new Date().toLocaleTimeString()} — current pick: #${availableData?.current_overall_pick}`);
         }
+        setLastPolled(new Date());
         initialLoadDone.current = true;
         setError(null);
       } catch (err) {
         if (cancelled) return;
-        setError(err.message || 'Failed to fetch available players');
-        setData(null);
+        // Don't overwrite data on transient errors — just update lastPolled
+        if (initialLoadDone.current) {
+          console.warn('[useAvailableByPosition] Poll failed, keeping stale data:', err.message);
+        } else {
+          setError(err.message || 'Failed to fetch available players');
+          setData(null);
+        }
       } finally {
+        inFlight.current = false;
         if (!cancelled) setLoading(false);
       }
     };
@@ -36,10 +47,8 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
     if (draftId) {
       fetchAvailable();
 
-      // Poll for updates every 3 seconds
-      const interval = setInterval(fetchAvailable, 3000);
+      const interval = setInterval(fetchAvailable, 5000);
 
-      // Cleanup interval on unmount or when dependencies change
       return () => {
         cancelled = true;
         clearInterval(interval);
@@ -47,5 +56,5 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
     }
   }, [draftId, limit]);
 
-  return { data, loading, error };
+  return { data, loading, error, lastPolled };
 };

@@ -75,7 +75,7 @@ class SleeperClient:
         if key in self._draft_cache:
             age = time.time() - self._draft_cache_times.get(key, 0)
             if age < self.draft_ttl:
-                logger.debug(f"Cache hit: {key} (age={age:.2f}s)")
+                logger.info(f"Cache hit: {key} (age={age:.1f}s)")
                 return self._draft_cache[key]
         return None
 

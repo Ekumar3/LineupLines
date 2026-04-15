@@ -5,13 +5,17 @@ export const useRosterData = (draftId, userId) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastPolled, setLastPolled] = useState(null);
   const initialLoadDone = useRef(false);
   const prevDataJson = useRef(null);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchRoster = async () => {
+      if (inFlight.current) return; // skip if previous request still pending
+      inFlight.current = true;
       try {
         if (!initialLoadDone.current) setLoading(true);
 
@@ -52,6 +56,7 @@ export const useRosterData = (draftId, userId) => {
           setData(enrichedRoster);
           console.log(`[useRosterData] Updated at ${new Date().toLocaleTimeString()} — total picks: ${enrichedRoster.total_picks}`);
         }
+        setLastPolled(new Date());
         initialLoadDone.current = true;
         setError(null);
       } catch (err) {
@@ -69,11 +74,14 @@ export const useRosterData = (draftId, userId) => {
           setData(emptyRoster);
           setError(null);
           initialLoadDone.current = true;
+        } else if (initialLoadDone.current) {
+          console.warn('[useRosterData] Poll failed, keeping stale data:', err.message);
         } else {
           setError(err.message || 'Failed to fetch roster');
           setData(null);
         }
       } finally {
+        inFlight.current = false;
         if (!cancelled) setLoading(false);
       }
     };
@@ -81,10 +89,8 @@ export const useRosterData = (draftId, userId) => {
     if (draftId && userId) {
       fetchRoster();
 
-      // Poll for updates every 3 seconds
-      const interval = setInterval(fetchRoster, 3000);
+      const interval = setInterval(fetchRoster, 5000);
 
-      // Cleanup interval on unmount or when dependencies change
       return () => {
         cancelled = true;
         clearInterval(interval);
@@ -92,5 +98,5 @@ export const useRosterData = (draftId, userId) => {
     }
   }, [draftId, userId]);
 
-  return { data, loading, error };
+  return { data, loading, error, lastPolled };
 };
