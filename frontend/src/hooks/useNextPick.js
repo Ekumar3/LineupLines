@@ -6,9 +6,12 @@ export const useNextPick = (draftId, userId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     const calculateNextPick = async () => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       try {
         if (!initialLoadDone.current) setLoading(true);
 
@@ -43,9 +46,14 @@ export const useNextPick = (draftId, userId) => {
         setError(null);
         console.log(`[useNextPick] Refreshed at ${new Date().toLocaleTimeString()} — next pick: #${nextPick}`);
       } catch (err) {
-        console.error('Failed to calculate next pick:', err);
-        setError(err.message || 'Failed to calculate next pick');
+        if (initialLoadDone.current) {
+          console.warn('[useNextPick] Poll failed, keeping stale data:', err.message);
+        } else {
+          console.error('Failed to calculate next pick:', err);
+          setError(err.message || 'Failed to calculate next pick');
+        }
       } finally {
+        inFlight.current = false;
         setLoading(false);
       }
     };
@@ -53,10 +61,8 @@ export const useNextPick = (draftId, userId) => {
     if (draftId && userId) {
       calculateNextPick();
 
-      // Poll for updates every 3 seconds
-      const interval = setInterval(calculateNextPick, 3000);
+      const interval = setInterval(calculateNextPick, 5000);
 
-      // Cleanup interval on unmount or when dependencies change
       return () => clearInterval(interval);
     }
   }, [draftId, userId]);

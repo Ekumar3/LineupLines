@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 5000;
 
 /**
  * Hook to fetch VOR (Value Over Replacement) analysis for a draft.
@@ -11,6 +11,7 @@ export function useVORAnalysis(draftId) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const prevJson = useRef(null);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     if (!draftId) {
@@ -19,6 +20,8 @@ export function useVORAnalysis(draftId) {
     }
 
     const fetchVOR = async () => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       try {
         const response = await fetch(`/api/v1/draft/${draftId}/vor`);
 
@@ -38,9 +41,15 @@ export function useVORAnalysis(draftId) {
 
         setError(null);
       } catch (err) {
-        console.error('Error fetching VOR:', err);
-        setError(err.message);
+        // Silently skip transient errors if we already have data
+        if (prevJson.current) {
+          console.warn('[VOR] Poll failed, keeping stale data:', err.message);
+        } else {
+          console.error('Error fetching VOR:', err);
+          setError(err.message);
+        }
       } finally {
+        inFlight.current = false;
         setLoading(false);
       }
     };
