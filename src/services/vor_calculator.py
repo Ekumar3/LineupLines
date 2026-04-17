@@ -4,11 +4,12 @@ Value Over Replacement (VOR) Calculator for Fantasy Football Draft
 VOR measures how much better a player is compared to a "replacement level" player.
 This helps identify which positions offer the most value at different draft stages.
 
-Formula: VOR = player_adp - replacement_level_adp
-Higher VOR = more value at that stage
+Formula: VOR = next_player_adp - player_adp
+Higher VOR = bigger gap to the next available player at this position = more value
 
-Replacement Level: Median ADP of remaining players at the same position
-This gives a stable baseline that adjusts as the draft progresses.
+Replacement Level: ADP of the next available player at the same position.
+This captures positional cliffs (e.g. big TE drop-offs) without inflating values
+the way a median-based baseline does.
 """
 
 import json
@@ -84,49 +85,69 @@ class VORCalculator:
             idx = int(percentile_val * (len(quants) - 1))
             return quants[idx]
     
+    def get_next_player_adp(
+        self,
+        position: str,
+        player_adp: float,
+        remaining_players: Optional[List[Dict]] = None
+    ) -> float:
+        """
+        Return the ADP of the next available player at this position after player_adp.
+
+        This is the replacement level used for VOR: how much value do you lose
+        if you skip this player and take the next one at this position?
+
+        Args:
+            position: Player position (e.g. 'TE', 'WR')
+            player_adp: ADP of the player being evaluated
+            remaining_players: If provided, only consider undrafted players
+
+        Returns:
+            ADP of the next player at the same position, or player_adp + 1.0
+            if this is the last player at the position (no gain from waiting).
+        """
+        if remaining_players is not None:
+            pool = [p for p in remaining_players if p['position'] == position]
+        else:
+            pool = self.position_groups.get(position, [])
+
+        # Sort ascending by ADP (lower = earlier pick = better)
+        sorted_pool = sorted(pool, key=lambda p: p['adp_overall'])
+
+        # Find the first player whose ADP is strictly greater than player_adp
+        for p in sorted_pool:
+            if p['adp_overall'] > player_adp:
+                return p['adp_overall']
+
+        # Last player at position — no one to fall back to
+        return player_adp + 1.0
+
     def calculate_vor(
         self,
         position: str,
         adp: float,
         remaining_players: Optional[List[Dict]] = None,
-        replacement_percentile: int = 50
+        replacement_percentile: int = 50  # kept for API compatibility, unused
     ) -> float:
         """
         Calculate VOR for a specific player.
-        
-        Lower ADP is better (picked earlier).
-        VOR = replacement_level_adp - player_adp (positive = above replacement/elite)
-        
+
+        VOR = ADP(next available player at position) - player_adp
+
+        A higher VOR means a bigger cliff between this player and the next one
+        at the same position — i.e. you lose more by waiting.
+
         Args:
             position: Player position
             adp: Player's ADP value
-            remaining_players: Players still available (for dynamic replacement level)
-                             If None, uses static replacement level
-            replacement_percentile: Which percentile (50 = median)
-        
+            remaining_players: Players still available (for live-draft mode).
+                               If None, uses the full pre-draft player pool.
+            replacement_percentile: Unused; kept for backwards compatibility.
+
         Returns:
-            VOR score (positive = above replacement, negative = below)
+            VOR score (>0 = gap to next player, ~0 = next player is right there)
         """
-        if remaining_players:
-            # Dynamic: calculate replacement level from remaining players only
-            remaining_at_pos = [p for p in remaining_players if p['position'] == position]
-            if not remaining_at_pos:
-                raise ValueError(f"No remaining players at position {position}")
-            
-            remaining_adp = [p['adp_overall'] for p in remaining_at_pos]
-            if replacement_percentile == 50:
-                replacement_level = median(remaining_adp)
-            else:
-                percentile_val = replacement_percentile / 100.0
-                quants = quantiles(remaining_adp, n=100)
-                idx = int(percentile_val * (len(quants) - 1))
-                replacement_level = quants[idx]
-        else:
-            # Static: use pre-draft replacement level
-            replacement_level = self.get_replacement_level(position, replacement_percentile)
-        
-        # VOR = how much earlier this player is picked than replacement level
-        # Higher VOR = picked much earlier = more elite
+        replacement_level = self.get_next_player_adp(position, adp, remaining_players)
         return replacement_level - adp
     
     def get_vor_for_draft_scenario(
@@ -172,16 +193,16 @@ class VORCalculator:
     
     def _interpret_vor(self, vor: float) -> str:
         """Interpret VOR score for user understanding."""
-        if vor < 5:
-            return "Below replacement (avoid)"
-        elif vor < 15:
-            return "At replacement level (neutral)"
-        elif vor < 30:
-            return "Moderate value (decent pick)"
-        elif vor < 60:
-            return "Strong value (good pick)"
+        if vor < 2:
+            return "At replacement level (no gap)"
+        elif vor < 8:
+            return "Slight value (small gap)"
+        elif vor < 20:
+            return "Moderate value (decent gap)"
+        elif vor < 35:
+            return "Strong value (notable gap)"
         else:
-            return "Elite value (excellent pick)"
+            return "Elite value (major cliff)"
     
     def print_vor_by_round(
         self,
