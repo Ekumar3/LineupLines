@@ -1377,6 +1377,8 @@ def get_draft_vor_analysis(
         _pool_positions = {"QB", "RB", "WR", "TE", "K", "DEF"}
         _by_pos: dict[str, list[tuple[float, str]]] = {}
         for _pid, _pdata in all_players.items():
+            if _pid in drafted_player_ids:
+                continue
             if not _pdata.get("active"):
                 continue
             _pos = _pdata.get("position")
