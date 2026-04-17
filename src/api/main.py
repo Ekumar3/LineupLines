@@ -1373,7 +1373,7 @@ def get_draft_vor_analysis(
         adp_lookup = adp_service.get_adp_lookup(scoring_format)
         all_players = load_player_universe() or sleeper_players_map
         current_overall_pick = available[-1].pick_no + 1 if available else 1
-        VOR_POOL_SIZE = 20
+        VOR_POOL_SIZE = 5
         _pool_positions = {"QB", "RB", "WR", "TE", "K", "DEF"}
         _by_pos: dict[str, list[tuple[float, str]]] = {}
         for _pid, _pdata in all_players.items():
