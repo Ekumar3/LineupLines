@@ -4,30 +4,39 @@ Value Over Replacement (VOR) Calculator for Fantasy Football Draft
 VOR measures how much better a player is compared to a "replacement level" player.
 This helps identify which positions offer the most value at different draft stages.
 
-Formula: VOR = next_player_adp - player_adp
-Higher VOR = bigger gap to the next available player at this position = more value
+--- Projection-based VOR (preferred, when projections are available) ---
+Formula:  VOR = player_projected_pts - next_player_projected_pts
+Sorted by projected PPR points descending, so the "next player" is the best player
+still available at that position who scores fewer projected points.
 
-Replacement Level: ADP of the next available player at the same position.
-This captures positional cliffs (e.g. big TE drop-offs) without inflating values
-the way a median-based baseline does.
+--- ADP-based VOR (fallback when no projection exists) ---
+Formula:  VOR = next_player_adp - player_adp
+Sorted by ADP ascending; the "next player" is the one right below in draft order.
+
+In both cases a higher VOR means a bigger gap to the next option at this position.
 """
 
 import json
+import logging
 from typing import List, Dict, Optional
 from pathlib import Path
 from statistics import median, quantiles
+
+logger = logging.getLogger(__name__)
 
 
 class VORCalculator:
     def __init__(self, players_file: str):
         """
         Initialize VOR calculator with player ADP data.
-        
+
         Args:
             players_file: Path to players JSON file (e.g., data/players/ppr_20260205_163143_players.json)
         """
         self.players = self._load_players(players_file)
         self.position_groups = self._group_by_position()
+        # Populated by load_projections(); maps position -> players sorted by proj pts desc
+        self.projection_groups: Dict[str, List[Dict]] = {}
         
     def _load_players(self, file_path: str) -> List[Dict]:
         """Load and validate player data from JSON."""
@@ -58,6 +67,94 @@ class VORCalculator:
         
         return groups
     
+    # ------------------------------------------------------------------
+    # Projection support
+    # ------------------------------------------------------------------
+
+    def load_projections(self, projections_client) -> int:
+        """
+        Enrich the player pool with season projection data.
+
+        Annotates each player in self.players with 'projected_pts' and builds
+        self.projection_groups (position -> players sorted by projected_pts desc).
+
+        Args:
+            projections_client: A ProjectionsClient instance.
+
+        Returns:
+            Number of players successfully matched to a projection.
+        """
+        matched = 0
+        for player in self.players:
+            pts = projections_client.get_projected_points(
+                player["player_name"],
+                player["position"],
+                team=player.get("team", ""),
+                scoring="ppr",
+            )
+            if pts is not None:
+                player["projected_pts"] = pts
+                matched += 1
+            else:
+                player.pop("projected_pts", None)
+
+        # Build projection_groups: only include players that have a projection
+        groups: Dict[str, List[Dict]] = {}
+        for player in self.players:
+            if "projected_pts" not in player:
+                continue
+            pos = player["position"]
+            groups.setdefault(pos, []).append(player)
+
+        for pos in groups:
+            groups[pos].sort(key=lambda p: p["projected_pts"], reverse=True)
+
+        self.projection_groups = groups
+
+        stats = {pos: len(v) for pos, v in groups.items()}
+        logger.info(
+            f"VORCalculator projections loaded: {matched} matched, "
+            f"projection_groups coverage: {stats}"
+        )
+        return matched
+
+    def get_next_projected_pts(
+        self,
+        position: str,
+        player_pts: float,
+        remaining_players: Optional[List[Dict]] = None,
+    ) -> float:
+        """
+        Return projected points of the next available player below this one.
+
+        Players are ordered by projected_pts descending (best first).  The
+        "next" player is the first one whose projection is strictly less than
+        player_pts.
+
+        Args:
+            position:         Player position.
+            player_pts:       Projected PPR points for the player being evaluated.
+            remaining_players: If provided, restrict to this undrafted pool.
+
+        Returns:
+            Projected points of the next player, or player_pts - 1.0 if this is
+            the last player at the position (giving a VOR of 1.0 as a floor).
+        """
+        if remaining_players is not None:
+            pool = [
+                p for p in remaining_players
+                if p.get("position") == position and "projected_pts" in p
+            ]
+            pool.sort(key=lambda p: p["projected_pts"], reverse=True)
+        else:
+            pool = self.projection_groups.get(position, [])
+
+        for p in pool:
+            if p["projected_pts"] < player_pts:
+                return p["projected_pts"]
+
+        return player_pts - 1.0  # floor: no one left to compare against
+
     def get_replacement_level(self, position: str, replacement_percentile: int = 50) -> float:
         """
         Calculate replacement level for a position.
@@ -126,27 +223,37 @@ class VORCalculator:
         self,
         position: str,
         adp: float,
+        projected_pts: Optional[float] = None,
         remaining_players: Optional[List[Dict]] = None,
-        replacement_percentile: int = 50  # kept for API compatibility, unused
+        replacement_percentile: int = 50,  # kept for API compatibility, unused
     ) -> float:
         """
         Calculate VOR for a specific player.
 
-        VOR = ADP(next available player at position) - player_adp
+        If projected_pts is provided (and projection_groups are loaded), uses
+        projection-based VOR:
+            VOR = player_projected_pts - next_player_projected_pts
 
-        A higher VOR means a bigger cliff between this player and the next one
-        at the same position — i.e. you lose more by waiting.
+        Otherwise falls back to ADP-based VOR:
+            VOR = next_player_adp - player_adp
+
+        In both cases a higher score means a bigger gap to the next option.
 
         Args:
-            position: Player position
-            adp: Player's ADP value
-            remaining_players: Players still available (for live-draft mode).
-                               If None, uses the full pre-draft player pool.
+            position:         Player position.
+            adp:              Player's ADP (always required; used as fallback).
+            projected_pts:    Player's projected PPR season points (optional).
+            remaining_players: Undrafted players for live-draft mode.
             replacement_percentile: Unused; kept for backwards compatibility.
 
         Returns:
-            VOR score (>0 = gap to next player, ~0 = next player is right there)
+            VOR score (positive = gap to next player).
         """
+        if projected_pts is not None and self.projection_groups:
+            next_pts = self.get_next_projected_pts(position, projected_pts, remaining_players)
+            return projected_pts - next_pts
+
+        # ADP-based fallback
         replacement_level = self.get_next_player_adp(position, adp, remaining_players)
         return replacement_level - adp
     
@@ -191,18 +298,37 @@ class VORCalculator:
             'interpretation': self._interpret_vor(vor)
         }
     
-    def _interpret_vor(self, vor: float) -> str:
-        """Interpret VOR score for user understanding."""
-        if vor < 2:
-            return "At replacement level (no gap)"
-        elif vor < 8:
-            return "Slight value (small gap)"
-        elif vor < 20:
-            return "Moderate value (decent gap)"
-        elif vor < 35:
-            return "Strong value (notable gap)"
+    def _interpret_vor(self, vor: float, basis: str = "adp") -> str:
+        """Interpret VOR score for user understanding.
+
+        Args:
+            vor:   VOR score.
+            basis: "projection" (points gap) or "adp" (pick-number gap).
+        """
+        if basis == "projection":
+            # Gaps are in projected fantasy points (e.g. 58 pts = Kittle→LaPorta cliff)
+            if vor < 5:
+                return "At replacement level (no gap)"
+            elif vor < 20:
+                return "Slight value (small gap)"
+            elif vor < 40:
+                return "Moderate value (decent gap)"
+            elif vor < 70:
+                return "Strong value (notable gap)"
+            else:
+                return "Elite value (major cliff)"
         else:
-            return "Elite value (major cliff)"
+            # ADP-based: gaps are in pick numbers
+            if vor < 2:
+                return "At replacement level (no gap)"
+            elif vor < 8:
+                return "Slight value (small gap)"
+            elif vor < 20:
+                return "Moderate value (decent gap)"
+            elif vor < 35:
+                return "Strong value (notable gap)"
+            else:
+                return "Elite value (major cliff)"
     
     def print_vor_by_round(
         self,

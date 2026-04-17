@@ -1203,38 +1203,53 @@ def _sort_drafts(drafts: list[DraftSummary]) -> list[DraftSummary]:
 vor_calculator = None
 
 def get_vor_calculator():
-    """Get or initialize VOR calculator."""
+    """Get or initialize VOR calculator, enriching it with projections when available."""
     global vor_calculator
     if vor_calculator is None:
         from src.services.vor_calculator import VORCalculator
+        from src.data_sources.projections_client import ProjectionsClient
         from pathlib import Path
         import glob
-        
-        # Find the ADP data file (latest ppr_*.json file)
+
         repo_root = Path(__file__).parent.parent.parent
         data_dir = repo_root / "data/players"
-        
-        # Try data/players first
+
+        # Find the latest PPR ADP file
+        players_file = None
         if data_dir.exists():
             ppr_files = sorted(glob.glob(str(data_dir / "ppr_*.json")), reverse=True)
             if ppr_files:
                 players_file = ppr_files[0]
-                logger.info(f"Loading VOR player data from: {players_file}")
-                vor_calculator = VORCalculator(players_file)
-                return vor_calculator
-        
-        # Fallback: check debug_html directory
-        debug_dir = repo_root / "debug_html"
-        if debug_dir.exists():
-            ppr_files = sorted(glob.glob(str(debug_dir / "ppr_*.json")), reverse=True)
-            if ppr_files:
-                players_file = ppr_files[0]
-                logger.info(f"Loading VOR player data from debug: {players_file}")
-                vor_calculator = VORCalculator(players_file)
-                return vor_calculator
-        
-        raise FileNotFoundError(f"No player data found in {data_dir} or {debug_dir}")
-    
+
+        if not players_file:
+            debug_dir = repo_root / "debug_html"
+            if debug_dir.exists():
+                ppr_files = sorted(glob.glob(str(debug_dir / "ppr_*.json")), reverse=True)
+                if ppr_files:
+                    players_file = ppr_files[0]
+
+        if not players_file:
+            raise FileNotFoundError(f"No player data found in {data_dir}")
+
+        logger.info(f"Loading VOR player data from: {players_file}")
+        vor_calculator = VORCalculator(players_file)
+
+        # Try to enrich with projections (2025 preferred, graceful fallback)
+        proj_dir = repo_root / "data/projections"
+        for season in (2025, 2026):
+            proj_file = proj_dir / f"projections_{season}.json"
+            if proj_file.exists():
+                try:
+                    proj_client = ProjectionsClient(str(proj_file))
+                    matched = vor_calculator.load_projections(proj_client)
+                    logger.info(
+                        f"Projections loaded from {proj_file.name}: "
+                        f"{matched} players matched"
+                    )
+                    break  # use the first season that works
+                except Exception as e:
+                    logger.warning(f"Could not load projections from {proj_file}: {e}")
+
     return vor_calculator
 
 
@@ -1292,6 +1307,8 @@ def get_draft_vor_analysis(
         from src.services.player_id_resolver import PlayerIDResolver
         resolver = PlayerIDResolver(sleeper_players_map)
 
+        projections_active = bool(vor.projection_groups)
+
         # Resolve all VOR players to Sleeper IDs, filtering out drafted players
         recommendations = []
         skipped = 0
@@ -1306,11 +1323,13 @@ def get_draft_vor_analysis(
                 continue
 
             try:
+                projected_pts = player.get('projected_pts')
                 vor_score = vor.calculate_vor(
                     position=player['position'],
                     adp=player['adp_overall'],
-                    replacement_percentile=50
+                    projected_pts=projected_pts,
                 )
+                basis = "projection" if projected_pts is not None and projections_active else "adp"
 
                 replacement_level = vor.get_replacement_level(
                     position=player['position'],
@@ -1326,15 +1345,20 @@ def get_draft_vor_analysis(
                     "adp_overall": player['adp_overall'],
                     "replacement_level_adp": replacement_level,
                     "vor_score": vor_score,
-                    "interpretation": vor._interpret_vor(vor_score),
+                    "interpretation": vor._interpret_vor(vor_score, basis=basis),
                     "picks_remaining": len(vor.players) - len(drafted_player_ids),
+                    "projected_points": projected_pts,
+                    "vor_basis": basis,
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {player['player_name']}: {e}")
                 continue
 
-        logger.info(f"VOR: {len(drafted_player_ids)} drafted, {len(recommendations)} recommendations, {skipped} unresolved")
-        
+        logger.info(
+            f"VOR: {len(drafted_player_ids)} drafted, {len(recommendations)} recommendations, "
+            f"{skipped} unresolved, projections_active={projections_active}"
+        )
+
         # Group by position and sort by VOR within each position
         by_position = {}
         for rec in recommendations:
@@ -1342,34 +1366,41 @@ def get_draft_vor_analysis(
             if pos not in by_position:
                 by_position[pos] = []
             by_position[pos].append(rec)
-        
+
         # Sort each position by VOR (descending) and limit to top N per position
         all_top_recommendations = []
         for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             if pos in by_position:
                 sorted_pos = sorted(by_position[pos], key=lambda x: x['vor_score'], reverse=True)
                 all_top_recommendations.extend(sorted_pos[:limit_per_position])
-        
+
         # Re-sort all recommendations by VOR globally for consistency
         all_top_recommendations.sort(key=lambda x: x['vor_score'], reverse=True)
-        
+
         if not all_top_recommendations:
             raise HTTPException(status_code=400, detail="No available players to analyze")
-        
-        # Get replacement levels by position
+
+        # Replacement level summary: use median projected pts if projections active,
+        # else median ADP (existing behaviour)
         replacement_by_position = {}
         for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             try:
-                replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
-            except:
+                if projections_active and pos in vor.projection_groups:
+                    pts_list = [p['projected_pts'] for p in vor.projection_groups[pos]]
+                    from statistics import median as _median
+                    replacement_by_position[pos] = _median(pts_list)
+                else:
+                    replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
+            except Exception:
                 pass
-        
+
         return VORAnalysisResponse(
             league_id=league_id,
             draft_id=draft_id,
             recommendations=all_top_recommendations,
             top_value_pick=all_top_recommendations[0],
             replacement_level_by_position=replacement_by_position,
+            projections_loaded=projections_active,
         )
     
     except HTTPException:
@@ -1416,13 +1447,15 @@ def get_player_vor(draft_id: str, player_id: str):
             player['position'],
             replacement_percentile=50
         )
-        
+
+        projected_pts = player.get('projected_pts')
         vor_score = vor.calculate_vor(
             player['position'],
             player['adp_overall'],
-            replacement_percentile=50
+            projected_pts=projected_pts,
         )
-        
+        basis = "projection" if projected_pts is not None and vor.projection_groups else "adp"
+
         return VORPlayerDetail(
             player_id=player_id,
             player_name=player['player_name'],
@@ -1430,7 +1463,9 @@ def get_player_vor(draft_id: str, player_id: str):
             adp_overall=player['adp_overall'],
             replacement_level_adp=replacement_level,
             vor_score=vor_score,
-            interpretation=vor._interpret_vor(vor_score),
+            interpretation=vor._interpret_vor(vor_score, basis=basis),
+            projected_points=projected_pts,
+            vor_basis=basis,
         )
     
     except HTTPException:

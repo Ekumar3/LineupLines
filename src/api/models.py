@@ -517,9 +517,11 @@ class VORPlayerDetail(BaseModel):
     player_name: str = Field(..., description="Player name")
     position: str = Field(..., description="Player position (QB, RB, WR, TE)")
     adp_overall: float = Field(..., description="Player's ADP (lower is better)")
-    replacement_level_adp: float = Field(..., description="Median ADP for position")
+    replacement_level_adp: float = Field(..., description="Next player's ADP or projected pts (replacement baseline)")
     vor_score: float = Field(..., description="Value Over Replacement score (higher = more elite)")
     interpretation: str = Field(..., description="Human-readable VOR interpretation")
+    projected_points: Optional[float] = Field(None, description="Projected PPR season points (if available)")
+    vor_basis: str = Field("adp", description="Metric used for VOR: 'projection' or 'adp'")
 
 
 class VORDraftRecommendation(BaseModel):
@@ -530,11 +532,13 @@ class VORDraftRecommendation(BaseModel):
     player_name: str = Field(..., description="Player name")
     position: str = Field(..., description="Player position")
     adp_overall: float = Field(..., description="Player's ADP")
-    replacement_level_adp: float = Field(..., description="Replacement level ADP for position")
+    replacement_level_adp: float = Field(..., description="Next player's ADP or projected pts (replacement baseline)")
     vor_score: float = Field(..., description="VOR score (higher = better value)")
     interpretation: str = Field(..., description="Value interpretation (Elite, Strong, Moderate, etc)")
     draft_position: Optional[int] = Field(None, description="What pick # this player would be")
     picks_remaining: int = Field(..., description="Total undrafted players remaining")
+    projected_points: Optional[float] = Field(None, description="Projected PPR season points (if available)")
+    vor_basis: str = Field("adp", description="Metric used for VOR: 'projection' or 'adp'")
 
 
 class VORAnalysisResponse(BaseModel):
@@ -542,14 +546,18 @@ class VORAnalysisResponse(BaseModel):
     league_id: str = Field(..., description="League ID")
     draft_id: str = Field(..., description="Draft ID")
     recommendations: List[VORDraftRecommendation] = Field(
-        ..., 
+        ...,
         description="Top VOR recommendations ranked by value (highest first)"
     )
     top_value_pick: VORDraftRecommendation = Field(
-        ..., 
+        ...,
         description="Single best value recommendation right now"
     )
     replacement_level_by_position: Dict[str, float] = Field(
-        ..., 
-        description="Median ADP for each position (defines 'replacement level')"
+        ...,
+        description="Replacement baseline per position (projected pts if projections loaded, else median ADP)"
+    )
+    projections_loaded: bool = Field(
+        False,
+        description="Whether projection-based VOR is active for this response"
     )
