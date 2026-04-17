@@ -1365,21 +1365,37 @@ def get_draft_vor_analysis(
         from src.services.player_id_resolver import PlayerIDResolver
         resolver = PlayerIDResolver(sleeper_players_map)
 
-        # Build the same valid player set as available-by-position:
-        # active players with a name and ADP data in the current scoring format.
+        # Build valid player pool matching available-by-position exactly:
+        # rank each position by ADP delta and take the top VOR_POOL_SIZE per position.
+        # This excludes players with stale/irrelevant projections (e.g. late-ADP players
+        # who ranked high last season but aren't relevant at the current pick).
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
         adp_lookup = adp_service.get_adp_lookup(scoring_format)
         all_players = load_player_universe() or sleeper_players_map
-        valid_available_ids: set[str] = set()
+        current_overall_pick = available[-1].pick_no + 1 if available else 1
+        VOR_POOL_SIZE = 5
+        _pool_positions = {"QB", "RB", "WR", "TE", "K", "DEF"}
+        _by_pos: dict[str, list[tuple[float, str]]] = {}
         for _pid, _pdata in all_players.items():
             if not _pdata.get("active"):
+                continue
+            _pos = _pdata.get("position")
+            if not _pos or _pos not in _pool_positions:
                 continue
             _name = f"{_pdata.get('first_name', '')} {_pdata.get('last_name', '')}".strip()
             if not _name:
                 continue
-            if adp_lookup.get(adp_service.normalize_player_name(_name)) is None:
+            _adp = adp_lookup.get(adp_service.normalize_player_name(_name))
+            if _adp is None:
                 continue
-            valid_available_ids.add(_pid)
+            _delta = current_overall_pick - _adp
+            _by_pos.setdefault(_pos, []).append((_delta, _pid))
+
+        valid_available_ids: set[str] = set()
+        for _pos, _entries in _by_pos.items():
+            _entries.sort(key=lambda x: x[0], reverse=True)
+            for _, _pid in _entries[:VOR_POOL_SIZE]:
+                valid_available_ids.add(_pid)
 
         projections_active = bool(vor.projection_groups)
 
