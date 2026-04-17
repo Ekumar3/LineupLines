@@ -191,6 +191,9 @@ def get_user_drafts_by_username(
         # Transform to DraftSummary objects
         draft_summaries = _transform_drafts(raw_drafts, user_leagues)
 
+        # Remove drafts whose parent league has been deleted on Sleeper
+        draft_summaries = _filter_orphaned_drafts(draft_summaries, user_leagues)
+
         # Apply status filtering
         if status_filter == "active":
             filtered_drafts = [
@@ -280,6 +283,9 @@ def get_user_drafts_by_id(
 
         # Transform to DraftSummary objects
         draft_summaries = _transform_drafts(raw_drafts, user_leagues)
+
+        # Remove drafts whose parent league has been deleted on Sleeper
+        draft_summaries = _filter_orphaned_drafts(draft_summaries, user_leagues)
 
         # Apply status filtering
         if status_filter == "active":
@@ -1169,6 +1175,49 @@ def _transform_drafts(raw_drafts: list, user_leagues: dict = None) -> list[Draft
             continue
 
     return summaries
+
+
+def _filter_orphaned_drafts(
+    draft_summaries: list[DraftSummary],
+    user_leagues: dict,
+) -> list[DraftSummary]:
+    """Remove drafts whose parent league has been deleted on Sleeper.
+
+    Sleeper's drafts endpoint returns all drafts historically, even after a
+    league is deleted.  The leagues endpoint, however, only returns active
+    (non-deleted) leagues.  Any draft whose league_id doesn't appear in
+    user_leagues is therefore orphaned and should be hidden.
+
+    Drafts without a league_id (rare standalone/mock drafts) are kept.
+
+    Args:
+        draft_summaries: List of DraftSummary objects.
+        user_leagues: Dict of {league_id: league_data} for active leagues.
+
+    Returns:
+        Filtered list with orphaned drafts removed.
+    """
+    if not user_leagues:
+        # If we couldn't fetch leagues at all, show everything rather than
+        # accidentally hiding real drafts.
+        return draft_summaries
+
+    active_league_ids = set(user_leagues.keys())
+    kept = []
+    dropped = 0
+    for draft in draft_summaries:
+        league_id = draft.league_id
+        if not league_id or league_id in active_league_ids:
+            kept.append(draft)
+        else:
+            dropped += 1
+            logger.debug(
+                f"Hiding orphaned draft {draft.draft_id} "
+                f"(league {league_id} not in active leagues)"
+            )
+    if dropped:
+        logger.info(f"Filtered out {dropped} orphaned draft(s) from deleted leagues")
+    return kept
 
 
 def _sort_drafts(drafts: list[DraftSummary]) -> list[DraftSummary]:
