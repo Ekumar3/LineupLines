@@ -1347,14 +1347,39 @@ def get_draft_vor_analysis(
         for pick in available:
             if pick.player_id:
                 drafted_player_ids.add(pick.player_id)
-        
+
+        # Determine if we're in the last 2 rounds (suppresses DEF/K until then)
+        import math
+        _teams = draft.get("settings", {}).get("teams", 12)
+        _total_rounds = draft.get("settings", {}).get("rounds", 15)
+        _picks_made = len(available)
+        _current_round = math.ceil(_picks_made / _teams) if _picks_made > 0 else 1
+        _in_late_rounds = _current_round >= (_total_rounds - 1)
+        LATE_ROUND_POSITIONS = {"DEF", "K"}
+
         # Initialize VOR calculator
         vor = get_vor_calculator()
-        
+
         # Build player ID resolver to map FantasyPros names -> Sleeper IDs
         sleeper_players_map = sleeper_client.get_players() or {}
         from src.services.player_id_resolver import PlayerIDResolver
         resolver = PlayerIDResolver(sleeper_players_map)
+
+        # Build the same valid player set as available-by-position:
+        # active players with a name and ADP data in the current scoring format.
+        scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
+        adp_lookup = adp_service.get_adp_lookup(scoring_format)
+        all_players = load_player_universe() or sleeper_players_map
+        valid_available_ids: set[str] = set()
+        for _pid, _pdata in all_players.items():
+            if not _pdata.get("active"):
+                continue
+            _name = f"{_pdata.get('first_name', '')} {_pdata.get('last_name', '')}".strip()
+            if not _name:
+                continue
+            if adp_lookup.get(adp_service.normalize_player_name(_name)) is None:
+                continue
+            valid_available_ids.add(_pid)
 
         projections_active = bool(vor.projection_groups)
 
@@ -1367,6 +1392,13 @@ def get_draft_vor_analysis(
             )
             if not sleeper_id:
                 skipped += 1
+                continue
+            # Only recommend players present in the available-by-position table
+            if sleeper_id not in valid_available_ids:
+                skipped += 1
+                continue
+            # Suppress DEF/K until the last 2 rounds
+            if player['position'] in LATE_ROUND_POSITIONS and not _in_late_rounds:
                 continue
             if sleeper_id in drafted_player_ids:
                 continue
