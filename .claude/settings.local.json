@@ -29,7 +29,28 @@
       "Bash(where py:*)",
       "Bash(C:/Python314/python.exe:*)",
       "Bash(python scripts/run_api.py)",
-      "Bash(echo \"Backend PID: $!\")"
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(wmic process:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(gh --version)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh auth:*)",
+      "Bash(ls -la /c/Users/ekumar/Documents/repos/LineupLines/.claude/worktrees/bold-kalam/*.json)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git push:*)",
+      "Bash(gh pr create --title 'Remove VOR from position tables, poll suggestions, fix RB-in-WR' --body ':*)",
+      "Bash(git reset:*)",
+      "Bash(gh pr create --title 'Add draft data cache and faster polling' --body ':*)",
+      "Bash(gh pr:*)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /PID 20232 /F)",
+      "Bash(taskkill /PID 30136 /F)",
+      "Bash(powershell -command \"Stop-Process -Id 20232 -Force -ErrorAction SilentlyContinue; Stop-Process -Id 30136 -Force -ErrorAction SilentlyContinue; Start-Sleep 2; \\(netstat -ano | Select-String ':8000.*LISTENING'\\)\")",
+      "Bash(powershell -command \"Get-Process -Id 20232,30136 | Select-Object Id,ProcessName,StartTime\")",
+      "Bash(powershell -command \"Get-NetTCPConnection -LocalPort 8000 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess\")"
     ]
   }
 }

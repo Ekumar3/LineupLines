@@ -18,24 +18,29 @@ In both cases a higher VOR means a bigger gap to the next option at this positio
 
 import json
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 from pathlib import Path
 from statistics import median, quantiles
+
+if TYPE_CHECKING:
+    from src.data_sources.sleeper_projections_client import PlayerProjection
 
 logger = logging.getLogger(__name__)
 
 
 class VORCalculator:
-    def __init__(self, players_file: str):
+    def __init__(self, players_file: Optional[str] = None):
         """
-        Initialize VOR calculator with player ADP data.
+        Initialize VOR calculator with optional player ADP data.
 
         Args:
-            players_file: Path to players JSON file (e.g., data/players/ppr_20260205_163143_players.json)
+            players_file: Path to players JSON file (e.g., data/players/ppr_20260205_163143_players.json).
+                          If None, starts empty — call load_sleeper_projections() to populate.
         """
-        self.players = self._load_players(players_file)
+        self.players = self._load_players(players_file) if players_file else []
         self.position_groups = self._group_by_position()
-        # Populated by load_projections(); maps position -> players sorted by proj pts desc
+        # Populated by load_projections() or load_sleeper_projections()
+        # maps position -> players sorted by proj pts desc
         self.projection_groups: Dict[str, List[Dict]] = {}
         
     def _load_players(self, file_path: str) -> List[Dict]:
@@ -117,6 +122,59 @@ class VORCalculator:
             f"projection_groups coverage: {stats}"
         )
         return matched
+
+    def load_sleeper_projections(self, projections: Dict) -> int:
+        """Replace the player pool entirely with Sleeper projection data.
+
+        Uses avg PPG (projected_pts / gp) stored as 'projected_pts' so that
+        VOR is expressed in points-per-game rather than raw season totals.
+        This is more meaningful because it normalises for injury risk / bye weeks.
+
+        Args:
+            projections: Dict[player_id -> PlayerProjection] from SleeperProjectionsClient.
+
+        Returns:
+            Number of players loaded.
+        """
+        player_list = []
+        for player_id, proj in projections.items():
+            player_list.append({
+                "player_id": player_id,
+                "player_name": proj.player_name,
+                "position": proj.position,
+                "team": proj.team,
+                "adp_overall": proj.adp,
+                # Store avg_ppg as projected_pts so existing VOR formula works
+                "projected_pts": proj.avg_ppg,
+                "season_pts": proj.projected_pts,
+                "gp": proj.gp,
+            })
+
+        self.players = player_list
+
+        # ADP-based position groups (ascending) for fallback VOR
+        self.position_groups = {}
+        for p in player_list:
+            self.position_groups.setdefault(p["position"], []).append(p)
+        for pos in self.position_groups:
+            self.position_groups[pos].sort(key=lambda p: p["adp_overall"])
+
+        # Projection groups sorted by avg_ppg descending (projected_pts field)
+        self.projection_groups = {}
+        for p in player_list:
+            if p["projected_pts"] > 0:
+                self.projection_groups.setdefault(p["position"], []).append(p)
+        for pos in self.projection_groups:
+            self.projection_groups[pos].sort(
+                key=lambda p: p["projected_pts"], reverse=True
+            )
+
+        logger.info(
+            "Sleeper projections loaded into VOR: %d players, positions=%s",
+            len(player_list),
+            list(self.projection_groups.keys()),
+        )
+        return len(player_list)
 
     def get_next_projected_pts(
         self,
@@ -303,10 +361,23 @@ class VORCalculator:
 
         Args:
             vor:   VOR score.
-            basis: "projection" (points gap) or "adp" (pick-number gap).
+            basis: "ppg" (avg points-per-game gap), "projection" (season-total
+                   points gap), or "adp" (pick-number gap).
         """
-        if basis == "projection":
-            # Gaps are in projected fantasy points (e.g. 58 pts = Kittle→LaPorta cliff)
+        if basis == "ppg":
+            # Gaps are in avg PPG — top WRs/RBs project ~14-18 PPG, replacement ~7-9
+            if vor < 0.5:
+                return "At replacement level (no gap)"
+            elif vor < 2.0:
+                return "Slight value (small gap)"
+            elif vor < 5.0:
+                return "Moderate value (decent gap)"
+            elif vor < 10.0:
+                return "Strong value (notable gap)"
+            else:
+                return "Elite value (major cliff)"
+        elif basis == "projection":
+            # Gaps are in projected season fantasy points (e.g. 58 pts = Kittle→LaPorta cliff)
             if vor < 5:
                 return "At replacement level (no gap)"
             elif vor < 20:
