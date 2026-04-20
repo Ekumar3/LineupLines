@@ -1381,6 +1381,11 @@ def get_draft_vor_analysis(
         vor = VORCalculator()
         vor.load_sleeper_projections(sleeper_proj)
 
+        # Replacement level rank per position: last drafted starter (num_teams × starters)
+        _num_teams = draft.get("settings", {}).get("teams", 12)
+        _starters_per_pos = {"QB": 1, "RB": 2, "WR": 2, "TE": 1, "K": 1, "DEF": 1}
+        _replacement_ranks = {pos: _num_teams * n for pos, n in _starters_per_pos.items()}
+
         # Build valid player pool: top VOR_POOL_SIZE per position by ADP delta.
         # Sleeper projections are already keyed by player_id — no name matching needed.
         current_overall_pick = available[-1].pick_no + 1 if available else 1
@@ -1410,17 +1415,16 @@ def get_draft_vor_analysis(
                 continue
 
             try:
-                # avg_ppg is stored as projected_pts inside the VOR calculator
+                _rank = _replacement_ranks.get(proj.position, 12)
                 vor_score = vor.calculate_vor(
                     position=proj.position,
                     adp=proj.adp,
-                    projected_pts=proj.avg_ppg,
+                    projected_pts=proj.projected_pts,
+                    replacement_rank=_rank,
+                    mode="replacement_rank",
                 )
 
-                replacement_level = vor.get_replacement_level(
-                    position=proj.position,
-                    replacement_percentile=50,
-                )
+                replacement_pts = vor.get_replacement_player_pts(proj.position, _rank)
 
                 recommendations.append({
                     "league_id": league_id,
@@ -1429,9 +1433,9 @@ def get_draft_vor_analysis(
                     "player_name": proj.player_name,
                     "position": proj.position,
                     "adp_overall": proj.adp,
-                    "replacement_level_adp": replacement_level,
+                    "replacement_level_adp": replacement_pts,
                     "vor_score": vor_score,
-                    "interpretation": vor._interpret_vor(vor_score, basis="ppg"),
+                    "interpretation": vor._interpret_vor(vor_score, basis="projection"),
                     "picks_remaining": len(sleeper_proj) - len(drafted_player_ids),
                     "projected_points": round(proj.avg_ppg, 1),
                     "season_pts": round(proj.projected_pts, 1),
@@ -1467,16 +1471,12 @@ def get_draft_vor_analysis(
         if not all_top_recommendations:
             raise HTTPException(status_code=400, detail="No available players to analyze")
 
-        # Replacement level summary: median avg PPG per position from Sleeper projections
+        # Replacement level summary: projected pts of the Nth player per position
         replacement_by_position = {}
-        from statistics import median as _median
         for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             try:
-                if pos in vor.projection_groups:
-                    ppg_list = [p['projected_pts'] for p in vor.projection_groups[pos]]
-                    replacement_by_position[pos] = _median(ppg_list)
-                else:
-                    replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
+                rank = _replacement_ranks.get(pos, 12)
+                replacement_by_position[pos] = vor.get_replacement_player_pts(pos, rank)
             except Exception:
                 pass
 

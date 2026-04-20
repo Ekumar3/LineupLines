@@ -126,9 +126,8 @@ class VORCalculator:
     def load_sleeper_projections(self, projections: Dict) -> int:
         """Replace the player pool entirely with Sleeper projection data.
 
-        Uses avg PPG (projected_pts / gp) stored as 'projected_pts' so that
-        VOR is expressed in points-per-game rather than raw season totals.
-        This is more meaningful because it normalises for injury risk / bye weeks.
+        Stores season-total projected points as 'projected_pts' so VOR is expressed
+        as a season-points gap against the replacement level player.
 
         Args:
             projections: Dict[player_id -> PlayerProjection] from SleeperProjectionsClient.
@@ -144,9 +143,8 @@ class VORCalculator:
                 "position": proj.position,
                 "team": proj.team,
                 "adp_overall": proj.adp,
-                # Store avg_ppg as projected_pts so existing VOR formula works
-                "projected_pts": proj.avg_ppg,
-                "season_pts": proj.projected_pts,
+                "projected_pts": proj.projected_pts,
+                "avg_ppg": proj.avg_ppg,
                 "gp": proj.gp,
             })
 
@@ -212,6 +210,38 @@ class VORCalculator:
                 return p["projected_pts"]
 
         return player_pts - 1.0  # floor: no one left to compare against
+
+    def get_replacement_player_pts(
+        self,
+        position: str,
+        replacement_rank: int,
+        remaining_players: Optional[List[Dict]] = None,
+    ) -> float:
+        """Return projected pts of the replacement level player at `replacement_rank`.
+
+        Args:
+            position: Player position (e.g. 'WR', 'RB').
+            replacement_rank: 1-indexed rank of the replacement player
+                (e.g. 24 = 24th-best WR by projected pts).
+            remaining_players: If provided, restrict to this undrafted pool.
+
+        Returns:
+            Projected points of the replacement level player, or 0.0 if no pool.
+        """
+        if remaining_players is not None:
+            pool = [
+                p for p in remaining_players
+                if p.get("position") == position and "projected_pts" in p
+            ]
+            pool.sort(key=lambda p: p["projected_pts"], reverse=True)
+        else:
+            pool = self.projection_groups.get(position, [])
+
+        if not pool:
+            return 0.0
+
+        idx = min(replacement_rank - 1, len(pool) - 1)
+        return pool[idx]["projected_pts"]
 
     def get_replacement_level(self, position: str, replacement_percentile: int = 50) -> float:
         """
@@ -283,33 +313,44 @@ class VORCalculator:
         adp: float,
         projected_pts: Optional[float] = None,
         remaining_players: Optional[List[Dict]] = None,
-        replacement_percentile: int = 50,  # kept for API compatibility, unused
+        replacement_rank: int = 13,
+        replacement_percentile: int = 50,  # kept for ADP fallback compat
+        mode: str = "replacement_rank",    # "replacement_rank" | "next_available"
     ) -> float:
         """
         Calculate VOR for a specific player.
 
-        If projected_pts is provided (and projection_groups are loaded), uses
-        projection-based VOR:
-            VOR = player_projected_pts - next_player_projected_pts
+        Two projection-based modes (when projected_pts and projection_groups are set):
+          - "replacement_rank" (default): VOR = player_pts - replacement_level_pts
+            where the replacement level player is at `replacement_rank` (1-indexed,
+            sorted by projected pts desc). E.g. rank 24 = 24th-best WR.
+          - "next_available": VOR = player_pts - next_lower_pts
+            The classic "gap to the next player below you" metric.
 
-        Otherwise falls back to ADP-based VOR:
+        Falls back to ADP-based VOR when projections are unavailable:
             VOR = next_player_adp - player_adp
 
-        In both cases a higher score means a bigger gap to the next option.
-
         Args:
-            position:         Player position.
-            adp:              Player's ADP (always required; used as fallback).
-            projected_pts:    Player's projected PPR season points (optional).
+            position:          Player position.
+            adp:               Player's ADP (always required; used as fallback).
+            projected_pts:     Player's projected season points (optional).
             remaining_players: Undrafted players for live-draft mode.
-            replacement_percentile: Unused; kept for backwards compatibility.
+            replacement_rank:  Rank of the replacement level player (used when
+                               mode="replacement_rank").
+            mode:              "replacement_rank" or "next_available".
 
         Returns:
-            VOR score (positive = gap to next player).
+            VOR score (positive = value above replacement / next player).
         """
         if projected_pts is not None and self.projection_groups:
-            next_pts = self.get_next_projected_pts(position, projected_pts, remaining_players)
-            return projected_pts - next_pts
+            if mode == "next_available":
+                next_pts = self.get_next_projected_pts(position, projected_pts, remaining_players)
+                return projected_pts - next_pts
+            else:
+                replacement_pts = self.get_replacement_player_pts(
+                    position, replacement_rank, remaining_players
+                )
+                return projected_pts - replacement_pts
 
         # ADP-based fallback
         replacement_level = self.get_next_player_adp(position, adp, remaining_players)
