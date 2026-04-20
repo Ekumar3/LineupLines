@@ -826,6 +826,8 @@ def get_available_by_position(
                 years_exp=player_data.get("years_exp"),
                 adp_ppr=adp_value,
                 adp_delta=adp_delta,
+                projected_pts=round(_proj.projected_pts, 1) if _proj else None,
+                avg_ppg=round(_proj.avg_ppg, 1) if _proj else None,
             )
 
             available_by_position[position].append(available_player)
