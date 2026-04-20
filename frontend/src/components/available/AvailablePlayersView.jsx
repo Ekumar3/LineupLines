@@ -105,6 +105,7 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
                 vorMap={vorMap}
                 positionSummary={null}
                 showCount={false}
+                showProjections={true}
               />
             );
           })}

@@ -241,7 +241,7 @@ class DraftPicksResponse(BaseModel):
 
 
 class AvailablePlayerDetail(BaseModel):
-    """Individual available player with ADP data."""
+    """Individual available player with projection and ADP data."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -254,6 +254,8 @@ class AvailablePlayerDetail(BaseModel):
                 "years_exp": 7,
                 "adp_ppr": 35.2,
                 "adp_delta": 10.2,
+                "projected_pts": 245.6,
+                "avg_ppg": 14.5,
             }
         }
     )
@@ -269,6 +271,8 @@ class AvailablePlayerDetail(BaseModel):
         None,
         description="Delta: adp_ppr - current_overall_pick. Positive = player expected later (value), Negative = player expected earlier (reaching)",
     )
+    projected_pts: Optional[float] = Field(None, description="Season-total projected fantasy points")
+    avg_ppg: Optional[float] = Field(None, description="Projected average fantasy points per game")
 
 
 class AvailableByPositionResponse(BaseModel):
