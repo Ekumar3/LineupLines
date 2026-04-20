@@ -44,7 +44,8 @@ export default function BestAvailableTable({ recommendations }) {
               <th className="px-3 py-2">Player</th>
               <th className="px-3 py-2">Pos</th>
               <th className="px-3 py-2">VOR</th>
-              <th className="px-3 py-2">ADP</th>
+              <th className="px-3 py-2">Proj Pts</th>
+              <th className="px-3 py-2">PPG</th>
               <th className="px-3 py-2 hidden sm:table-cell">Tier</th>
             </tr>
           </thead>
@@ -67,7 +68,12 @@ export default function BestAvailableTable({ recommendations }) {
                   <td className={`px-3 py-2 font-bold ${vorColor(rec.vor_score)}`}>
                     {rec.vor_score.toFixed(1)}
                   </td>
-                  <td className="px-3 py-2 text-sleeper-gray-300">{rec.adp_overall.toFixed(1)}</td>
+                  <td className="px-3 py-2 text-sleeper-gray-300">
+                    {rec.season_pts != null ? rec.season_pts : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-sleeper-gray-300">
+                    {rec.projected_points != null ? rec.projected_points : '—'}
+                  </td>
                   <td className="px-3 py-2 text-sleeper-gray-400 text-xs hidden sm:table-cell">{rec.interpretation}</td>
                 </tr>
               );

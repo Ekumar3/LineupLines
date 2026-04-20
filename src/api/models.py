@@ -524,7 +524,8 @@ class VORPlayerDetail(BaseModel):
     replacement_level_adp: float = Field(..., description="Next player's ADP or projected pts (replacement baseline)")
     vor_score: float = Field(..., description="Value Over Replacement score (higher = more elite)")
     interpretation: str = Field(..., description="Human-readable VOR interpretation")
-    projected_points: Optional[float] = Field(None, description="Projected PPR season points (if available)")
+    projected_points: Optional[float] = Field(None, description="Projected avg points per game (if available)")
+    season_pts: Optional[float] = Field(None, description="Projected season-total fantasy points")
     vor_basis: str = Field("adp", description="Metric used for VOR: 'projection' or 'adp'")
 
 
@@ -541,7 +542,8 @@ class VORDraftRecommendation(BaseModel):
     interpretation: str = Field(..., description="Value interpretation (Elite, Strong, Moderate, etc)")
     draft_position: Optional[int] = Field(None, description="What pick # this player would be")
     picks_remaining: int = Field(..., description="Total undrafted players remaining")
-    projected_points: Optional[float] = Field(None, description="Projected PPR season points (if available)")
+    projected_points: Optional[float] = Field(None, description="Projected avg points per game (if available)")
+    season_pts: Optional[float] = Field(None, description="Projected season-total fantasy points")
     vor_basis: str = Field("adp", description="Metric used for VOR: 'projection' or 'adp'")
 
 

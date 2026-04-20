@@ -2,7 +2,7 @@ import { memo } from 'react';
 import PositionHeader from './PositionHeader';
 import PlayerRow from './PlayerRow';
 
-export default memo(function PositionTable({ position, players, positionSummary, showCount = true, showProjections = false }) {
+export default memo(function PositionTable({ position, players, positionSummary, showCount = true }) {
   const isEmpty = !players || players.length === 0;
 
   return (
@@ -21,31 +21,15 @@ export default memo(function PositionTable({ position, players, positionSummary,
         <table className="w-full max-w-4xl">
           <thead className="bg-sleeper-gray-900 border-b border-sleeper-gray-800">
             <tr>
-              {showProjections ? (
-                <>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
-                    Player
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-20">
-                    Proj Pts
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-16">
-                    PPG
-                  </th>
-                </>
-              ) : (
-                <>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
-                    ADP Delta
-                  </th>
-                  <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-16">
-                    Pick
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
-                    Player
-                  </th>
-                </>
-              )}
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-24">
+                ADP Delta
+              </th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider w-16">
+                Pick
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
+                Player
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-sleeper-gray-800">
@@ -60,7 +44,6 @@ export default memo(function PositionTable({ position, players, positionSummary,
                 <PlayerRow
                   key={player.player_id}
                   player={player}
-                  showProjections={showProjections}
                 />
               ))
             )}

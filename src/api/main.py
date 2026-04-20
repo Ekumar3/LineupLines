@@ -1437,8 +1437,9 @@ def get_draft_vor_analysis(
                     "vor_score": vor_score,
                     "interpretation": vor._interpret_vor(vor_score, basis="projection"),
                     "picks_remaining": len(sleeper_proj) - len(drafted_player_ids),
-                    "projected_points": proj.projected_pts,
-                    "vor_basis": "projection",
+                    "projected_points": round(proj.avg_ppg, 1),
+                    "season_pts": round(proj.projected_pts, 1),
+                    "vor_basis": "ppg",
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {proj.player_name}: {e}")
