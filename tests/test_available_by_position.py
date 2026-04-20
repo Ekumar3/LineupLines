@@ -7,6 +7,21 @@ from datetime import datetime
 
 from src.api.main import app
 from src.data_sources.sleeper_client import DraftPick
+from src.data_sources.sleeper_projections_client import PlayerProjection
+
+
+def _make_proj(player_id: str, name: str, position: str, team: str, adp: float) -> PlayerProjection:
+    """Helper to build a minimal PlayerProjection for tests."""
+    return PlayerProjection(
+        player_id=player_id,
+        player_name=name,
+        position=position,
+        team=team,
+        projected_pts=200.0,
+        avg_ppg=12.5,
+        adp=adp,
+        gp=16.0,
+    )
 
 
 class TestGetAvailableByPosition:
@@ -109,6 +124,15 @@ class TestGetAvailableByPosition:
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
         """Test successful retrieval of available players by position."""
+        # Sleeper projections keyed by player_id (matches mock_player_universe ids)
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 35.0),
+            "4866": _make_proj("4866", "CeeDee Lamb", "WR", "DAL", 35.0),
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+            "5001": _make_proj("5001", "Travis Kelce", "TE", "KC", 35.0),
+            "5002": _make_proj("5002", "Harrison Butker", "K", "KC", 35.0),
+            "5003": _make_proj("5003", "Defense SF", "DEF", "SF", 35.0),
+        }
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
             return_value=mock_draft_details,
@@ -121,8 +145,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup",
-            return_value={"patrick mahomes": 45.2, "christian mccaffrey": 35.0, "ceedee lamb": 35.0, "travis kelce": 35.0, "harrison butker": 35.0, "defense sf": 35.0},
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -165,7 +189,7 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup", return_value={}
+            "src.api.main.sleeper_projections_client.fetch_projections", return_value={}
         ):
             response = client.get("/api/v1/drafts/123/available-by-position?limit=5")
 
@@ -210,11 +234,11 @@ class TestGetAvailableByPosition:
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
         """Test that players are sorted by ADP delta descending (best value first)."""
-        # Mock ADP lookup dict with values that create different deltas
-        adp_lookup = {
-            "christian mccaffrey": 30.0,  # delta = 5.0 (picked at 25)
-            "ceedee lamb": 40.0,  # delta = 15.0 (best value)
-            "patrick mahomes": 50.0,  # delta = 25.0 (best value)
+        # Projections keyed by player_id with ADP values that create different deltas
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 30.0),  # delta = -5
+            "4866": _make_proj("4866", "CeeDee Lamb", "WR", "DAL", 40.0),         # delta = -15
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 50.0),       # delta = -25
         }
 
         with patch(
@@ -229,8 +253,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup",
-            return_value=adp_lookup,
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
@@ -246,7 +270,7 @@ class TestGetAvailableByPosition:
     def test_no_adp_data_handling(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
-        """Test graceful handling when no ADP data available."""
+        """Test graceful handling when no Sleeper projection data available."""
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
             return_value=mock_draft_details,
@@ -259,7 +283,7 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup",
+            "src.api.main.sleeper_projections_client.fetch_projections",
             return_value={},
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
@@ -267,18 +291,19 @@ class TestGetAvailableByPosition:
         assert response.status_code == 200
         data = response.json()
 
-        # Players should still be returned with null ADP values
+        # With no projection data, all positions should have empty player lists
+        # (players without ADP are filtered out)
         for position, players in data["players_by_position"].items():
-            for player in players:
-                assert player["adp_ppr"] is None
-                assert player["adp_delta"] is None
+            assert len(players) == 0
 
     def test_players_with_adp_come_before_players_without(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
-        """Test that players with ADP data are sorted before those without."""
-        # Only Mahomes has ADP data
-        adp_lookup = {"patrick mahomes": 50.0}
+        """Test that only players with Sleeper ADP data appear in results."""
+        # Only Mahomes has projection/ADP data
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 50.0),
+        }
 
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
@@ -292,36 +317,33 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup",
-            return_value=adp_lookup,
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Check QB: Mahomes (with ADP) should come before any player without ADP
+        # Only Mahomes should appear (only player with ADP data)
         qbs = data["players_by_position"]["QB"]
-        if len(qbs) > 0:
-            # Find first player with ADP
-            first_with_adp_idx = next(
-                (i for i, p in enumerate(qbs) if p["adp_delta"] is not None), None
-            )
-            # Find first player without ADP
-            first_without_adp_idx = next(
-                (i for i, p in enumerate(qbs) if p["adp_delta"] is None), None
-            )
-            # If both exist, one with ADP should come before one without
-            if (
-                first_with_adp_idx is not None
-                and first_without_adp_idx is not None
-            ):
-                assert first_with_adp_idx < first_without_adp_idx
+        assert len(qbs) == 1
+        assert qbs[0]["player_name"] == "Patrick Mahomes"
+        assert qbs[0]["adp_ppr"] == 50.0
+
+        # Other positions have no projection data → empty lists
+        assert len(data["players_by_position"]["RB"]) == 0
+        assert len(data["players_by_position"]["WR"]) == 0
 
     def test_drafted_players_excluded(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
         """Test that drafted players are excluded from available list."""
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 1.0),
+            "4866": _make_proj("4866", "CeeDee Lamb", "WR", "DAL", 2.0),
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.0),
+        }
         with patch(
             "src.api.main.sleeper_client.get_draft_details",
             return_value=mock_draft_details,
@@ -334,8 +356,8 @@ class TestGetAvailableByPosition:
             "src.api.main.load_player_universe",
             return_value=mock_player_universe,
         ), patch(
-            "src.api.main.adp_service.get_adp_lookup",
-            return_value={},
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
         ):
             response = client.get("/api/v1/drafts/123/available-by-position")
 

@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.data_sources.sleeper_client import SleeperClient
+from src.data_sources.sleeper_projections_client import SleeperProjectionsClient
 from src.analytics.adp_service import adp_service
 from src.api.models import (
     UserDraftsResponse,
@@ -64,6 +65,9 @@ app.add_middleware(
 
 # Initialize Sleeper client (singleton)
 sleeper_client = SleeperClient()
+
+# Initialize Sleeper projections client (singleton, 24-hour cache)
+sleeper_projections_client = SleeperProjectionsClient()
 
 
 @app.get("/health")
@@ -384,14 +388,22 @@ def get_draft_picks(draft_id: str):
                 detail=f"No picks found for draft_id: {draft_id}",
             )
 
+        # Load Sleeper projections for ADP enrichment (24-hour cache, fast after first call)
+        draft_details_for_picks = sleeper_client.get_draft_details(draft_id)
+        _picks_year = int(draft_details_for_picks.get("season", 2026)) if draft_details_for_picks else 2026
+        _picks_league_id = draft_details_for_picks.get("league_id") if draft_details_for_picks else None
+        _picks_scoring = sleeper_client.get_scoring_format(_picks_league_id) if _picks_league_id else "ppr"
+        _picks_proj = sleeper_projections_client.fetch_projections(_picks_year, _picks_scoring)
+
         # Transform DraftPick dataclasses to PickDetail Pydantic models
         # Include ADP data for value analysis
         pick_details = []
         for pick in draft_picks:
-            # Get PPR ADP for this player
-            adp_ppr = adp_service.get_player_adp(pick.player_name, "ppr")
+            # Look up Sleeper ADP directly by player_id (O(1), no name matching)
+            _pick_proj = _picks_proj.get(pick.player_id)
+            adp_ppr = _pick_proj.adp if _pick_proj else None
 
-            # Calculate delta (pick_no - adp_ppr: positive = reach, negative = value)
+            # Calculate delta (pick_no - adp: positive = picked later than ADP = value)
             adp_delta = None
             if adp_ppr:
                 adp_delta = pick.pick_no - adp_ppr
@@ -763,12 +775,13 @@ def get_available_by_position(
         if not all_players:
             raise HTTPException(500, "Unable to load player data")
 
-        # Step 5: Filter available players and enrich with ADP
+        # Step 5: Filter available players and enrich with Sleeper ADP
         available_by_position = defaultdict(list)
         positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
-        # Build ADP lookup dict once for O(1) lookups instead of O(M) per player
-        adp_lookup = adp_service.get_adp_lookup(scoring_format)
+        # Load Sleeper projections for ADP (24-hour cache, keyed by player_id)
+        _avail_year = int(draft_details.get("season", 2026))
+        sleeper_proj = sleeper_projections_client.fetch_projections(_avail_year, scoring_format)
 
         for player_id, player_data in all_players.items():
             # Skip drafted players
@@ -790,12 +803,11 @@ def get_available_by_position(
             if not player_name:
                 continue
 
-            # Get ADP for this player via O(1) dict lookup
-            normalized_name = adp_service.normalize_player_name(player_name)
-            adp_value = adp_lookup.get(normalized_name)
+            # Look up Sleeper ADP directly by player_id — no name normalisation needed
+            _proj = sleeper_proj.get(player_id)
+            adp_value = _proj.adp if _proj else None
 
-            # Skip players without ADP data for the Top Available list 
-            # so we don't return random historical/practice squad players
+            # Skip players without ADP data — filters out irrelevant depth/practice players
             if adp_value is None:
                 continue
 
@@ -1357,41 +1369,26 @@ def get_draft_vor_analysis(
         _in_late_rounds = _current_round >= (_total_rounds - 1)
         LATE_ROUND_POSITIONS = {"DEF", "K"}
 
-        # Initialize VOR calculator
-        vor = get_vor_calculator()
-
-        # Build player ID resolver to map FantasyPros names -> Sleeper IDs
-        sleeper_players_map = sleeper_client.get_players() or {}
-        from src.services.player_id_resolver import PlayerIDResolver
-        resolver = PlayerIDResolver(sleeper_players_map)
-
-        # Build valid player pool matching available-by-position exactly:
-        # rank each position by ADP delta and take the top VOR_POOL_SIZE per position.
-        # This excludes players with stale/irrelevant projections (e.g. late-ADP players
-        # who ranked high last season but aren't relevant at the current pick).
+        # Load Sleeper projections (24-hour cache) — provides both ADP and avg PPG
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
-        adp_lookup = adp_service.get_adp_lookup(scoring_format)
-        all_players = load_player_universe() or sleeper_players_map
+        _vor_year = int(draft.get("season", 2026))
+        sleeper_proj = sleeper_projections_client.fetch_projections(_vor_year, scoring_format)
+
+        # Build VOR calculator from Sleeper projections (no FantasyPros file needed)
+        from src.services.vor_calculator import VORCalculator
+        vor = VORCalculator()
+        vor.load_sleeper_projections(sleeper_proj)
+
+        # Build valid player pool: top VOR_POOL_SIZE per position by ADP delta.
+        # Sleeper projections are already keyed by player_id — no name matching needed.
         current_overall_pick = available[-1].pick_no + 1 if available else 1
         VOR_POOL_SIZE = 5
-        _pool_positions = {"QB", "RB", "WR", "TE", "K", "DEF"}
         _by_pos: dict[str, list[tuple[float, str]]] = {}
-        for _pid, _pdata in all_players.items():
+        for _pid, _proj in sleeper_proj.items():
             if _pid in drafted_player_ids:
                 continue
-            if not _pdata.get("active"):
-                continue
-            _pos = _pdata.get("position")
-            if not _pos or _pos not in _pool_positions:
-                continue
-            _name = f"{_pdata.get('first_name', '')} {_pdata.get('last_name', '')}".strip()
-            if not _name:
-                continue
-            _adp = adp_lookup.get(adp_service.normalize_player_name(_name))
-            if _adp is None:
-                continue
-            _delta = current_overall_pick - _adp
-            _by_pos.setdefault(_pos, []).append((_delta, _pid))
+            _delta = current_overall_pick - _proj.adp
+            _by_pos.setdefault(_proj.position, []).append((_delta, _pid))
 
         valid_available_ids: set[str] = set()
         for _pos, _entries in _by_pos.items():
@@ -1399,63 +1396,51 @@ def get_draft_vor_analysis(
             for _, _pid in _entries[:VOR_POOL_SIZE]:
                 valid_available_ids.add(_pid)
 
-        projections_active = bool(vor.projection_groups)
-
-        # Resolve all VOR players to Sleeper IDs, filtering out drafted players
+        # Iterate directly over Sleeper projections — player_id is already the Sleeper ID
         recommendations = []
-        skipped = 0
-        for player in vor.players:
-            sleeper_id = resolver.resolve(
-                player['player_name'], player['position'], player.get('team')
-            )
-            if not sleeper_id:
-                skipped += 1
+        for player_id, proj in sleeper_proj.items():
+            if player_id not in valid_available_ids:
                 continue
-            # Only recommend players present in the available-by-position table
-            if sleeper_id not in valid_available_ids:
-                skipped += 1
+            if player_id in drafted_player_ids:
                 continue
             # Suppress DEF/K until the last 2 rounds
-            if player['position'] in LATE_ROUND_POSITIONS and not _in_late_rounds:
-                continue
-            if sleeper_id in drafted_player_ids:
+            if proj.position in LATE_ROUND_POSITIONS and not _in_late_rounds:
                 continue
 
             try:
-                projected_pts = player.get('projected_pts')
+                # avg_ppg is stored as projected_pts inside the VOR calculator
                 vor_score = vor.calculate_vor(
-                    position=player['position'],
-                    adp=player['adp_overall'],
-                    projected_pts=projected_pts,
+                    position=proj.position,
+                    adp=proj.adp,
+                    projected_pts=proj.avg_ppg,
                 )
-                basis = "projection" if projected_pts is not None and projections_active else "adp"
 
                 replacement_level = vor.get_replacement_level(
-                    position=player['position'],
-                    replacement_percentile=50
+                    position=proj.position,
+                    replacement_percentile=50,
                 )
 
                 recommendations.append({
                     "league_id": league_id,
                     "draft_id": draft_id,
-                    "player_id": sleeper_id,
-                    "player_name": player['player_name'],
-                    "position": player['position'],
-                    "adp_overall": player['adp_overall'],
+                    "player_id": player_id,
+                    "player_name": proj.player_name,
+                    "position": proj.position,
+                    "adp_overall": proj.adp,
                     "replacement_level_adp": replacement_level,
                     "vor_score": vor_score,
-                    "interpretation": vor._interpret_vor(vor_score, basis=basis),
-                    "picks_remaining": len(vor.players) - len(drafted_player_ids),
-                    "projected_points": projected_pts,
-                    "vor_basis": basis,
+                    "interpretation": vor._interpret_vor(vor_score, basis="ppg"),
+                    "picks_remaining": len(sleeper_proj) - len(drafted_player_ids),
+                    "projected_points": proj.avg_ppg,
+                    "vor_basis": "ppg",
                 })
             except Exception as e:
-                logger.warning(f"Could not calculate VOR for {player['player_name']}: {e}")
+                logger.warning(f"Could not calculate VOR for {proj.player_name}: {e}")
                 continue
 
         logger.info(
             f"VOR: {len(drafted_player_ids)} drafted, {len(recommendations)} recommendations, "
-            f"{skipped} unresolved, projections_active={projections_active}"
+            f"projections_loaded={bool(vor.projection_groups)}"
         )
 
         # Group by position and sort by VOR within each position
@@ -1479,15 +1464,14 @@ def get_draft_vor_analysis(
         if not all_top_recommendations:
             raise HTTPException(status_code=400, detail="No available players to analyze")
 
-        # Replacement level summary: use median projected pts if projections active,
-        # else median ADP (existing behaviour)
+        # Replacement level summary: median avg PPG per position from Sleeper projections
         replacement_by_position = {}
+        from statistics import median as _median
         for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             try:
-                if projections_active and pos in vor.projection_groups:
-                    pts_list = [p['projected_pts'] for p in vor.projection_groups[pos]]
-                    from statistics import median as _median
-                    replacement_by_position[pos] = _median(pts_list)
+                if pos in vor.projection_groups:
+                    ppg_list = [p['projected_pts'] for p in vor.projection_groups[pos]]
+                    replacement_by_position[pos] = _median(ppg_list)
                 else:
                     replacement_by_position[pos] = vor.get_replacement_level(pos, 50)
             except Exception:
@@ -1499,7 +1483,7 @@ def get_draft_vor_analysis(
             recommendations=all_top_recommendations,
             top_value_pick=all_top_recommendations[0],
             replacement_level_by_position=replacement_by_position,
-            projections_loaded=projections_active,
+            projections_loaded=bool(vor.projection_groups),
         )
     
     except HTTPException:
