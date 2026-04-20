@@ -1433,7 +1433,8 @@ def get_draft_vor_analysis(
                     "vor_score": vor_score,
                     "interpretation": vor._interpret_vor(vor_score, basis="ppg"),
                     "picks_remaining": len(sleeper_proj) - len(drafted_player_ids),
-                    "projected_points": proj.avg_ppg,
+                    "projected_points": round(proj.avg_ppg, 1),
+                    "season_pts": round(proj.projected_pts, 1),
                     "vor_basis": "ppg",
                 })
             except Exception as e:
