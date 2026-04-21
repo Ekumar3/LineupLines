@@ -47,7 +47,7 @@ export default function AvailablePlayersView({ draftId, limit = 20 }) {
 
         {/* Best Available Table */}
         {vorData?.recommendations?.length > 0 && (
-          <BestAvailableTable recommendations={vorData.recommendations} />
+          <BestAvailableTable draftId={draftId} recommendations={vorData.recommendations} />
         )}
 
         {/* Top Value Pick Recommendation */}
