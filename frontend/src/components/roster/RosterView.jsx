@@ -72,7 +72,7 @@ export default function RosterView({ draftId, userId }) {
 
         {/* Best Available by VOR */}
         {vorData?.recommendations?.length > 0 && (
-          <BestAvailableTable recommendations={vorData.recommendations} />
+          <BestAvailableTable draftId={draftId} recommendations={vorData.recommendations} />
         )}
 
         {/* Position Tables - 2 per row, 3 rows */}

@@ -1330,12 +1330,13 @@ def get_vor_calculator():
 def get_draft_vor_analysis(
     draft_id: str,
     limit_per_position: int = 5,
+    vor_mode: str = "replacement_rank",
 ):
     """
     Get VOR (Value Over Replacement) analysis for available players in a draft.
-    
+
     Returns top 5 recommendations per position, ranked by VOR score (highest value first).
-    
+
     Args:
         draft_id: Draft ID
         limit_per_position: Maximum recommendations per position (default 5)
@@ -1421,7 +1422,7 @@ def get_draft_vor_analysis(
                     adp=proj.adp,
                     projected_pts=proj.projected_pts,
                     replacement_rank=_rank,
-                    mode="replacement_rank",
+                    mode=vor_mode,
                 )
 
                 replacement_pts = vor.get_replacement_player_pts(proj.position, _rank)
@@ -1437,9 +1438,9 @@ def get_draft_vor_analysis(
                     "vor_score": vor_score,
                     "interpretation": vor._interpret_vor(vor_score, basis="projection"),
                     "picks_remaining": len(sleeper_proj) - len(drafted_player_ids),
-                    "projected_points": round(proj.avg_ppg, 1),
-                    "season_pts": round(proj.projected_pts, 1),
-                    "vor_basis": "ppg",
+                    "projected_points": proj.projected_pts,
+                    "avg_ppg": round(proj.avg_ppg, 1),
+                    "vor_basis": vor_mode,
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {proj.player_name}: {e}")
