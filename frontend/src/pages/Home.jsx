@@ -21,9 +21,9 @@ export default function Home() {
     }
   }, []);
 
-  const fetchDrafts = async (uname) => {
+  const fetchDrafts = async (uname, { silent = false } = {}) => {
     if (!uname) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [userRes, draftsRes] = await Promise.all([
@@ -35,17 +35,33 @@ export default function Home() {
       // Only save to local storage if the fetch is successful
       localStorage.setItem('sleeper_username', uname);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to find user or drafts.');
-      setDraftsData(null);
-      setUserData(null);
+      if (!silent) {
+        setError(err.response?.data?.detail || err.message || 'Failed to find user or drafts.');
+        setDraftsData(null);
+        setUserData(null);
+      }
       // Don't clear local storage on network errors, just in case
       if (err.response?.status === 404) {
         localStorage.removeItem('sleeper_username');
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  // Poll every 30s when there are non-completed drafts to catch status changes
+  useEffect(() => {
+    const hasActiveDrafts = draftsData?.drafts?.some(
+      (d) => ['pre_draft', 'drafting', 'in_progress'].includes(d.status)
+    );
+    if (!hasActiveDrafts || !username) return;
+
+    const interval = setInterval(() => {
+      fetchDrafts(username, { silent: true });
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [draftsData, username]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

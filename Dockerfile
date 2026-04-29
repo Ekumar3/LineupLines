@@ -1,32 +1,43 @@
-FROM python:3.10-slim
+# Stage 1: Build stage — installs gcc/python3-dev for compiling C extensions (scipy, scikit-learn)
+FROM python:3.10-slim AS builder
 
-# Set environment variables to prevent Python from writing .pyc files
-# and to ensure output is logged directly to the console
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Set the working directory
 WORKDIR /app
 
-# Install system dependencies (if you need compiling C extensions like for scipy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install to user site-packages so they can be copied to the runtime stage cleanly
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-# Copy the application code and local data caches
-COPY src/ /app/src/
-COPY data/ /app/data/
-COPY debug_html/ /app/debug_html/
 
-# Expose the port the app runs on
+# Stage 2: Runtime stage — no build tools, smaller image
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+# Ensure user-installed packages are on PATH
+ENV PATH=/root/.local/bin:$PATH
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy application source and data
+COPY src/ ./src/
+COPY data/ ./data/
+
 EXPOSE 8000
 
-# Command to run the application using uvicorn
+# ALB health check: ECS will mark this task unhealthy if /health stops returning 200
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -89,11 +89,22 @@ export const useRosterData = (draftId, userId) => {
     if (draftId && userId) {
       fetchRoster();
 
-      const interval = setInterval(fetchRoster, 5000);
+      const es = new EventSource(`/api/v1/drafts/${draftId}/stream`);
+      es.addEventListener('pick', () => fetchRoster());
+      es.addEventListener('status', (e) => {
+        try {
+          const { status } = JSON.parse(e.data);
+          if (status === 'complete') es.close();
+        } catch (_) {}
+        fetchRoster();
+      });
+      es.onerror = () => {
+        console.warn('[useRosterData] SSE connection error, will reconnect');
+      };
 
       return () => {
         cancelled = true;
-        clearInterval(interval);
+        es.close();
       };
     }
   }, [draftId, userId]);
