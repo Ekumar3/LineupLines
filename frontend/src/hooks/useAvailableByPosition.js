@@ -47,11 +47,22 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
     if (draftId) {
       fetchAvailable();
 
-      const interval = setInterval(fetchAvailable, 5000);
+      const es = new EventSource(`/api/v1/drafts/${draftId}/stream`);
+      es.addEventListener('pick', () => fetchAvailable());
+      es.addEventListener('status', (e) => {
+        try {
+          const { status } = JSON.parse(e.data);
+          if (status === 'complete') es.close();
+        } catch (_) {}
+        fetchAvailable();
+      });
+      es.onerror = () => {
+        console.warn('[useAvailableByPosition] SSE connection error, will reconnect');
+      };
 
       return () => {
         cancelled = true;
-        clearInterval(interval);
+        es.close();
       };
     }
   }, [draftId, limit]);

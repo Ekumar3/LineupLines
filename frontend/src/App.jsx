@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 import RosterView from './components/roster/RosterView';
 import RosterPage from './pages/RosterPage';
 import Home from './pages/Home';
+import FeedbackWidget from './components/common/FeedbackWidget';
 
 function DraftAssistPage() {
   const { draftId, userId } = useParams();
@@ -16,6 +17,8 @@ function App() {
         <Route path="/draftassist/:draftId/:userId" element={<DraftAssistPage />} />
         <Route path="/roster/:leagueId/:userId" element={<RosterPage />} />
       </Routes>
+      {/* Feedback widget floats over every page */}
+      <FeedbackWidget />
     </BrowserRouter>
   );
 }

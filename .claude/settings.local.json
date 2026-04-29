@@ -50,7 +50,15 @@
       "Bash(taskkill /PID 30136 /F)",
       "Bash(powershell -command \"Stop-Process -Id 20232 -Force -ErrorAction SilentlyContinue; Stop-Process -Id 30136 -Force -ErrorAction SilentlyContinue; Start-Sleep 2; \\(netstat -ano | Select-String ':8000.*LISTENING'\\)\")",
       "Bash(powershell -command \"Get-Process -Id 20232,30136 | Select-Object Id,ProcessName,StartTime\")",
-      "Bash(powershell -command \"Get-NetTCPConnection -LocalPort 8000 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess\")"
+      "Bash(powershell -command \"Get-NetTCPConnection -LocalPort 8000 -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess\")",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Done'\")",
+      "Bash(xargs ls *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq python*\")",
+      "Bash(findstr :8000)",
+      "Bash(taskkill /F /PID 18912 /PID 44816)",
+      "Bash(taskkill //F //PID 18912)",
+      "Bash(taskkill //F //PID 44816)"
     ]
   }
 }

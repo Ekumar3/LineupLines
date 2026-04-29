@@ -1,9 +1,12 @@
 """Draft Helper API - Main application."""
 
+import asyncio
+import json
 import logging
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,6 +36,8 @@ from src.api.models import (
     VORAnalysisResponse,
 )
 from src.api.storage import load_player_universe, save_player_universe
+from src.api.draft_stream import DraftBroadcaster
+from src.api.feedback import router as feedback_router
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +70,13 @@ app.add_middleware(
 
 # Initialize Sleeper client (singleton)
 sleeper_client = SleeperClient()
+draft_broadcaster = DraftBroadcaster(sleeper_client)
 
 # Initialize Sleeper projections client (singleton, 24-hour cache)
 sleeper_projections_client = SleeperProjectionsClient()
+
+
+app.include_router(feedback_router, prefix="/api/v1")
 
 
 @app.get("/health")
@@ -1560,3 +1569,44 @@ def get_player_vor(draft_id: str, player_id: str):
     except Exception as e:
         logger.error(f"Error calculating VOR for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to calculate VOR")
+
+
+@app.get(
+    "/api/v1/drafts/{draft_id}/stream",
+    summary="Stream live draft events via SSE",
+    tags=["Draft Analysis"],
+)
+async def stream_draft_events(draft_id: str):
+    """Server-Sent Events stream for a live draft.
+
+    Emits:
+      event: pick   — a new pick was made (data: pick JSON)
+      event: status — draft status changed (data: {"status": "..."})
+      : keepalive   — sent every ~15s to prevent proxy timeouts
+    """
+    async def event_generator():
+        queue = await draft_broadcaster.subscribe(draft_id)
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    if event["type"] == "keepalive":
+                        yield ": keepalive\n\n"
+                    elif event["type"] == "pick":
+                        yield f"event: pick\ndata: {json.dumps(event['data'])}\n\n"
+                    elif event["type"] == "status":
+                        yield f"event: status\ndata: {json.dumps(event['data'])}\n\n"
+                        if event["data"].get("status") == "complete":
+                            break
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await draft_broadcaster.unsubscribe(draft_id, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it (it contains your email addresses).
+
+region         = "us-east-1"
+domain_name    = "lineuplines.com"          # The domain you registered
+ses_from_email = "feedback@lineuplines.com" # Must be verified in SES
+ses_to_email   = "your@email.com"           # Where you want to receive feedback
