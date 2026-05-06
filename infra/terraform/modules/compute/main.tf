@@ -264,19 +264,17 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# ALB Listener: HTTP → redirect to HTTPS
+# ALB Listener: HTTP → forward to target group
+# CloudFront handles HTTPS termination and connects to the ALB on HTTP,
+# so the ALB should forward directly rather than redirect to HTTPS.
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
   }
 }
 
