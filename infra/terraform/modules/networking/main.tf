@@ -102,7 +102,7 @@ resource "aws_security_group" "alb" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTP — redirected to HTTPS"
+    description = "HTTP redirected to HTTPS"
   }
 
   ingress {

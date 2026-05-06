@@ -4,4 +4,4 @@
 region         = "us-east-1"
 domain_name    = "lineuplines.com"          # The domain you registered
 ses_from_email = "feedback@lineuplines.com" # Must be verified in SES
-ses_to_email   = "your@email.com"           # Where you want to receive feedback
+ses_to_email   = "dacalw26@email.com"           # Where you want to receive feedback
