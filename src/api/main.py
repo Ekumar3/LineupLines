@@ -36,8 +36,13 @@ from src.api.models import (
     VORAnalysisResponse,
 )
 from src.api.storage import load_player_universe, save_player_universe
-from src.api.draft_stream import DraftBroadcaster
+from src.api.draft_stream import BroadcasterCapacityError, DraftBroadcaster
 from src.api.feedback import router as feedback_router
+from src.api.rate_limit import limiter
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +69,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods including PUT/DELETE
-    allow_headers=["*"],
+    # Tightened from "*" — only the methods/headers the frontend actually uses.
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
 )
+
+# Wire the IP-based rate limiter. SlowAPIMiddleware applies the default
+# 60/minute limit globally; individual endpoints (e.g. /api/v1/feedback)
+# can override with stricter @limiter.limit decorators.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Initialize Sleeper client (singleton)
 sleeper_client = SleeperClient()
@@ -1584,8 +1597,14 @@ async def stream_draft_events(draft_id: str):
       event: status — draft status changed (data: {"status": "..."})
       : keepalive   — sent every ~15s to prevent proxy timeouts
     """
-    async def event_generator():
+    # Subscribe BEFORE returning the StreamingResponse so that a capacity
+    # rejection surfaces as a normal 429, not as a broken stream.
+    try:
         queue = await draft_broadcaster.subscribe(draft_id)
+    except BroadcasterCapacityError as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
+
+    async def event_generator():
         try:
             while True:
                 try:

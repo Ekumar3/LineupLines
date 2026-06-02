@@ -344,12 +344,20 @@ npm run build
 aws s3 sync dist/ s3://$(cd ../infra/terraform && terraform output -raw frontend_bucket_name)/ --delete
 ```
 
-### Step 8: Request SES production access
+### Step 8: Verify the SES recipient address
 
 New AWS accounts are in SES sandbox mode — you can only send to verified email addresses.
-Either:
-- **Quick option**: Verify your personal email in SES console → it can receive feedback during beta
-- **Proper option**: Submit an [AWS Support ticket](https://console.aws.amazon.com/support/) requesting "SES production access"
+
+**Recommended for beta**: verify the address in `SES_TO_EMAIL` (e.g. `daclaw26@gmail.com`):
+
+1. AWS Console → SES → **Verified identities** → **Create identity**
+2. Choose **Email address**, enter the recipient address
+3. Click the confirmation link AWS sends to that inbox
+4. Test by submitting the feedback widget on the live site
+
+This keeps SES in sandbox mode, which is fine because you're the only recipient. No code change needed — the `feedback.py` endpoint already uses the address from `SES_TO_EMAIL`.
+
+**When you outgrow the sandbox** (e.g. you want to CC the submitter on their feedback): submit an [AWS Support ticket](https://console.aws.amazon.com/support/) requesting "SES production access". Takes ~24 hours.
 
 ### Step 9: Add GitHub secrets
 
@@ -377,15 +385,35 @@ curl -X POST https://lineuplines.com/api/v1/feedback \
 
 ---
 
+## Pre-Public-Release Hardening
+
+Before sharing the live site publicly (e.g. via Discord), the API has been hardened against the most likely abuse vectors:
+
+| Threat | Mitigation | Where |
+|--------|-----------|-------|
+| Feedback endpoint spammed to inflate SES bill / flood inbox | IP rate limit: **5/minute** per X-Forwarded-For IP | `src/api/feedback.py` (`@limiter.limit`) |
+| Sleeper-backed endpoints hammered to exhaust upstream quota and inflate NAT GW data costs | IP rate limit: **60/minute** per IP (global default via `SlowAPIMiddleware`) | `src/api/main.py`, `src/api/rate_limit.py` |
+| `DraftBroadcaster` leaked via thousands of fake `draft_id` subscriptions (ECS OOM) | Hard caps: `MAX_ACTIVE_DRAFTS=50`, `MAX_SUBSCRIBERS_PER_DRAFT=50` → HTTP 429 | `src/api/draft_stream.py` + SSE endpoint refactor in `main.py` |
+| CORS too permissive (`allow_methods=["*"]`) | Locked to `["GET", "POST", "OPTIONS"]` + `["Content-Type", "Accept"]` | `src/api/main.py` |
+
+Test coverage: `tests/test_rate_limiting.py` (7 tests). Total suite is 101 tests.
+
+---
+
 ## Files Added/Modified by This Plan
 
 | File | Change |
 |------|--------|
 | `Dockerfile` | Multi-stage build + HEALTHCHECK |
-| `src/api/feedback.py` | **New** — SES feedback endpoint |
-| `src/api/main.py` | Registers feedback router |
+| `requirements.txt` | Added `slowapi` |
+| `src/api/feedback.py` | **New** — SES feedback endpoint (IP-rate-limited) |
+| `src/api/rate_limit.py` | **New** — `slowapi` Limiter with XFF-aware key_func |
+| `src/api/draft_stream.py` | Added `MAX_ACTIVE_DRAFTS` / `MAX_SUBSCRIBERS_PER_DRAFT` caps |
+| `src/api/main.py` | Registers feedback router, wires limiter middleware, locks down CORS, refactors SSE endpoint to surface broadcaster 429s cleanly |
+| `tests/test_rate_limiting.py` | **New** — 7 tests for rate limits, CORS, broadcaster caps |
 | `frontend/src/components/common/FeedbackWidget.jsx` | **New** — floating feedback button |
 | `frontend/src/App.jsx` | Adds FeedbackWidget to layout |
+| `frontend/src/components/roster/RosterView.jsx` | Responsive table grid: 1-col mobile, 2-col tablet, 3-col desktop |
 | `infra/terraform/` | **New** — all Terraform modules |
 | `.github/workflows/backend.yml` | **New** — backend CI/CD |
 | `.github/workflows/frontend.yml` | **New** — frontend CI/CD |
