@@ -75,8 +75,8 @@ export default function RosterView({ draftId, userId }) {
           <BestAvailableTable draftId={draftId} recommendations={vorData.recommendations} />
         )}
 
-        {/* Position Tables - 2 per row, 3 rows */}
-        <div className="grid grid-cols-3 gap-6">
+        {/* Position Tables - stack on mobile, 2-up on tablet, 3-up on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {positionData.map(({ position, drafted, available, summary }) => (
             <div key={position} className="space-y-4">
               {/* Drafted Roster */}
