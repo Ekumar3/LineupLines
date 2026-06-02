@@ -4,7 +4,7 @@ Comprehensive guide to running, writing, and maintaining tests for the Draft Hel
 
 ## Test Overview
 
-**Current Coverage**: 88 tests across 7 files
+**Current Coverage**: 101 tests across 9 files
 
 ### Test Distribution
 
@@ -16,8 +16,10 @@ tests/test_available_by_position.py    (9 tests)  - Available-by-position endpoi
 tests/test_draft_endpoints.py         (38 tests)  - API endpoint integration tests
 tests/test_fetcher.py                 (10 tests)  - SleeperClient unit tests
 tests/test_league_settings.py          (8 tests)  - League settings endpoint tests
+tests/test_rate_limiting.py            (7 tests)  - Rate limiting + broadcaster caps
+tests/test_sleeper_cache.py            (6 tests)  - Sleeper response cache TTL
 ───────────────────────────────────────────────────
-Total:                                88 tests
+Total:                                101 tests
 ```
 
 ### Test Types
@@ -27,7 +29,9 @@ Total:                                88 tests
 | Unit | 33 | Test individual functions | pytest + mocks |
 | Integration | 46 | Test API endpoints | TestClient |
 | Storage | 9 | Test persistence | Temp files |
-| **Total** | **88** | **Verify all layers** | pytest |
+| Security | 7 | Rate limits + capacity caps | TestClient + asyncio |
+| Cache | 6 | TTL behavior | pytest |
+| **Total** | **101** | **Verify all layers** | pytest |
 
 ### Coverage Gaps
 

@@ -55,6 +55,39 @@ curl http://localhost:8000/health
 
 ---
 
+### Submit Feedback
+
+**POST /api/v1/feedback**
+
+Accepts a user feedback submission and forwards it to the configured SES inbox.
+Rate-limited to **5 requests per minute per IP**.
+
+**Request Body**:
+```json
+{
+  "message": "string (1-2000 chars, required)",
+  "page": "string (max 200 chars, optional, defaults to '/')",
+  "email": "string (max 200 chars, optional reply-to)"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "success": true,
+  "detail": "Feedback received. Thanks!"
+}
+```
+
+**Behavior**:
+- If `SES_FROM_EMAIL` / `SES_TO_EMAIL` env vars are missing (e.g. local dev), the request is logged via `logger.warning` and still returns `success: true` so the UI doesn't break.
+- In production the message is sent via AWS SES using the ECS task IAM role (no hardcoded credentials).
+- Returns **429** if the rate limit is exceeded; **500** if SES rejects the send.
+
+**Implementation**: `src/api/feedback.py`. The frontend widget is `frontend/src/components/common/FeedbackWidget.jsx`.
+
+---
+
 ### User Lookup
 
 **GET /api/v1/users/lookup/{username}**
@@ -772,12 +805,30 @@ Raw OpenAPI schema available at `/openapi.json`.
 
 ## Rate Limiting
 
-Sleeper API rate limit: **1000 requests per minute**
+### Inbound (clients → this API)
 
-The draft helper respects this limit with built-in rate limiting. For production deployments, implement:
-- Client-side request queueing
-- Cache responses where appropriate
-- Monitor rate limit headers
+IP-based rate limits are enforced by `slowapi`, keyed on the X-Forwarded-For client IP when the request arrives via CloudFront/ALB:
+
+| Endpoint pattern | Limit | Rationale |
+|------------------|-------|-----------|
+| `POST /api/v1/feedback` | **5/minute per IP** | Tightest cap — protects SES quota + your inbox from spam |
+| All other endpoints (default) | **60/minute per IP** | Generous for an active drafter polling + manual refreshes |
+
+When a limit is exceeded the API returns **HTTP 429** with `{"detail": "Rate limit exceeded: ..."}`. The `Retry-After` header is set when applicable.
+
+Implementation: `src/api/rate_limit.py` defines the `Limiter` (custom XFF-aware `key_func`); `src/api/main.py` wires it in via `SlowAPIMiddleware` and registers `_rate_limit_exceeded_handler`.
+
+### SSE concurrency caps
+
+The `DraftBroadcaster` (`src/api/draft_stream.py`) caps in-memory state to prevent abuse:
+- `MAX_ACTIVE_DRAFTS = 50` — total unique `draft_id`s being polled at once
+- `MAX_SUBSCRIBERS_PER_DRAFT = 50` — viewers on any single draft
+
+Hitting either cap returns **HTTP 429** with `detail: "Too many active drafts ..."` from `GET /api/v1/drafts/{draft_id}/stream`.
+
+### Outbound (this API → Sleeper)
+
+Sleeper API rate limit: **1000 requests per minute**. The `SleeperClient` enforces a 0.1s minimum gap between outbound requests.
 
 ---
 
@@ -798,6 +849,7 @@ All errors return JSON with `detail` field:
 | 400 | Bad request | Check request parameters and format |
 | 404 | Not found | Verify resource ID (user_id, draft_id) |
 | 422 | Validation error | Check parameter types and constraints |
+| 429 | Rate limited / capacity exceeded | Back off and retry; see `Retry-After` header. Either an IP rate limit or a `DraftBroadcaster` cap was hit. |
 | 500 | Server error | Check logs, verify Sleeper API is accessible |
 
 ---

@@ -379,7 +379,40 @@ def test_lookup_user(client, mock_user_data):
 
 ## Rate Limiting & Reliability
 
-### Sleeper API Rate Limit
+### Inbound Rate Limiting (clients → API)
+
+To protect the deployment from abuse — spam against `/api/v1/feedback` (which would inflate the SES bill) and hostile traffic against the Sleeper-backed read endpoints (which would burn the upstream API quota) — the API uses IP-keyed rate limiting via [`slowapi`](https://github.com/laurentS/slowapi).
+
+```python
+# src/api/rate_limit.py
+
+def _client_ip(request: Request) -> str:
+    """Resolve real client IP behind CloudFront + ALB via X-Forwarded-For."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=_client_ip, default_limits=["60/minute"])
+```
+
+| Endpoint | Limit | Why |
+|----------|-------|-----|
+| `POST /api/v1/feedback` | 5/min per IP | Tightest cap — prevents SES spam |
+| All other endpoints | 60/min per IP (default) | Generous for legitimate drafters |
+
+Wired in `src/api/main.py` via `SlowAPIMiddleware` + `_rate_limit_exceeded_handler` (returns HTTP 429).
+
+### DraftBroadcaster Capacity Caps
+
+The in-memory SSE broadcaster bounds itself to prevent attackers from leaking asyncio queues by subscribing to thousands of fake `draft_id`s:
+
+- `MAX_ACTIVE_DRAFTS = 50` — total unique drafts polled at once
+- `MAX_SUBSCRIBERS_PER_DRAFT = 50` — viewers per single draft
+
+Hitting either cap raises `BroadcasterCapacityError`, which the SSE endpoint converts to HTTP 429 *before* the `StreamingResponse` starts so clients see a clean error instead of a broken stream (`src/api/draft_stream.py` + the `subscribe()` call refactor in `main.py`).
+
+### Sleeper API Rate Limit (outbound)
 
 - **Limit**: 1000 requests per minute
 - **Draft polling needs**: 12 requests/minute (1 every 5 seconds)

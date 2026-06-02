@@ -14,8 +14,10 @@ import os
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+
+from src.api.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,8 @@ class FeedbackResponse(BaseModel):
     summary="Submit user feedback",
     tags=["Feedback"],
 )
-async def submit_feedback(body: FeedbackRequest) -> FeedbackResponse:
+@limiter.limit("5/minute")
+async def submit_feedback(request: Request, body: FeedbackRequest) -> FeedbackResponse:
     """Receive a feedback submission and forward it to the configured SES address."""
     from_email = os.environ.get("SES_FROM_EMAIL")
     to_email = os.environ.get("SES_TO_EMAIL")
