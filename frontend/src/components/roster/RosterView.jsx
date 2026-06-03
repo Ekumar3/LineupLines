@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import { useVORAnalysis } from '../../hooks/useVORAnalysis';
@@ -12,21 +12,9 @@ import ErrorMessage from '../common/ErrorMessage';
 const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 export default function RosterView({ draftId, userId }) {
-  const { data: rosterData, loading, error, lastPolled: rosterPolled } = useRosterData(draftId, userId);
-  const { data: availableData, lastPolled: availablePolled } = useAvailableByPosition(draftId, 5);
+  const { data: rosterData, loading, error } = useRosterData(draftId, userId);
+  const { data: availableData } = useAvailableByPosition(draftId, 5);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
-
-  // Pick the most recent poll time from any hook
-  const lastPolled = rosterPolled && availablePolled
-    ? (rosterPolled > availablePolled ? rosterPolled : availablePolled)
-    : rosterPolled || availablePolled;
-
-  // Re-render every second to keep the "Xs ago" display ticking
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const positionData = useMemo(() =>
     POSITION_ORDER.map(pos => ({
@@ -57,14 +45,6 @@ export default function RosterView({ draftId, userId }) {
             {availableData?.current_overall_pick && (
               <span className="text-sleeper-blue">
                 Current Pick: #{availableData.current_overall_pick}
-              </span>
-            )}
-            {lastPolled && (
-              <span className="text-sleeper-gray-500 text-sm ml-auto">
-                {(() => {
-                  const ago = Math.round((Date.now() - lastPolled.getTime()) / 1000);
-                  return ago < 2 ? 'Live' : `Updated ${ago}s ago`;
-                })()}
               </span>
             )}
           </div>
