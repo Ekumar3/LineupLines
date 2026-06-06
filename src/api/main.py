@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,11 +38,10 @@ from src.api.models import (
 from src.api.storage import load_player_universe, save_player_universe
 from src.api.draft_stream import BroadcasterCapacityError, DraftBroadcaster
 from src.api.feedback import router as feedback_router
-from src.api.rate_limit import limiter
+from src.api.rate_limit import limiter, shared_draft_limit
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +73,13 @@ app.add_middleware(
     allow_headers=["Content-Type", "Accept"],
 )
 
-# Wire the IP-based rate limiter. SlowAPIMiddleware applies the default
-# 60/minute limit globally; individual endpoints (e.g. /api/v1/feedback)
-# can override with stricter @limiter.limit decorators.
+# Wire the IP-based rate limiter. Limits are applied per-endpoint via
+# decorators (see shared_draft_limit on draft reads, @limiter.limit on
+# /feedback). The previous SlowAPIMiddleware was removed because it is
+# built on Starlette's BaseHTTPMiddleware, which buffers StreamingResponse
+# bodies and broke the /stream SSE endpoint.
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
 
 # Initialize Sleeper client (singleton)
 sleeper_client = SleeperClient()
@@ -389,7 +389,8 @@ def get_active_user_drafts_by_id(
     description="Fetch all picks made in a draft so far, with player information",
     tags=["Drafts"],
 )
-def get_draft_picks(draft_id: str):
+@shared_draft_limit
+def get_draft_picks(request: Request, draft_id: str):
     """
     Get all picks from a draft.
 
@@ -471,7 +472,8 @@ def get_draft_picks(draft_id: str):
     description="Returns full draft information including draft order and user-to-roster mapping for tracking picks",
     tags=["Drafts"],
 )
-def get_draft_details(draft_id: str):
+@shared_draft_limit
+def get_draft_details(request: Request, draft_id: str):
     """
     Get complete draft details with roster mapping.
 
@@ -537,7 +539,8 @@ def get_draft_details(draft_id: str):
     description="Returns league settings including scoring format (PPR/Half-PPR/Standard) for ADP matching",
     tags=["Drafts"],
 )
-def get_league_settings(draft_id: str):
+@shared_draft_limit
+def get_league_settings(request: Request, draft_id: str):
     """Get league settings for a draft, including scoring format.
 
     This endpoint determines the league's scoring format to match appropriate
@@ -653,7 +656,9 @@ def get_league_settings_by_id(league_id: str):
     description="Returns all players who have not been drafted yet, with optional position filtering",
     tags=["Drafts"],
 )
+@shared_draft_limit
 def get_available_players(
+    request: Request,
     draft_id: str,
     position: Optional[str] = Query(None, description="Filter by position (RB, WR, QB, TE, etc.)"),
     limit: int = Query(100, description="Maximum number of players to return", le=500),
@@ -750,7 +755,9 @@ def get_available_players(
     description="Returns top available players at each position sorted by ADP delta relative to current overall pick",
     tags=["Drafts"],
 )
+@shared_draft_limit
 def get_available_by_position(
+    request: Request,
     draft_id: str,
     limit: int = Query(default=20, ge=1, le=100, description="Max players per position"),
 ) -> AvailableByPositionResponse:
@@ -899,7 +906,8 @@ def get_available_by_position(
     description="Returns a specific user's draft picks organized by position with strength analysis",
     tags=["Drafts"],
 )
-def get_user_roster(draft_id: str, user_id: str):
+@shared_draft_limit
+def get_user_roster(request: Request, draft_id: str, user_id: str):
     """
     Get user's drafted roster grouped by position.
 
@@ -1349,7 +1357,9 @@ def get_vor_calculator():
     summary="Get VOR analysis for draft",
     tags=["Draft Analysis"],
 )
+@shared_draft_limit
 def get_draft_vor_analysis(
+    request: Request,
     draft_id: str,
     limit_per_position: int = 5,
     vor_mode: str = "replacement_rank",
@@ -1529,7 +1539,8 @@ def get_draft_vor_analysis(
     summary="Get VOR for specific player",
     tags=["Draft Analysis"],
 )
-def get_player_vor(draft_id: str, player_id: str):
+@shared_draft_limit
+def get_player_vor(request: Request, draft_id: str, player_id: str):
     """
     Get VOR analysis for a specific player.
     
