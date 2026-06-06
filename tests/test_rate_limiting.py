@@ -32,17 +32,28 @@ def test_feedback_rate_limit_blocks_after_5_requests():
     assert r.status_code == 429, "6th request within a minute should be rate-limited"
 
 
-def test_default_rate_limit_blocks_after_60_requests():
-    """A non-decorated endpoint should fall back to the 60/minute default."""
+def test_shared_draft_limit_blocks_after_60_requests(monkeypatch):
+    """Draft read endpoints share one 60/minute bucket per IP.
+
+    The previous global SlowAPIMiddleware was removed because it buffered
+    StreamingResponse bodies and broke the /stream SSE endpoint. Protection
+    is now applied per-endpoint via shared_draft_limit, which draws from a
+    single per-IP bucket so the effective ceiling is the same.
+    """
+    # Stub the Sleeper client so the endpoint body returns quickly without
+    # hitting the real API; the rate limit decorator runs regardless of the
+    # body's outcome.
+    monkeypatch.setattr("src.api.main.sleeper_client.get_draft_picks", lambda draft_id: [])
+
     client = TestClient(app)
     headers = {"X-Forwarded-For": "203.0.113.20"}  # unique IP for this test
     blocked = False
     for _ in range(75):
-        r = client.get("/health", headers=headers)
+        r = client.get("/api/v1/drafts/fake-draft/picks", headers=headers)
         if r.status_code == 429:
             blocked = True
             break
-    assert blocked, "Default 60/minute limit should reject requests beyond the threshold"
+    assert blocked, "shared_draft_limit should reject requests beyond 60/minute"
 
 
 def test_xff_header_used_as_rate_limit_key():

@@ -33,3 +33,10 @@ limiter = Limiter(
     key_func=_client_ip,
     default_limits=["60/minute"],
 )
+
+# Shared bucket for all draft read endpoints. Decorating each endpoint with
+# this draws from one per-IP counter, so the effective ceiling stays at
+# 60/minute total across the draft API — the same protection the previous
+# global SlowAPIMiddleware provided, without buffering StreamingResponse
+# bodies (which broke the /stream SSE endpoint).
+shared_draft_limit = limiter.shared_limit("60/minute", scope="draft_reads")
