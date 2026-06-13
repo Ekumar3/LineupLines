@@ -89,12 +89,18 @@ export const useRosterData = (draftId, userId) => {
     if (draftId && userId) {
       fetchRoster();
 
+      // Poll every 10 seconds as a fallback in case SSE events are missed
+      const pollInterval = setInterval(() => fetchRoster(), 10000);
+
       const es = new EventSource(`/api/v1/drafts/${draftId}/stream`);
       es.addEventListener('pick', () => fetchRoster());
       es.addEventListener('status', (e) => {
         try {
           const { status } = JSON.parse(e.data);
-          if (status === 'complete') es.close();
+          if (status === 'complete') {
+            es.close();
+            clearInterval(pollInterval);
+          }
         } catch (_) {}
         fetchRoster();
       });
@@ -105,6 +111,7 @@ export const useRosterData = (draftId, userId) => {
       return () => {
         cancelled = true;
         es.close();
+        clearInterval(pollInterval);
       };
     }
   }, [draftId, userId]);

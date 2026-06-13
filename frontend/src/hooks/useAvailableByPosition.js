@@ -47,12 +47,18 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
     if (draftId) {
       fetchAvailable();
 
+      // Poll every 10 seconds as a fallback in case SSE events are missed
+      const pollInterval = setInterval(() => fetchAvailable(), 10000);
+
       const es = new EventSource(`/api/v1/drafts/${draftId}/stream`);
       es.addEventListener('pick', () => fetchAvailable());
       es.addEventListener('status', (e) => {
         try {
           const { status } = JSON.parse(e.data);
-          if (status === 'complete') es.close();
+          if (status === 'complete') {
+            es.close();
+            clearInterval(pollInterval);
+          }
         } catch (_) {}
         fetchAvailable();
       });
@@ -63,6 +69,7 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
       return () => {
         cancelled = true;
         es.close();
+        clearInterval(pollInterval);
       };
     }
   }, [draftId, limit]);

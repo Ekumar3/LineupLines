@@ -93,7 +93,9 @@ resource "aws_iam_role" "github_actions" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:*/${var.project}*:*"
+          # IAM StringLike is case-sensitive; the GitHub repo name is not
+          # guaranteed to match var.project's casing, so pin the exact repo.
+          "token.actions.githubusercontent.com:sub" = "repo:Ekumar3/LineupLines:*"
         }
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
