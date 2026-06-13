@@ -84,6 +84,12 @@ class DraftBroadcaster:
         for q in self._queues.get(draft_id, []):
             q.put_nowait(event)
 
+    def _fetch_draft_data(self, draft_id: str):
+        """Synchronous helper that runs in a thread — keeps blocking IO off the event loop."""
+        picks = self._client.get_draft_picks(draft_id)
+        details = self._client.get_draft_details(draft_id)
+        return picks, details
+
     async def _poll(self, draft_id: str) -> None:
         last_pick_count = 0
         last_status = None
@@ -96,7 +102,8 @@ class DraftBroadcaster:
                     self._broadcast(draft_id, {"type": "keepalive"})
                     last_keepalive = now
 
-                picks = self._client.get_draft_picks(draft_id)
+                picks, details = await asyncio.to_thread(self._fetch_draft_data, draft_id)
+
                 if len(picks) > last_pick_count:
                     for pick in picks[last_pick_count:]:
                         self._broadcast(draft_id, {
@@ -105,7 +112,6 @@ class DraftBroadcaster:
                         })
                     last_pick_count = len(picks)
 
-                details = self._client.get_draft_details(draft_id)
                 if details:
                     status = details.get("status")
                     if status != last_status:

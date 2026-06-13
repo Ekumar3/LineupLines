@@ -5,6 +5,7 @@ and league data retrieval.
 """
 
 import logging
+import threading
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
@@ -62,6 +63,7 @@ class SleeperClient:
         self.rate_limit_delay = rate_limit_delay
         self.draft_ttl = draft_ttl
         self.last_request_time = 0
+        self._request_lock = threading.Lock()
         self._player_cache: Optional[Dict[str, Dict[str, Any]]] = None
         self._player_cache_time: Optional[datetime] = None
         self._scoring_format_cache: Dict[str, Optional[str]] = {}
@@ -545,10 +547,11 @@ class SleeperClient:
         Raises:
             Exception: If request fails
         """
-        # Rate limiting
-        elapsed = time.time() - self.last_request_time
-        if elapsed < self.rate_limit_delay:
-            time.sleep(self.rate_limit_delay - elapsed)
+        with self._request_lock:
+            elapsed = time.time() - self.last_request_time
+            if elapsed < self.rate_limit_delay:
+                time.sleep(self.rate_limit_delay - elapsed)
+            self.last_request_time = time.time()
 
         url = f"{self.BASE_URL}{endpoint}"
 
@@ -557,8 +560,6 @@ class SleeperClient:
 
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
-
-            self.last_request_time = time.time()
 
             return response.json() if response.text else None
 
