@@ -79,7 +79,7 @@ export default function Home() {
   };
 
   const handleDraftClick = (draft, userId) => {
-    const isLive = ['drafting', 'in_progress'].includes(draft.status);
+    const isLive = ['pre_draft', 'drafting', 'in_progress'].includes(draft.status);
     if (isLive) {
       navigate(`/draftassist/${draft.draft_id}/${userId}`);
     } else {

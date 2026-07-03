@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import { useVORAnalysis } from '../../hooks/useVORAnalysis';
+import { useNextPick } from '../../hooks/useNextPick';
 
 import PositionTable from './PositionTable';
-import AvailableTable from './AvailableTable';
-import BestAvailableTable from '../available/BestAvailableTable';
+import AvailablePlayersTable from '../available/AvailablePlayersTable';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 
@@ -13,17 +13,17 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 export default function RosterView({ draftId, userId }) {
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
-  const { data: availableData } = useAvailableByPosition(draftId, 5);
+  const { data: availableData } = useAvailableByPosition(draftId, 20);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
+  const { draftStatus } = useNextPick(draftId, userId);
 
   const positionData = useMemo(() =>
     POSITION_ORDER.map(pos => ({
       position: pos,
       drafted: rosterData?.roster_by_position?.[pos] || [],
-      available: availableData?.players_by_position?.[pos] || [],
       summary: rosterData?.position_summary?.[pos],
     })),
-    [rosterData, availableData]
+    [rosterData]
   );
 
   if (loading) return <LoadingSpinner />;
@@ -33,6 +33,16 @@ export default function RosterView({ draftId, userId }) {
   return (
     <div className="min-h-screen bg-sleeper-darker py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Pre-draft notice */}
+        {draftStatus === 'pre_draft' && (
+          <div className="mb-6 flex items-center gap-3 rounded-lg border border-sleeper-purple/30 bg-sleeper-purple/10 px-4 py-3 text-sleeper-purple">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">Draft hasn't started yet — browse available players and plan your picks.</span>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
@@ -50,14 +60,18 @@ export default function RosterView({ draftId, userId }) {
           </div>
         </div>
 
-        {/* Best Available by VOR */}
+        {/* Best Available by VOR, filterable by position */}
         {vorData?.recommendations?.length > 0 && (
-          <BestAvailableTable draftId={draftId} recommendations={vorData.recommendations} />
+          <AvailablePlayersTable
+            draftId={draftId}
+            recommendations={vorData.recommendations}
+            availableData={availableData}
+          />
         )}
 
         {/* Position Tables - stack on mobile, 2-up on tablet, 3-up on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {positionData.map(({ position, drafted, available, summary }) => (
+          {positionData.map(({ position, drafted, summary }) => (
             <div key={position} className="space-y-4">
               {/* Drafted Roster */}
               <PositionTable
@@ -65,16 +79,6 @@ export default function RosterView({ draftId, userId }) {
                 players={drafted}
                 positionSummary={summary}
               />
-
-              {/* Available Players (if any) */}
-              {available.length > 0 && (
-                <div>
-                  <h3 className="text-xl font-medium text-sleeper-gray-400 mb-2">
-                    Available {position}s (Top {availableData?.limit})
-                  </h3>
-                  <AvailableTable players={available} position={position} />
-                </div>
-              )}
             </div>
           ))}
         </div>

@@ -3,6 +3,7 @@ import { draftAPI } from '../utils/api';
 
 export const useNextPick = (draftId, userId) => {
   const [nextPickNumber, setNextPickNumber] = useState(null);
+  const [draftStatus, setDraftStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
@@ -42,6 +43,7 @@ export const useNextPick = (draftId, userId) => {
         }
 
         setNextPickNumber(nextPick);
+        setDraftStatus(draftDetails.status);
         initialLoadDone.current = true;
         setError(null);
         console.log(`[useNextPick] Refreshed at ${new Date().toLocaleTimeString()} — next pick: #${nextPick}`);
@@ -67,5 +69,5 @@ export const useNextPick = (draftId, userId) => {
     }
   }, [draftId, userId]);
 
-  return { nextPickNumber, loading, error };
+  return { nextPickNumber, draftStatus, loading, error };
 };
