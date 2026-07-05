@@ -1361,17 +1361,17 @@ def get_vor_calculator():
 def get_draft_vor_analysis(
     request: Request,
     draft_id: str,
-    limit_per_position: int = 5,
+    limit_per_position: int = 10,
     vor_mode: str = "replacement_rank",
 ):
     """
     Get VOR (Value Over Replacement) analysis for available players in a draft.
 
-    Returns top 5 recommendations per position, ranked by VOR score (highest value first).
+    Returns top 10 recommendations per position, ranked by VOR score (highest value first).
 
     Args:
         draft_id: Draft ID
-        limit_per_position: Maximum recommendations per position (default 5)
+        limit_per_position: Maximum recommendations per position (default 10)
     
     Returns:
         VORAnalysisResponse with top recommendations by position and replacement levels
@@ -1397,6 +1397,7 @@ def get_draft_vor_analysis(
 
         # Determine if we're in the last 2 rounds (suppresses DEF/K until then)
         import math
+        # ! don't need to do a calculation on picks right? We could pass the current round # in 
         _teams = draft.get("settings", {}).get("teams", 12)
         _total_rounds = draft.get("settings", {}).get("rounds", 15)
         _picks_made = len(available)
@@ -1422,7 +1423,7 @@ def get_draft_vor_analysis(
         # Build valid player pool: top VOR_POOL_SIZE per position by ADP delta.
         # Sleeper projections are already keyed by player_id — no name matching needed.
         current_overall_pick = available[-1].pick_no + 1 if available else 1
-        VOR_POOL_SIZE = 5
+        VOR_POOL_SIZE = 10
         _by_pos: dict[str, list[tuple[float, str]]] = {}
         for _pid, _proj in sleeper_proj.items():
             if _pid in drafted_player_ids:
