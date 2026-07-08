@@ -1458,7 +1458,8 @@ def get_draft_vor_analysis(
                     mode=vor_mode,
                 )
 
-                replacement_pts = vor.get_replacement_player_pts(proj.position, _rank)
+                replacement_player = vor.get_replacement_player(proj.position, _rank)
+                replacement_pts = replacement_player.get("projected_pts") if replacement_player else None
 
                 recommendations.append({
                     "league_id": league_id,
@@ -1474,6 +1475,9 @@ def get_draft_vor_analysis(
                     "projected_points": proj.projected_pts,
                     "avg_ppg": round(proj.avg_ppg, 1),
                     "vor_basis": vor_mode,
+                    "replacement_player_id": replacement_player.get("player_id") if replacement_player else None,
+                    "replacement_player_name": replacement_player.get("player_name") if replacement_player else None,
+                    "replacement_player_team": replacement_player.get("team") if replacement_player else None
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {proj.player_name}: {e}")
@@ -1510,7 +1514,7 @@ def get_draft_vor_analysis(
         for pos in ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']:
             try:
                 rank = _replacement_ranks.get(pos, 12)
-                replacement_by_position[pos] = vor.get_replacement_player_pts(pos, rank)
+                replacement_by_position[pos] = vor.get_replacement_player(pos, rank).get("projected_pts", 0.0)
             except Exception:
                 pass
 

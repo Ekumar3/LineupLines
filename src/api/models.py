@@ -545,6 +545,9 @@ class VORDraftRecommendation(BaseModel):
     projected_points: Optional[float] = Field(None, description="Projected avg points per game (if available)")
     season_pts: Optional[float] = Field(None, description="Projected season-total fantasy points")
     vor_basis: str = Field("adp", description="Metric used for VOR: 'projection' or 'adp'")
+    replacement_player_id: Optional[str] = Field(None, description="Player ID of the replacement-level player for this position")
+    replacement_player_name: Optional[str] = Field(None, description="Name of the replacement-level player for this position")
+    replacement_player_team: Optional[str] = Field(None, description="Team of the replacement-level player for this position")
 
 
 class VORAnalysisResponse(BaseModel):

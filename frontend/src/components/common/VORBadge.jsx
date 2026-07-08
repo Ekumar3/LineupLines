@@ -8,7 +8,7 @@
  * - Gray (Below): VOR < 5
  */
 
-export default function VORBadge({ vorScore, interpretation }) {
+export default function VORBadge({ vorScore, interpretation, replacementPlayerName, replacementPlayerTeam }) {
   if (vorScore === undefined || vorScore === null) {
     return null;
   }
@@ -43,7 +43,7 @@ export default function VORBadge({ vorScore, interpretation }) {
   return (
     <div
       className={`${bgColor} ${textColor} px-2 py-1 rounded text-xs font-medium whitespace-nowrap`}
-      title={interpretation || 'Value Over Replacement'}
+      title={`${interpretation || 'Value Over Replacement'}${replacementPlayerName ? ` - Replacement Player: ${replacementPlayerName}` : ''} ${replacementPlayerTeam ? ` (${replacementPlayerTeam})` : ''}`}
     >
       VOR: {vorScore.toFixed(1)}
     </div>

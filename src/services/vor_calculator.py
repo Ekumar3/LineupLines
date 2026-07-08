@@ -211,12 +211,12 @@ class VORCalculator:
 
         return player_pts - 1.0  # floor: no one left to compare against
 
-    def get_replacement_player_pts(
+    def get_replacement_player(
         self,
         position: str,
         replacement_rank: int,
         remaining_players: Optional[List[Dict]] = None,
-    ) -> float:
+    ) -> Dict:
         """Return projected pts of the replacement level player at `replacement_rank`.
 
         Args:
@@ -226,22 +226,24 @@ class VORCalculator:
             remaining_players: If provided, restrict to this undrafted pool.
 
         Returns:
-            Projected points of the replacement level player, or 0.0 if no pool.
+            Dictionary containing the replacement level player's information, or 0.0 if no pool.
         """
         if remaining_players is not None:
             pool = [
                 p for p in remaining_players
                 if p.get("position") == position and "projected_pts" in p
             ]
+            # sort the remaining players by projected points
             pool.sort(key=lambda p: p["projected_pts"], reverse=True)
         else:
             pool = self.projection_groups.get(position, [])
 
+        #! Think about how to handle this case
         if not pool:
-            return 0.0
-
+            return {}
+        # here we have the pool sorted by projected points descending, so the replacement_rank-1 index is the replacement player
         idx = min(replacement_rank - 1, len(pool) - 1)
-        return pool[idx]["projected_pts"]
+        return pool[idx]
 
     def get_replacement_level(self, position: str, replacement_percentile: int = 50) -> float:
         """
@@ -347,9 +349,10 @@ class VORCalculator:
                 next_pts = self.get_next_projected_pts(position, projected_pts, remaining_players)
                 return projected_pts - next_pts
             else:
-                replacement_pts = self.get_replacement_player_pts(
+                replacement_player = self.get_replacement_player(
                     position, replacement_rank, remaining_players
                 )
+                replacement_pts = replacement_player.get("projected_pts") if replacement_player else 0.0
                 return projected_pts - replacement_pts
 
         # ADP-based fallback
