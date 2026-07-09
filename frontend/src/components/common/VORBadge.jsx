@@ -8,7 +8,7 @@
  * - Gray (Below): VOR < 5
  */
 
-export default function VORBadge({ vorScore, interpretation, replacementPlayerName, replacementPlayerTeam }) {
+export default function VORBadge({ vorScore, interpretation, replacementPlayerName, replacementPlayerTeam, replacementPlayerPoints }) {
   if (vorScore === undefined || vorScore === null) {
     return null;
   }
