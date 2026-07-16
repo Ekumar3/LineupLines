@@ -1458,7 +1458,10 @@ def get_draft_vor_analysis(
                     mode=vor_mode,
                 )
 
-                replacement_player = vor.get_replacement_player(proj.position, _rank)
+                if vor_mode == "next_available":
+                    replacement_player = vor.get_next_available_player(proj.position, proj.projected_pts)
+                else:
+                    replacement_player = vor.get_replacement_player(proj.position, _rank)
                 replacement_pts = replacement_player.get("projected_pts") if replacement_player else None
 
                 recommendations.append({

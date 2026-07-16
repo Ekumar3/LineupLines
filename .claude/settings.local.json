@@ -135,7 +135,10 @@
       "Bash(curl -s -o /dev/null -w \"api:%{http_code}\\\\n\" http://localhost:8000/docs --max-time 2)",
       "Bash(curl -s -o /dev/null -w \"frontend:%{http_code}\\\\n\" http://localhost:3000/ --max-time 2)",
       "Bash(taskkill //F //PID 29660 //T)",
-      "Bash(taskkill //F //PID 29672 //T)"
+      "Bash(taskkill //F //PID 29672 //T)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('src/services/vor_calculator.py'\\).read\\(\\)\\); ast.parse\\(open\\('src/api/main.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/ -k vor -v)"
     ]
   }
 }

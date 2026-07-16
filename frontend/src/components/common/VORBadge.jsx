@@ -68,7 +68,6 @@ export default function VORBadge({ vorScore, interpretation, replacementPlayerId
             {replacementPlayerPoints != null && (
               <div className="text-sleeper-gray-400">{replacementPlayerPoints.toFixed(1)} pts</div>
             )}
-            <div className="text-sleeper-gray-500">Replacement level</div>
           </div>
         </div>
       )}

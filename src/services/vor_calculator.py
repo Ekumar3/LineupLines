@@ -211,6 +211,40 @@ class VORCalculator:
 
         return player_pts - 1.0  # floor: no one left to compare against
 
+    def get_next_available_player(
+        self,
+        position: str,
+        player_pts: float,
+        remaining_players: Optional[List[Dict]] = None,
+    ) -> Dict:
+        """Return the next available player below this one, for the "next available" VOR mode.
+
+        Mirrors get_next_projected_pts, but returns the full player dict instead of
+        just the projected points, so callers can surface id/name/team for display.
+
+        Args:
+            position:          Player position.
+            player_pts:        Projected PPR points for the player being evaluated.
+            remaining_players: If provided, restrict to this undrafted pool.
+
+        Returns:
+            Dictionary containing the next available player's information, or {} if none.
+        """
+        if remaining_players is not None:
+            pool = [
+                p for p in remaining_players
+                if p.get("position") == position and "projected_pts" in p
+            ]
+            pool.sort(key=lambda p: p["projected_pts"], reverse=True)
+        else:
+            pool = self.projection_groups.get(position, [])
+
+        for p in pool:
+            if p["projected_pts"] < player_pts:
+                return p
+
+        return {}
+
     def get_replacement_player(
         self,
         position: str,
