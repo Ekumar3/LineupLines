@@ -1477,7 +1477,8 @@ def get_draft_vor_analysis(
                     "vor_basis": vor_mode,
                     "replacement_player_id": replacement_player.get("player_id") if replacement_player else None,
                     "replacement_player_name": replacement_player.get("player_name") if replacement_player else None,
-                    "replacement_player_team": replacement_player.get("team") if replacement_player else None
+                    "replacement_player_team": replacement_player.get("team") if replacement_player else None,
+                    "replacement_player_points": replacement_pts
                 })
             except Exception as e:
                 logger.warning(f"Could not calculate VOR for {proj.player_name}: {e}")

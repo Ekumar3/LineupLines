@@ -127,7 +127,15 @@
       "PowerShell(Get-Process -Id 15248 -ErrorAction SilentlyContinue)",
       "PowerShell(Get-Process python -ErrorAction SilentlyContinue)",
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
-      "PowerShell(Stop-Process -Id 7884,7288,17360 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; try { \\(Invoke-WebRequest -Uri http://localhost:8000/docs -TimeoutSec 3 -UseBasicParsing\\).StatusCode } catch { \"backend down\" }; try { \\(Invoke-WebRequest -Uri http://localhost:3000 -TimeoutSec 3 -UseBasicParsing\\).StatusCode } catch { \"frontend down\" })"
+      "PowerShell(Stop-Process -Id 7884,7288,17360 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; try { \\(Invoke-WebRequest -Uri http://localhost:8000/docs -TimeoutSec 3 -UseBasicParsing\\).StatusCode } catch { \"backend down\" }; try { \\(Invoke-WebRequest -Uri http://localhost:3000 -TimeoutSec 3 -UseBasicParsing\\).StatusCode } catch { \"frontend down\" })",
+      "Bash(echo \"API started, PID $!\")",
+      "Bash(echo \"Frontend started, PID $!\")",
+      "Bash(sleep 4; cat /tmp/frontend.log)",
+      "Bash(curl -s http://localhost:3000/ -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s -o /dev/null -w \"api:%{http_code}\\\\n\" http://localhost:8000/docs --max-time 2)",
+      "Bash(curl -s -o /dev/null -w \"frontend:%{http_code}\\\\n\" http://localhost:3000/ --max-time 2)",
+      "Bash(taskkill //F //PID 29660 //T)",
+      "Bash(taskkill //F //PID 29672 //T)"
     ]
   }
 }

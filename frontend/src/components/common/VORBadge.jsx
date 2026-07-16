@@ -1,6 +1,6 @@
 /**
  * VOR (Value Over Replacement) Badge
- * 
+ *
  * Shows VOR score with color coding:
  * - Green (Elite): VOR >= 30
  * - Yellow (Strong): VOR >= 15
@@ -8,7 +8,12 @@
  * - Gray (Below): VOR < 5
  */
 
-export default function VORBadge({ vorScore, interpretation, replacementPlayerName, replacementPlayerTeam, replacementPlayerPoints }) {
+import { useState } from 'react';
+import PlayerHeadshot from './PlayerHeadshot';
+
+export default function VORBadge({ vorScore, interpretation, replacementPlayerId, replacementPlayerName, replacementPlayerTeam, replacementPlayerPosition, replacementPlayerPoints }) {
+  const [isHovering, setIsHovering] = useState(false);
+
   if (vorScore === undefined || vorScore === null) {
     return null;
   }
@@ -41,11 +46,32 @@ export default function VORBadge({ vorScore, interpretation, replacementPlayerNa
   }
 
   return (
-    <div
-      className={`${bgColor} ${textColor} px-2 py-1 rounded text-xs font-medium whitespace-nowrap`}
-      title={`${interpretation || 'Value Over Replacement'}${replacementPlayerName ? ` - Replacement Player: ${replacementPlayerName}` : ''} ${replacementPlayerTeam ? ` (${replacementPlayerTeam})` : ''}`}
-    >
-      VOR: {vorScore.toFixed(1)}
+    <div className="relative inline-block" onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
+      <div
+        className={`${bgColor} ${textColor} px-2 py-1 rounded text-xs font-medium whitespace-nowrap`}
+        title={`${interpretation || 'Value Over Replacement'}${replacementPlayerName ? ` - Replacement Player: ${replacementPlayerName}` : ''} ${replacementPlayerTeam ? ` (${replacementPlayerTeam})` : ''}`}
+      >
+        VOR: {vorScore.toFixed(1)}
+      </div>
+      {isHovering && replacementPlayerId && (
+        <div className="absolute z-10 top-full mt-1 left-0 bg-sleeper-gray-800 border border-sleeper-gray-700 rounded shadow-lg p-2 flex items-center gap-2 min-w-max">
+          <PlayerHeadshot
+            playerId={replacementPlayerId}
+            playerName={replacementPlayerName}
+            position={replacementPlayerPosition}
+          />
+          <div className="text-xs">
+            <div className="text-sleeper-gray-200 font-medium">{replacementPlayerName}</div>
+            <div className="text-sleeper-gray-400">
+              {replacementPlayerTeam}{replacementPlayerTeam && replacementPlayerPosition ? ' · ' : ''}{replacementPlayerPosition}
+            </div>
+            {replacementPlayerPoints != null && (
+              <div className="text-sleeper-gray-400">{replacementPlayerPoints.toFixed(1)} pts</div>
+            )}
+            <div className="text-sleeper-gray-500">Replacement level</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

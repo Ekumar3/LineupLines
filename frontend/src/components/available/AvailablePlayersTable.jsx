@@ -174,7 +174,15 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                       <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
                     </td>
                     <td className="px-3 py-2">
-                      <VORBadge vorScore={rec.vor_score} interpretation={rec.interpretation} replacementPlayerName={rec.replacement_player_name} replacementPlayerTeam={rec.replacement_player_team} replacementPlayerPoints={rec.replacement_player_points} />
+                      <VORBadge
+                        vorScore={rec.vor_score}
+                        interpretation={rec.interpretation}
+                        replacementPlayerId={rec.replacement_player_id}
+                        replacementPlayerName={rec.replacement_player_name}
+                        replacementPlayerTeam={rec.replacement_player_team}
+                        replacementPlayerPosition={rec.position}
+                        replacementPlayerPoints={rec.replacement_player_points}
+                      />
                     </td>
                     <td className="px-3 py-2 text-sleeper-gray-300">
                       {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}
