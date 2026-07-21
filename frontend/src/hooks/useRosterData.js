@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { draftAPI } from '../utils/api';
+import { trackEvent } from '../utils/analytics';
 
 export const useRosterData = (draftId, userId) => {
   const [data, setData] = useState(null);
@@ -100,6 +101,7 @@ export const useRosterData = (draftId, userId) => {
           if (status === 'complete') {
             es.close();
             clearInterval(pollInterval);
+            trackEvent('draft_completed');
           }
         } catch (_) {}
         fetchRoster();

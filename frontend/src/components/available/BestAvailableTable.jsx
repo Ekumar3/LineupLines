@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useVORAnalysis } from '../../hooks/useVORAnalysis';
+import { trackEvent } from '../../utils/analytics';
 
 const POSITION_COLORS = {
   QB: 'bg-red-900 text-red-100',
@@ -71,6 +72,7 @@ export default function BestAvailableTable({ draftId, recommendations }) {
               onClick={() => {
                 setVorMode(mode);
                 setExpanded(false);
+                trackEvent('feature_used', { feature: `vor_mode_${mode}` });
               }}
               className={`px-3 py-1.5 transition-colors ${
                 vorMode === mode

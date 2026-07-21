@@ -12,8 +12,10 @@ import asyncio
 import dataclasses
 import json
 import logging
+import time
 from typing import Dict, List
 
+from src.api.correlation import new_correlation_id
 from src.data_sources.sleeper_client import SleeperClient
 
 logger = logging.getLogger(__name__)
@@ -96,6 +98,8 @@ class DraftBroadcaster:
         last_keepalive = asyncio.get_event_loop().time()
 
         while True:
+            correlation_id = new_correlation_id()
+            poll_start = time.time()
             try:
                 now = asyncio.get_event_loop().time()
                 if now - last_keepalive >= _KEEPALIVE_INTERVAL:
@@ -112,14 +116,28 @@ class DraftBroadcaster:
                         })
                     last_pick_count = len(picks)
 
+                is_complete = False
                 if details:
                     status = details.get("status")
                     if status != last_status:
                         if last_status is not None:
                             self._broadcast(draft_id, {"type": "status", "data": {"status": status}})
                         last_status = status
-                    if status == "complete":
-                        break
+                    is_complete = status == "complete"
+
+                duration_ms = round((time.time() - poll_start) * 1000, 1)
+                logger.info(
+                    "poll cycle complete",
+                    extra={
+                        "event": "poll_cycle_complete",
+                        "draft_id": draft_id,
+                        "duration_ms": duration_ms,
+                        "pick_count": len(picks),
+                    },
+                )
+
+                if is_complete:
+                    break
 
             except asyncio.CancelledError:
                 raise

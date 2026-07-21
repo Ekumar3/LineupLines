@@ -88,6 +88,53 @@ Rate-limited to **5 requests per minute per IP**.
 
 ---
 
+### Record Usage Event
+
+**POST /api/v1/events**
+
+Records a self-hosted usage-analytics event (page view, draft completion, or feature click) to DynamoDB. Rate-limited to **30 requests per minute per IP**. No PII is collected — `anonymous_id` is a random UUID generated and stored client-side in `localStorage`.
+
+**Request Body**:
+```json
+{
+  "event_type": "page_view | draft_completed | feature_used",
+  "anonymous_id": "string (client-generated UUID)",
+  "page": "string (max 200 chars, optional, defaults to '/')",
+  "metadata": "object (optional, e.g. { \"feature\": \"vor_mode_next_available\" })"
+}
+```
+
+**Response (200)**: `{ "success": true }`
+
+**Behavior**:
+- If `ANALYTICS_TABLE_NAME` isn't set (e.g. local dev), the event is logged instead of written and the request still returns `success: true`.
+- Never returns an error for a failed write — tracking failures must not break the app.
+
+**Implementation**: `src/api/analytics_tracking.py`. Frontend calls go through `frontend/src/utils/analytics.js`.
+
+---
+
+### Usage Summary
+
+**GET /api/v1/summary?days=7**
+
+Returns aggregated usage counts for the trailing N days. Requires an `Authorization: Bearer <ANALYTICS_ADMIN_TOKEN>` header.
+
+**Response (200)**:
+```json
+{
+  "days": 7,
+  "unique_visitors": 42,
+  "page_views": 210,
+  "draft_sessions_completed": 8,
+  "feature_usage": { "vor_mode_next_available": 15 }
+}
+```
+
+Returns **401** if the token is missing/invalid, **503** if `ANALYTICS_TABLE_NAME` isn't configured.
+
+---
+
 ### User Lookup
 
 **GET /api/v1/users/lookup/{username}**
@@ -812,6 +859,7 @@ IP-based rate limits are enforced by `slowapi`, keyed on the X-Forwarded-For cli
 | Endpoint pattern | Limit | Rationale |
 |------------------|-------|-----------|
 | `POST /api/v1/feedback` | **5/minute per IP** | Tightest cap — protects SES quota + your inbox from spam |
+| `POST /api/v1/events` | **30/minute per IP** | Fires on every page view/interaction; generous but bounded |
 | All other endpoints (default) | **60/minute per IP** | Generous for an active drafter polling + manual refreshes |
 
 When a limit is exceeded the API returns **HTTP 429** with `{"detail": "Rate limit exceeded: ..."}`. The `Retry-After` header is set when applicable.

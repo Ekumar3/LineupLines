@@ -555,11 +555,24 @@ class SleeperClient:
 
         url = f"{self.BASE_URL}{endpoint}"
 
+        start = time.time()
         try:
             import requests
 
             response = requests.get(url, timeout=timeout)
+            duration_ms = round((time.time() - start) * 1000, 1)
             response.raise_for_status()
+
+            logger.info(
+                "sleeper api call",
+                extra={
+                    "event": "sleeper_api_call",
+                    "endpoint": endpoint,
+                    "duration_ms": duration_ms,
+                    "status": response.status_code,
+                    "bytes": len(response.content),
+                },
+            )
 
             return response.json() if response.text else None
 
@@ -568,7 +581,18 @@ class SleeperClient:
             raise
 
         except Exception as e:
-            logger.error(f"API request failed to {url}: {e}")
+            duration_ms = round((time.time() - start) * 1000, 1)
+            status = getattr(getattr(e, "response", None), "status_code", "error")
+            logger.error(
+                f"API request failed to {url}: {e}",
+                extra={
+                    "event": "sleeper_api_call",
+                    "endpoint": endpoint,
+                    "duration_ms": duration_ms,
+                    "status": status,
+                    "bytes": 0,
+                },
+            )
             raise
 
     def clear_cache(self) -> None:

@@ -14,6 +14,11 @@ variable "desired_count" { type = number }
 variable "frontend_url" { type = string }
 variable "ses_from_email" { type = string }
 variable "ses_to_email" { type = string }
+variable "analytics_table_name" { type = string }
+variable "analytics_admin_token" {
+  type      = string
+  sensitive = true
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -115,9 +120,9 @@ resource "aws_iam_role_policy" "github_actions" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAuth"
-        Effect = "Allow"
-        Action = ["ecr:GetAuthorizationToken"]
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       },
       {
@@ -185,6 +190,8 @@ resource "aws_ecs_task_definition" "api" {
         { name = "SES_FROM_EMAIL", value = var.ses_from_email },
         { name = "SES_TO_EMAIL", value = var.ses_to_email },
         { name = "AWS_REGION", value = var.region },
+        { name = "ANALYTICS_TABLE_NAME", value = var.analytics_table_name },
+        { name = "ANALYTICS_ADMIN_TOKEN", value = var.analytics_admin_token },
       ]
 
       logConfiguration = {

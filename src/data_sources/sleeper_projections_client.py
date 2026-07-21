@@ -106,9 +106,22 @@ class SleeperProjectionsClient:
         logger.info(
             "Fetching Sleeper projections: year=%s format=%s", year, scoring_format
         )
+        start = time.time()
         resp = requests.get(url, timeout=self.REQUEST_TIMEOUT)
+        duration_ms = round((time.time() - start) * 1000, 1)
         resp.raise_for_status()
         raw: list = resp.json()
+
+        logger.info(
+            "sleeper api call",
+            extra={
+                "event": "sleeper_api_call",
+                "endpoint": url,
+                "duration_ms": duration_ms,
+                "status": resp.status_code,
+                "bytes": len(resp.content),
+            },
+        )
 
         result: Dict[str, PlayerProjection] = {}
         for entry in raw:

@@ -54,3 +54,9 @@ variable "desired_count" {
   type        = number
   default     = 1
 }
+
+variable "analytics_admin_token" {
+  description = "Bearer token required to read GET /api/v1/summary (usage analytics dashboard)"
+  type        = string
+  sensitive   = true
+}

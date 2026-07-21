@@ -209,6 +209,17 @@ def load_player_universe():
 
 ---
 
+## Usage Analytics
+
+Self-hosted, privacy-friendly usage tracking (unique visitors, page views, draft completions, feature clicks) — no third-party service, no PII.
+
+- **Event store**: DynamoDB table `<project>-analytics-events` (Terraform module `infra/terraform/modules/analytics/`), partition key `pk="EVENT"`, sort key `sk="<timestamp>#<anonymous_id>"`. On-demand billing.
+- **Backend**: `src/api/analytics_tracking.py` — `POST /api/v1/events` (write, 30/min per IP) and `GET /api/v1/summary` (aggregated read, requires `ANALYTICS_ADMIN_TOKEN` bearer auth). Degrades to logging (not erroring) when `ANALYTICS_TABLE_NAME` isn't set, same pattern as `feedback.py`'s SES fallback.
+- **Frontend**: `frontend/src/utils/analytics.js` generates a random UUID in `localStorage` per browser (`anonymous_id`, no cookies) and fires `trackEvent()` calls: page view on route change (`App.jsx`), draft completion (`useRosterData.js`, on the SSE `status === 'complete'` event), and feature clicks (e.g. VOR mode toggle in `BestAvailableTable.jsx`). Calls are fire-and-forget — failures are swallowed so tracking never breaks the app.
+- **IAM**: the ECS task role is granted `dynamodb:PutItem`/`Query` scoped to the analytics table only (see `modules/analytics/main.tf`).
+
+---
+
 ## Error Handling Strategy
 
 ### Defensive Programming at Data Layer
@@ -399,6 +410,7 @@ limiter = Limiter(key_func=_client_ip, default_limits=["60/minute"])
 | Endpoint | Limit | Why |
 |----------|-------|-----|
 | `POST /api/v1/feedback` | 5/min per IP | Tightest cap — prevents SES spam |
+| `POST /api/v1/events` | 30/min per IP | Fires on every page view/interaction |
 | All other endpoints | 60/min per IP (default) | Generous for legitimate drafters |
 
 Wired in `src/api/main.py` via `SlowAPIMiddleware` + `_rate_limit_exceeded_handler` (returns HTTP 429).

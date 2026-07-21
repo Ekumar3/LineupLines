@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -37,12 +38,16 @@ from src.api.models import (
 )
 from src.api.storage import load_player_universe, save_player_universe
 from src.api.draft_stream import BroadcasterCapacityError, DraftBroadcaster
+from src.api.correlation import new_correlation_id
+from src.api.logging_config import configure_logging
 from src.api.feedback import router as feedback_router
+from src.api.analytics_tracking import router as analytics_router
 from src.api.rate_limit import limiter, shared_draft_limit
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 import os
@@ -90,6 +95,7 @@ sleeper_projections_client = SleeperProjectionsClient()
 
 
 app.include_router(feedback_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
 
 
 @app.get("/health")
@@ -776,6 +782,8 @@ def get_available_by_position(
     """
     from collections import defaultdict
 
+    correlation_id = new_correlation_id()
+    start = time.time()
     try:
         logger.info(f"Fetching available players by position for draft {draft_id}")
 
@@ -876,6 +884,17 @@ def get_available_by_position(
         logger.info(
             f"Returning available players by position for draft {draft_id} "
             f"at pick {current_overall_pick}"
+        )
+
+        total_duration_ms = round((time.time() - start) * 1000, 1)
+        logger.info(
+            "enriched response ready",
+            extra={
+                "event": "enriched_response_ready",
+                "endpoint": "available-by-position",
+                "draft_id": draft_id,
+                "total_duration_ms": total_duration_ms,
+            },
         )
 
         return AvailableByPositionResponse(
@@ -1376,6 +1395,8 @@ def get_draft_vor_analysis(
     Returns:
         VORAnalysisResponse with top recommendations by position and replacement levels
     """
+    correlation_id = new_correlation_id()
+    start = time.time()
     try:
         # Fetch draft details
         draft = sleeper_client.get_draft_details(draft_id)
@@ -1521,6 +1542,17 @@ def get_draft_vor_analysis(
                 replacement_by_position[pos] = vor.get_replacement_player(pos, rank).get("projected_pts", 0.0)
             except Exception:
                 pass
+
+        total_duration_ms = round((time.time() - start) * 1000, 1)
+        logger.info(
+            "enriched response ready",
+            extra={
+                "event": "enriched_response_ready",
+                "endpoint": "draft-vor",
+                "draft_id": draft_id,
+                "total_duration_ms": total_duration_ms,
+            },
+        )
 
         return VORAnalysisResponse(
             league_id=league_id,
