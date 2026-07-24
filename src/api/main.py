@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.data_sources.sleeper_client import SleeperClient
 from src.data_sources.sleeper_projections_client import SleeperProjectionsClient
 from src.analytics.adp_service import adp_service
+from src.services import adp_sources
 from src.api.models import (
     UserDraftsResponse,
     DraftSummary,
@@ -766,6 +767,7 @@ def get_available_by_position(
     request: Request,
     draft_id: str,
     limit: int = Query(default=20, ge=1, le=100, description="Max players per position"),
+    adp_source: str = Query(default="sleeper", pattern="^(sleeper|fantasypros)$", description="Which ADP source drives adp_delta"),
 ) -> AvailableByPositionResponse:
     """Get available players grouped by position with ADP delta analysis.
 
@@ -776,6 +778,7 @@ def get_available_by_position(
     Args:
         draft_id: The draft ID
         limit: Maximum players to return per position (1-100, default 20)
+        adp_source: Which ADP source to use for adp_delta ("sleeper" or "fantasypros")
 
     Returns:
         Available players grouped by position with ADP deltas
@@ -816,9 +819,19 @@ def get_available_by_position(
         available_by_position = defaultdict(list)
         positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
 
-        # Load Sleeper projections for ADP (24-hour cache, keyed by player_id)
+        # Load Sleeper projections for ADP/points (24-hour cache, keyed by player_id).
+        # projected_pts/avg_ppg always come from here regardless of adp_source, since
+        # no other ADP provider supplies points projections.
         _avail_year = int(draft_details.get("season", 2026))
         sleeper_proj = sleeper_projections_client.fetch_projections(_avail_year, scoring_format)
+
+        # Resolve which ADP source drives adp_delta. Non-Sleeper sources fall back
+        # to Sleeper ADP silently if their snapshot is missing/stale.
+        adp_map, adp_source_available = adp_sources.get_adp_map(
+            adp_source, scoring_format, all_players, sleeper_proj
+        )
+        if adp_source != "sleeper" and not adp_source_available:
+            adp_map, _ = adp_sources.get_adp_map("sleeper", scoring_format, all_players, sleeper_proj)
 
         for player_id, player_data in all_players.items():
             # Skip drafted players
@@ -840,9 +853,10 @@ def get_available_by_position(
             if not player_name:
                 continue
 
-            # Look up Sleeper ADP directly by player_id — no name normalisation needed
+            # Look up ADP directly by player_id from the active source's map.
+            # projected_pts/avg_ppg still come from Sleeper's own projection regardless.
             _proj = sleeper_proj.get(player_id)
-            adp_value = _proj.adp if _proj else None
+            adp_value = adp_map.get(player_id)
 
             # Skip players without ADP data — filters out irrelevant depth/practice players
             if adp_value is None:
@@ -904,6 +918,8 @@ def get_available_by_position(
             scoring_format=scoring_format,
             limit=limit,
             players_by_position=limited_by_position,
+            adp_source=adp_source,
+            adp_source_available=adp_source_available,
         )
 
     except HTTPException:

@@ -370,6 +370,107 @@ class TestGetAvailableByPosition:
             for player in players:
                 assert player["player_id"] not in drafted_ids
 
+    def test_adp_source_fantasypros_available(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """Test adp_source=fantasypros uses the FantasyPros map when available."""
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+        }
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.adp_sources.get_adp_map",
+            return_value=({"5000": 30.0}, True),
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=fantasypros"
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["adp_source"] == "fantasypros"
+        assert data["adp_source_available"] is True
+
+        qbs = data["players_by_position"]["QB"]
+        mahomes = next((p for p in qbs if "Mahomes" in p["player_name"]), None)
+        assert mahomes is not None
+        assert mahomes["adp_ppr"] == 30.0
+        assert mahomes["adp_delta"] == -5.0  # 25 - 30.0
+        # projected_pts still comes from Sleeper regardless of ADP source
+        assert mahomes["projected_pts"] == 200.0
+
+    def test_adp_source_fantasypros_unavailable_falls_back_to_sleeper(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """Test adp_source=fantasypros falls back to Sleeper ADP when unavailable."""
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+        }
+
+        def fake_get_adp_map(source, scoring_format, all_players, sleeper_proj):
+            if source == "fantasypros":
+                return {}, False
+            return (
+                {pid: proj.adp for pid, proj in sleeper_proj.items() if proj.adp is not None},
+                True,
+            )
+
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.adp_sources.get_adp_map",
+            side_effect=fake_get_adp_map,
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=fantasypros"
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["adp_source"] == "fantasypros"
+        assert data["adp_source_available"] is False
+
+        qbs = data["players_by_position"]["QB"]
+        mahomes = next((p for p in qbs if "Mahomes" in p["player_name"]), None)
+        assert mahomes is not None
+        assert mahomes["adp_ppr"] == 45.2  # fell back to Sleeper ADP
+
+    def test_adp_source_invalid_value_rejected(self, client, mock_draft_details):
+        """Test adp_source is validated against the allowed pattern."""
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
+            )
+        assert response.status_code == 422
+
     def test_limit_validation(self, client, mock_draft_details):
         """Test that limit parameter is validated (1-100)."""
         with patch(

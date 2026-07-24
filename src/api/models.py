@@ -294,6 +294,8 @@ class AvailableByPositionResponse(BaseModel):
                     "K": [],
                     "DEF": [],
                 },
+                "adp_source": "sleeper",
+                "adp_source_available": True,
             }
         }
     )
@@ -309,6 +311,11 @@ class AvailableByPositionResponse(BaseModel):
     limit: int = Field(..., description="Max players returned per position")
     players_by_position: Dict[str, List[AvailablePlayerDetail]] = Field(
         ..., description="Available players by position, sorted by ADP delta descending"
+    )
+    adp_source: str = Field(..., description="Requested ADP source: sleeper or fantasypros")
+    adp_source_available: bool = Field(
+        ...,
+        description="False if the requested non-Sleeper source had no fresh (<48h) snapshot and the response fell back to Sleeper ADP",
     )
 
 

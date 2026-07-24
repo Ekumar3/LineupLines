@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useVORAnalysis } from '../../hooks/useVORAnalysis';
 import ADPBadge from '../common/ADPBadge';
-import VORBadge from '../common/VORBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
 
@@ -18,33 +16,11 @@ const POSITION_COLORS = {
 
 const DEFAULT_ROWS = 5;
 
-const MODE_LABELS = {
-  replacement_rank: 'Replacement Level',
-  next_available: 'Next Available',
-};
-
-const MODE_DESCRIPTIONS = {
-  replacement_rank:
-    'VOR vs. the last projected starter at each position (e.g. WR24 in a 12-team league).',
-  next_available:
-    'VOR gap to the next-best player directly below at each position.',
-};
-
 export default function AvailablePlayersTable({ draftId, recommendations, availableData }) {
   const [expanded, setExpanded] = useState(false);
-  const [vorMode, setVorMode] = useState('replacement_rank');
   const [positionFilter, setPositionFilter] = useState('ALL');
 
-  // Fetch alternate-mode data lazily when the user switches away from default
-  const { data: altData, loading: altLoading } = useVORAnalysis(
-    vorMode !== 'replacement_rank' ? draftId : null,
-    vorMode
-  );
-
-  const activeRecs =
-    vorMode === 'replacement_rank'
-      ? recommendations
-      : altData?.recommendations ?? [];
+  const activeRecs = recommendations;
 
   const adpByPlayerId = useMemo(() => {
     if (!availableData?.players_by_position) return {};
@@ -77,30 +53,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
       {/* Header row */}
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-white">Best Available (by VOR)</h2>
-          <p className="text-sleeper-gray-400 text-sm mt-1">
-            {MODE_DESCRIPTIONS[vorMode]}
-          </p>
-        </div>
-
-        {/* Mode toggle */}
-        <div className="flex rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium shrink-0">
-          {Object.entries(MODE_LABELS).map(([mode, label]) => (
-            <button
-              key={mode}
-              onClick={() => {
-                setVorMode(mode);
-                setExpanded(false);
-              }}
-              className={`px-3 py-1.5 transition-colors ${
-                vorMode === mode
-                  ? 'bg-sleeper-blue text-white'
-                  : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <h2 className="text-lg font-semibold text-white">Best Available</h2>
         </div>
       </div>
 
@@ -125,9 +78,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-sleeper-gray-700">
-        {altLoading && vorMode !== 'replacement_rank' ? (
-          <div className="p-4 text-sleeper-gray-400 text-sm text-center">Loading…</div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="p-4 text-sleeper-gray-400 text-sm text-center">
             No available players at this position.
           </div>
@@ -139,7 +90,6 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                 <th className="px-3 py-2">Player</th>
                 <th className="px-3 py-2">Pos</th>
                 <th className="px-3 py-2">ADP Delta</th>
-                <th className="px-3 py-2">VOR</th>
                 <th className="px-3 py-2">Proj Pts</th>
                 <th className="px-3 py-2">PPG</th>
                 <th className="px-3 py-2 hidden sm:table-cell">Tier</th>
@@ -172,17 +122,6 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                     </td>
                     <td className="px-3 py-2">
                       <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
-                    </td>
-                    <td className="px-3 py-2">
-                      <VORBadge
-                        vorScore={rec.vor_score}
-                        interpretation={rec.interpretation}
-                        replacementPlayerId={rec.replacement_player_id}
-                        replacementPlayerName={rec.replacement_player_name}
-                        replacementPlayerTeam={rec.replacement_player_team}
-                        replacementPlayerPosition={rec.position}
-                        replacementPlayerPoints={rec.replacement_player_points}
-                      />
                     </td>
                     <td className="px-3 py-2 text-sleeper-gray-300">
                       {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}

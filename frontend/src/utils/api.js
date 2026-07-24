@@ -52,9 +52,9 @@ export const draftAPI = {
   },
 
   // Get available players by position with ADP delta
-  getAvailableByPosition: async (draftId, limit = 20) => {
+  getAvailableByPosition: async (draftId, limit = 20, adpSource = 'sleeper') => {
     const response = await api.get(
-      `/drafts/${draftId}/available-by-position?limit=${limit}`
+      `/drafts/${draftId}/available-by-position?limit=${limit}&adp_source=${adpSource}`
     );
     return response.data;
   }

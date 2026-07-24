@@ -165,7 +165,8 @@
       "Bash(terraform fmt *)",
       "Bash(terraform validate *)",
       "Bash(terraform init *)",
-      "Bash(openssl rand *)"
+      "Bash(openssl rand *)",
+      "Bash(python -m pytest tests/test_adp_sources.py tests/test_available_by_position.py -v)"
     ]
   }
 }

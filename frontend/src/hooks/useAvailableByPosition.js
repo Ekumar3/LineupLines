@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { draftAPI } from '../utils/api';
 
-export const useAvailableByPosition = (draftId, limit = 20) => {
+export const useAvailableByPosition = (draftId, limit = 20, adpSource = 'sleeper') => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,7 +18,7 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
       inFlight.current = true;
       try {
         if (!initialLoadDone.current) setLoading(true);
-        const availableData = await draftAPI.getAvailableByPosition(draftId, limit);
+        const availableData = await draftAPI.getAvailableByPosition(draftId, limit, adpSource);
         if (cancelled) return;
         const json = JSON.stringify(availableData);
         if (json !== prevDataJson.current) {
@@ -72,7 +72,7 @@ export const useAvailableByPosition = (draftId, limit = 20) => {
         clearInterval(pollInterval);
       };
     }
-  }, [draftId, limit]);
+  }, [draftId, limit, adpSource]);
 
   return { data, loading, error, lastPolled };
 };

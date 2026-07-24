@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import { useVORAnalysis } from '../../hooks/useVORAnalysis';
@@ -11,9 +11,15 @@ import ErrorMessage from '../common/ErrorMessage';
 
 const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
+const ADP_SOURCE_LABELS = {
+  sleeper: 'Sleeper',
+  fantasypros: 'FantasyPros',
+};
+
 export default function RosterView({ draftId, userId }) {
+  const [adpSource, setAdpSource] = useState('sleeper');
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
-  const { data: availableData } = useAvailableByPosition(draftId, 20);
+  const { data: availableData } = useAvailableByPosition(draftId, 20, adpSource);
   const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
   const { draftStatus } = useNextPick(draftId, userId);
 
@@ -60,7 +66,41 @@ export default function RosterView({ draftId, userId }) {
           </div>
         </div>
 
-        {/* Best Available by VOR, filterable by position */}
+        {/* ADP source toggle */}
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
+            ADP Source
+          </span>
+          <div className="flex rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium w-fit">
+            {Object.entries(ADP_SOURCE_LABELS).map(([source, label]) => (
+              <button
+                key={source}
+                onClick={() => setAdpSource(source)}
+                className={`px-3 py-1.5 transition-colors ${
+                  adpSource === source
+                    ? 'bg-sleeper-blue text-white'
+                    : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ADP source warnings */}
+        {adpSource !== 'sleeper' && availableData?.adp_source_available === false && (
+          <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
+            {ADP_SOURCE_LABELS[adpSource]} ADP unavailable — showing Sleeper ADP
+          </div>
+        )}
+        {adpSource === 'fantasypros' && availableData?.adp_source_available && availableData?.scoring_format !== 'ppr' && (
+          <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
+            FantasyPros ADP shown is PPR — your league scoring is {availableData.scoring_format}.
+          </div>
+        )}
+
+        {/* Best Available, filterable by position */}
         {vorData?.recommendations?.length > 0 && (
           <AvailablePlayersTable
             draftId={draftId}
