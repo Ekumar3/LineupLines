@@ -1,0 +1,8 @@
+.astro/
+logs/
+airflow.db
+airflow_settings.yaml
+*.pyc
+__pycache__/
+.env
+include/vendored_src/

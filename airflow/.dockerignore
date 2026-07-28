@@ -1,0 +1,6 @@
+.git
+.astro
+logs/
+airflow.db
+.env
+tests/

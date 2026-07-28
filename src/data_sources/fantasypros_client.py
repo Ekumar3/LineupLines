@@ -5,6 +5,7 @@ Provides historical ADP data for building draft recommendations.
 """
 
 import logging
+import re
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
@@ -28,6 +29,7 @@ class Player:
     round: int
     scoring_format: str
     updated_at: datetime
+    tier: int = 0
 
 
 class FantasyProsClient:
@@ -132,6 +134,7 @@ class FantasyProsClient:
                     round=p["round"],
                     scoring_format=p["scoring_format"],
                     updated_at=datetime.utcnow(),
+                    tier=p.get("tier", 0),
                 )
                 for p in players_data
             ]
@@ -244,21 +247,40 @@ class FantasyProsClient:
                 driver.get(url)
                 logger.debug("Page loaded, waiting for ranking table...")
 
-                # Wait for ranking table to load (more resilient timeout handling)
+                # Wait for ranking table rows to load and stop growing. The table element
+                # renders immediately as an empty skeleton, then player rows stream in via
+                # a follow-up API call in batches, so waiting for a single row can still
+                # capture page_source mid-render with only a handful of rows present.
                 table_found = False
                 try:
-                    wait = WebDriverWait(driver, 15)
-                    table_element = wait.until(
-                        EC.presence_of_element_located((By.ID, "ranking-table"))
+                    wait = WebDriverWait(driver, 20)
+                    wait.until(
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
+                        )
                     )
-                    logger.debug(
-                        f"Table found! Tag: {table_element.tag_name}, Classes: {table_element.get_attribute('class')}"
+
+                    last_count = -1
+
+                    def _rows_stopped_growing(d):
+                        nonlocal last_count
+                        count = len(
+                            d.find_elements(By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
+                        )
+                        stable = count > 0 and count == last_count
+                        last_count = count
+                        return stable
+
+                    wait.until(_rows_stopped_growing)
+                    row_count = len(
+                        driver.find_elements(By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
                     )
+                    logger.debug(f"Table rows stabilized: {row_count} player rows")
                     table_found = True
                 except Exception as wait_error:
                     # Table didn't load in time, but try to get whatever HTML we have
                     logger.warning(
-                        f"Table timeout after 15s: {type(wait_error).__name__}. Attempting fallback..."
+                        f"Table timeout after 20s: {type(wait_error).__name__}. Attempting fallback..."
                     )
 
                 # Get rendered HTML (works even if table wait failed)
@@ -321,6 +343,7 @@ class FantasyProsClient:
                     "adp_by_position": p.adp_by_position,
                     "round": p.round,
                     "scoring_format": p.scoring_format,
+                    "tier": p.tier,
                 }
                 for p in players
             ]
@@ -415,8 +438,18 @@ class FantasyProsClient:
 
         rows = tbody.find_all("tr")
 
+        current_tier = 1
+
         for idx, row in enumerate(rows, 1):
             try:
+                row_classes = row.get("class") or []
+                if "tier-row" in row_classes:
+                    tier_text = row.get_text(" ", strip=True)
+                    match = re.search(r"Tier\s+(\d+)", tier_text)
+                    if match:
+                        current_tier = int(match.group(1))
+                    continue
+
                 cols = row.find_all("td")
                 if len(cols) < 7:  # Need at least up to col 6 for ADP
                     continue
@@ -468,7 +501,8 @@ class FantasyProsClient:
                     adp_by_position=adp_by_position,
                     round=round_num,
                     scoring_format=scoring_format,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
+                    tier=current_tier,
                 )
 
                 players.append(player)
@@ -565,7 +599,8 @@ class FantasyProsClient:
                     adp_by_position=p["adp_by_position"],
                     round=p["round"],
                     scoring_format=scoring_format,
-                    updated_at=datetime.fromisoformat(p["updated_at"])
+                    updated_at=datetime.fromisoformat(p["updated_at"]),
+                    tier=p.get("tier", 0),
                 )
                 for p in data
             ]
@@ -604,7 +639,8 @@ class FantasyProsClient:
                     "adp_by_position": p.adp_by_position,
                     "round": p.round,
                     "scoring_format": p.scoring_format,
-                    "updated_at": p.updated_at.isoformat()
+                    "updated_at": p.updated_at.isoformat(),
+                    "tier": p.tier,
                 }
                 for p in players
             ]

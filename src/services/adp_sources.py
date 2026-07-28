@@ -10,8 +10,15 @@ scraping pipeline at s3://{ADP_S3_BUCKET}/adp/{source}/{scoring_format}/latest.j
       "scraped_at": "2026-07-20T08:00:00Z",
       "source": "fantasypros",
       "scoring_format": "ppr",
-      "players": {"normalized_player_name": 4.2}
+      "players": [
+        {"name": "josh allen", "position": "QB", "team": "BUF", "adp": 25.0},
+        {"name": "josh allen", "position": "LB", "team": "JAX", "adp": 410.0}
+      ]
     }
+
+External sources have no shared player_id with Sleeper, so players are joined
+by (normalized_name, position) — position is required because name alone isn't
+unique (e.g. the real QB Josh Allen and LB Josh Allen both play in the NFL).
 
 Adding a new externally-scraped source (DraftSharks, FantasyPoints, ...) means
 adding its name to EXTERNAL_SOURCES below — no endpoint changes required.
@@ -87,22 +94,31 @@ def _load_external_snapshot(source: str, scoring_format: str, all_players: dict,
         )
         return {}, False
 
-    name_players = snapshot.get("players") or {}
+    snapshot_players = snapshot.get("players") or []
 
-    # Build normalized_name -> player_id from the universe so we can join by name.
-    normalized_to_id: Dict[str, str] = {}
+    # Build (normalized_name, position) -> player_id from the universe so we can
+    # join without a shared player_id. Position is required to disambiguate
+    # same-named players at different positions (e.g. Josh Allen QB vs. LB).
+    normalized_to_id: Dict[Tuple[str, str], str] = {}
     for player_id, player_data in all_players.items():
         first = player_data.get("first_name", "")
         last = player_data.get("last_name", "")
         name = f"{first} {last}".strip()
-        if not name:
+        position = player_data.get("position")
+        if not name or not position:
             continue
-        normalized_to_id[adp_service.normalize_player_name(name)] = player_id
+        normalized_to_id[(adp_service.normalize_player_name(name), position)] = player_id
 
     adp_map: Dict[str, float] = {}
-    for raw_name, adp_value in name_players.items():
-        player_id = normalized_to_id.get(adp_service.normalize_player_name(raw_name))
-        if player_id is not None and adp_value is not None:
+    for entry in snapshot_players:
+        raw_name = entry.get("name")
+        position = entry.get("position")
+        adp_value = entry.get("adp")
+        if raw_name is None or position is None or adp_value is None:
+            continue
+
+        player_id = normalized_to_id.get((adp_service.normalize_player_name(raw_name), position))
+        if player_id is not None:
             adp_map[player_id] = float(adp_value)
 
     return adp_map, True
