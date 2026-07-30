@@ -1,16 +1,16 @@
-"""Convert a local FantasyPros ADP snapshot into the S3 schema adp_sources.py
-expects, and upload it so the "FantasyPros" ADP source toggle has real data.
+"""Convert a local DraftSharks ADP snapshot into the S3 schema adp_sources.py
+expects, and upload it so the "DraftSharks" ADP source toggle has real data.
 
-Reads from the same local snapshot FantasyProsClient already uses
+Reads from the same local snapshot DraftSharksClient already uses
 (data/players/{format}_*_players.json, or live-scrapes if none exists), then
-uploads s3://{ADP_S3_BUCKET}/adp/fantasypros/{format}/latest.json in the shape:
+uploads s3://{ADP_S3_BUCKET}/adp/draftsharks/{format}/latest.json in the shape:
 
     {
       "scraped_at": "<utc iso8601>",
-      "source": "fantasypros",
+      "source": "draftsharks",
       "scoring_format": "ppr",
       "players": [
-        {"name": "josh allen", "position": "QB", "team": "BUF", "adp": 25.0}
+        {"name": "josh allen", "position": "QB", "team": "BUF", "adp": 25.0, "tier": 3, "positional_tier": 2}
       ]
     }
 
@@ -19,9 +19,9 @@ Position is included alongside each name because name alone isn't a unique key
 reader joins on (normalized_name, position), not name alone.
 
 Usage:
-    python scripts/upload_fantasypros_adp_snapshot.py
-    python scripts/upload_fantasypros_adp_snapshot.py --format ppr
-    python scripts/upload_fantasypros_adp_snapshot.py --format ppr --dry-run
+    python scripts/upload_draftsharks_adp_snapshot.py
+    python scripts/upload_draftsharks_adp_snapshot.py --format ppr
+    python scripts/upload_draftsharks_adp_snapshot.py --format ppr --dry-run
 """
 
 import argparse
@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data_sources.fantasypros_client import FantasyProsClient
+from src.data_sources.draft_sharks_client import DraftSharksClient
 from src.analytics.adp_service import adp_service
 
 logging.basicConfig(
@@ -44,11 +44,11 @@ logger = logging.getLogger(__name__)
 
 
 def build_snapshot(scoring_format: str) -> dict:
-    """Fetch the local/cached FantasyPros ADP data and convert to the S3 schema."""
-    client = FantasyProsClient()
+    """Fetch the local/cached DraftSharks ADP data and convert to the S3 schema."""
+    client = DraftSharksClient()
     players = client.fetch_adp_data(scoring_format)
     if not players:
-        raise RuntimeError(f"No FantasyPros ADP data available for format '{scoring_format}'")
+        raise RuntimeError(f"No DraftSharks ADP data available for format '{scoring_format}'")
 
     player_records = [
         {
@@ -56,13 +56,15 @@ def build_snapshot(scoring_format: str) -> dict:
             "position": p.position,
             "team": p.team,
             "adp": p.adp_overall,
+            "tier": p.tier,
+            "positional_tier": p.positional_tier,
         }
         for p in players
     ]
 
     return {
         "scraped_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "source": "fantasypros",
+        "source": "draftsharks",
         "scoring_format": scoring_format,
         "players": player_records,
     }
@@ -76,7 +78,7 @@ def upload_snapshot(snapshot: dict, scoring_format: str) -> None:
     if not bucket:
         raise RuntimeError("ADP_S3_BUCKET environment variable is not set")
 
-    key = f"adp/fantasypros/{scoring_format}/latest.json"
+    key = f"adp/draftsharks/{scoring_format}/latest.json"
     s3 = boto3.client("s3")
     s3.put_object(
         Bucket=bucket,
@@ -107,7 +109,7 @@ def main():
     )
     args = parser.parse_args()
 
-    logger.info(f"Building FantasyPros ADP snapshot for format '{args.format}'...")
+    logger.info(f"Building DraftSharks ADP snapshot for format '{args.format}'...")
     snapshot = build_snapshot(args.format)
     logger.info(f"Built snapshot with {len(snapshot['players'])} players (scraped_at={snapshot['scraped_at']})")
 

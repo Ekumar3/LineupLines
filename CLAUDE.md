@@ -2,7 +2,7 @@
 
 > **Audience:** Built for new drafters who want clear guidance on who to pick, while giving experienced drafters the ADP, VOR, and positional depth they need.
 
-Fantasy Football draft helper — FastAPI backend + React frontend. Integrates with Sleeper and scrapes FantasyPros for ADP data.
+Fantasy Football draft helper — FastAPI backend + React frontend. Integrates with Sleeper and scrapes DraftSharks for ADP and tier data.
 
 ## Dev Commands
 

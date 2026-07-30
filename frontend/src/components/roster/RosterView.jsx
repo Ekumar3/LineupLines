@@ -13,7 +13,7 @@ const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
 const ADP_SOURCE_LABELS = {
   sleeper: 'Sleeper',
-  fantasypros: 'FantasyPros',
+  draftsharks: 'DraftSharks',
 };
 
 export default function RosterView({ draftId, userId }) {
@@ -94,9 +94,9 @@ export default function RosterView({ draftId, userId }) {
             {ADP_SOURCE_LABELS[adpSource]} ADP unavailable — showing Sleeper ADP
           </div>
         )}
-        {adpSource === 'fantasypros' && availableData?.adp_source_available && availableData?.scoring_format !== 'ppr' && (
+        {adpSource === 'draftsharks' && availableData?.adp_source_available && availableData?.scoring_format !== 'ppr' && (
           <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
-            FantasyPros ADP shown is PPR — your league scoring is {availableData.scoring_format}.
+            DraftSharks ADP shown is PPR — your league scoring is {availableData.scoring_format}.
           </div>
         )}
 

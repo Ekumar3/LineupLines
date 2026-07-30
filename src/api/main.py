@@ -767,7 +767,7 @@ def get_available_by_position(
     request: Request,
     draft_id: str,
     limit: int = Query(default=20, ge=1, le=100, description="Max players per position"),
-    adp_source: str = Query(default="sleeper", pattern="^(sleeper|fantasypros)$", description="Which ADP source drives adp_delta"),
+    adp_source: str = Query(default="sleeper", pattern="^(sleeper|draftsharks)$", description="Which ADP source drives adp_delta"),
 ) -> AvailableByPositionResponse:
     """Get available players grouped by position with ADP delta analysis.
 
@@ -778,7 +778,7 @@ def get_available_by_position(
     Args:
         draft_id: The draft ID
         limit: Maximum players to return per position (1-100, default 20)
-        adp_source: Which ADP source to use for adp_delta ("sleeper" or "fantasypros")
+        adp_source: Which ADP source to use for adp_delta ("sleeper" or "draftsharks")
 
     Returns:
         Available players grouped by position with ADP deltas
@@ -827,11 +827,11 @@ def get_available_by_position(
 
         # Resolve which ADP source drives adp_delta. Non-Sleeper sources fall back
         # to Sleeper ADP silently if their snapshot is missing/stale.
-        adp_map, adp_source_available = adp_sources.get_adp_map(
+        adp_map, tier_map, adp_source_available = adp_sources.get_adp_map(
             adp_source, scoring_format, all_players, sleeper_proj
         )
         if adp_source != "sleeper" and not adp_source_available:
-            adp_map, _ = adp_sources.get_adp_map("sleeper", scoring_format, all_players, sleeper_proj)
+            adp_map, tier_map, _ = adp_sources.get_adp_map("sleeper", scoring_format, all_players, sleeper_proj)
 
         for player_id, player_data in all_players.items():
             # Skip drafted players
@@ -868,6 +868,7 @@ def get_available_by_position(
             adp_delta = current_overall_pick - adp_value
 
             # Create player detail
+            player_tier = tier_map.get(player_id)
             available_player = AvailablePlayerDetail(
                 player_id=player_id,
                 player_name=player_name,
@@ -879,6 +880,8 @@ def get_available_by_position(
                 adp_delta=adp_delta,
                 projected_pts=round(_proj.projected_pts, 1) if _proj else None,
                 avg_ppg=round(_proj.avg_ppg, 1) if _proj else None,
+                tier=player_tier.get("tier") if player_tier else None,
+                positional_tier=player_tier.get("positional_tier") if player_tier else None
             )
 
             available_by_position[position].append(available_player)

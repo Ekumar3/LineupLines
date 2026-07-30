@@ -207,7 +207,7 @@ class PickDetail(BaseModel):
     position: str = Field(..., description="Player position (RB, WR, QB, TE, etc.)")
     team: str = Field(..., description="NFL team abbreviation")
     timestamp: str = Field(..., description="When the pick was made (ISO format)")
-    adp_ppr: Optional[float] = Field(None, description="Player's ADP in PPR format from FantasyPros (e.g., 8.1)")
+    adp_ppr: Optional[float] = Field(None, description="Player's ADP in PPR format from DraftSharks (e.g., 8.1)")
     adp_delta: Optional[float] = Field(None, description="Delta between pick and ADP (positive=value/picked later than ADP, negative=reach/picked earlier). Calculated as: pick_no - adp_ppr")
 
 
@@ -256,6 +256,8 @@ class AvailablePlayerDetail(BaseModel):
                 "adp_delta": 10.2,
                 "projected_pts": 245.6,
                 "avg_ppg": 14.5,
+                "tier": 1,
+                "positional_tier": 1
             }
         }
     )
@@ -273,6 +275,8 @@ class AvailablePlayerDetail(BaseModel):
     )
     projected_pts: Optional[float] = Field(None, description="Season-total projected fantasy points")
     avg_ppg: Optional[float] = Field(None, description="Projected average fantasy points per game")
+    tier: Optional[int] = Field(None, description="Overall tier for this player based on ADP and projections")
+    positional_tier: Optional[int] = Field(None, description="Tier for this player within their position group based on ADP and projections")
 
 
 class AvailableByPositionResponse(BaseModel):
@@ -312,7 +316,7 @@ class AvailableByPositionResponse(BaseModel):
     players_by_position: Dict[str, List[AvailablePlayerDetail]] = Field(
         ..., description="Available players by position, sorted by ADP delta descending"
     )
-    adp_source: str = Field(..., description="Requested ADP source: sleeper or fantasypros")
+    adp_source: str = Field(..., description="Requested ADP source: sleeper or draftsharks")
     adp_source_available: bool = Field(
         ...,
         description="False if the requested non-Sleeper source had no fresh (<48h) snapshot and the response fell back to Sleeper ADP",

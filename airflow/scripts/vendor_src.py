@@ -23,7 +23,7 @@ VENDOR_SRC_PKG = VENDOR_ROOT / "src"
 FILES_TO_VENDOR = [
     "__init__.py",
     "data_sources/__init__.py",
-    "data_sources/fantasypros_client.py",
+    "data_sources/draft_sharks_client.py",
     "data_sources/sleeper_client.py",
     "analytics/__init__.py",
     "analytics/adp_service.py",

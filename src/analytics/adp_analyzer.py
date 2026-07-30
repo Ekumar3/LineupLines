@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from collections import defaultdict
-from src.data_sources.fantasypros_client import Player
+from src.data_sources.draft_sharks_client import Player
 
 logger = logging.getLogger(__name__)
 

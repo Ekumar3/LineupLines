@@ -1,21 +1,21 @@
-"""FantasyPros ADP scraping source.
+"""DraftSharks ADP + tier scraping source.
 
-Wraps the existing src/data_sources/fantasypros_client.py (vendored into
-include/vendored_src/) rather than re-implementing the scrape/parse logic.
+Wraps src/data_sources/draft_sharks_client.py rather than re-implementing the
+scrape/parse logic.
 """
 
-from src.data_sources.fantasypros_client import FantasyProsClient
+from src.data_sources.draft_sharks_client import DraftSharksClient
 from src.analytics.adp_service import adp_service
 
 from adp_sources.base import BaseADPScraper
 
 
-class FantasyProsSource(BaseADPScraper):
-    source_name = "fantasypros"
-    supported_formats = FantasyProsClient.SCORING_FORMATS
+class DraftSharksSource(BaseADPScraper):
+    source_name = "draftsharks"
+    supported_formats = DraftSharksClient.SCORING_FORMATS
 
     def __init__(self) -> None:
-        self._client = FantasyProsClient()
+        self._client = DraftSharksClient()
 
     def scrape(self, scoring_format: str) -> list[dict[str, object]]:
         players = self._client.fetch_adp_data(scoring_format)
@@ -25,6 +25,8 @@ class FantasyProsSource(BaseADPScraper):
                 "position": p.position,
                 "team": p.team,
                 "adp": p.adp_overall,
+                "tier": p.tier,
+                "positional_tier": p.positional_tier,
             }
             for p in players
         ]

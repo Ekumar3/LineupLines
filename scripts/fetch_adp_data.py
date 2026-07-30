@@ -1,4 +1,4 @@
-"""Script to fetch and process FantasyPros ADP data locally.
+"""Script to fetch and process DraftSharks ADP data locally.
 
 Usage:
     python scripts/fetch_adp_data.py
@@ -14,7 +14,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data_sources.fantasypros_client import FantasyProsClient
+from src.data_sources.draft_sharks_client import DraftSharksClient
 from src.analytics.adp_analyzer import ADPAnalyzer
 
 # Configure logging
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Fetch and analyze ADP data."""
     parser = argparse.ArgumentParser(
-        description="Fetch FantasyPros ADP data and analyze draft patterns"
+        description="Fetch DraftSharks ADP data and analyze draft patterns"
     )
     parser.add_argument(
         "--format",
@@ -56,14 +56,14 @@ def main():
     args = parser.parse_args()
 
     # Initialize client
-    client = FantasyProsClient()
+    client = DraftSharksClient()
 
     # Fetch or load data
     if args.load_file:
         logger.info(f"Loading ADP data from {args.load_file}")
         players = client.load_from_file(args.load_file, args.format)
     else:
-        logger.info(f"Fetching {args.format} ADP data from FantasyPros...")
+        logger.info(f"Fetching {args.format} ADP data from DraftSharks...")
         try:
             players = client.fetch_adp_data(args.format)
         except Exception as e:

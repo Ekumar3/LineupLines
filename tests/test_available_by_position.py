@@ -370,10 +370,10 @@ class TestGetAvailableByPosition:
             for player in players:
                 assert player["player_id"] not in drafted_ids
 
-    def test_adp_source_fantasypros_available(
+    def test_adp_source_draftsharks_available(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
-        """Test adp_source=fantasypros uses the FantasyPros map when available."""
+        """Test adp_source=draftsharks uses the DraftSharks map when available."""
         mock_projections = {
             "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
         }
@@ -393,15 +393,15 @@ class TestGetAvailableByPosition:
             return_value=mock_projections,
         ), patch(
             "src.api.main.adp_sources.get_adp_map",
-            return_value=({"5000": 30.0}, True),
+            return_value=({"5000": 30.0}, {}, True),
         ):
             response = client.get(
-                "/api/v1/drafts/123/available-by-position?adp_source=fantasypros"
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
             )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["adp_source"] == "fantasypros"
+        assert data["adp_source"] == "draftsharks"
         assert data["adp_source_available"] is True
 
         qbs = data["players_by_position"]["QB"]
@@ -412,19 +412,20 @@ class TestGetAvailableByPosition:
         # projected_pts still comes from Sleeper regardless of ADP source
         assert mahomes["projected_pts"] == 200.0
 
-    def test_adp_source_fantasypros_unavailable_falls_back_to_sleeper(
+    def test_adp_source_draftsharks_unavailable_falls_back_to_sleeper(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):
-        """Test adp_source=fantasypros falls back to Sleeper ADP when unavailable."""
+        """Test adp_source=draftsharks falls back to Sleeper ADP when unavailable."""
         mock_projections = {
             "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
         }
 
         def fake_get_adp_map(source, scoring_format, all_players, sleeper_proj):
-            if source == "fantasypros":
-                return {}, False
+            if source == "draftsharks":
+                return {}, {}, False
             return (
                 {pid: proj.adp for pid, proj in sleeper_proj.items() if proj.adp is not None},
+                {},
                 True,
             )
 
@@ -447,12 +448,12 @@ class TestGetAvailableByPosition:
             side_effect=fake_get_adp_map,
         ):
             response = client.get(
-                "/api/v1/drafts/123/available-by-position?adp_source=fantasypros"
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
             )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["adp_source"] == "fantasypros"
+        assert data["adp_source"] == "draftsharks"
         assert data["adp_source_available"] is False
 
         qbs = data["players_by_position"]["QB"]
@@ -467,7 +468,7 @@ class TestGetAvailableByPosition:
             return_value=mock_draft_details,
         ):
             response = client.get(
-                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
+                "/api/v1/drafts/123/available-by-position?adp_source=fantasypros"
             )
         assert response.status_code == 422
 

@@ -1,6 +1,6 @@
 """ADP Service - Manages ADP data fetching and caching for draft recommendations.
 
-This service layer coordinates ADP data from FantasyPros with player availability
+This service layer coordinates ADP data from draft sharks with player availability
 to calculate value scores and enhance draft recommendations.
 """
 
@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
-from src.data_sources.fantasypros_client import FantasyProsClient
+from src.data_sources.draft_sharks_client import DraftSharksClient
 from src.analytics.adp_analyzer import ADPAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class ADPService:
 
     def __init__(self):
         """Initialize ADP service with dependencies."""
-        self.fp_client = FantasyProsClient()
+        self.ds_client = DraftSharksClient()
         self.analyzers: Dict[str, ADPAnalyzer] = {}  # Format -> Analyzer
         self.last_refresh: Dict[str, datetime] = {}
         self.cache_duration = timedelta(hours=24)
@@ -52,7 +52,7 @@ class ADPService:
 
         Args:
             scoring_format: One of "ppr", "half_ppr", "standard"
-            force_refresh: Force fetch from FantasyPros, bypassing cache
+            force_refresh: Force fetch from draft sharks, bypassing cache
 
         Returns:
             List of Player objects with ADP data, or None if fetch fails
@@ -61,7 +61,7 @@ class ADPService:
         if not force_refresh and scoring_format in self.last_refresh:
             age = datetime.utcnow() - self.last_refresh[scoring_format]
             if age < self.cache_duration:
-                cached = self.fp_client.get_cached_data(scoring_format)
+                cached = self.ds_client.get_cached_data(scoring_format)
                 if cached:
                     logger.info(f"Using cached ADP data for {scoring_format} (age: {age.total_seconds():.0f}s)")
                     return cached
@@ -69,7 +69,7 @@ class ADPService:
         # Fetch fresh data
         logger.info(f"Fetching fresh ADP data for {scoring_format}")
         try:
-            players = self.fp_client.fetch_adp_data(scoring_format)
+            players = self.ds_client.fetch_adp_data(scoring_format)
 
             if players:
                 self.last_refresh[scoring_format] = datetime.utcnow()

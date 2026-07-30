@@ -14,6 +14,14 @@ const POSITION_COLORS = {
   DEF: 'bg-sleeper-gray-700 text-sleeper-gray-300',
 };
 
+const TIER_COLORS = [
+  'bg-yellow-900 text-yellow-100',
+  'bg-purple-900 text-purple-100',
+  'bg-teal-900 text-teal-100',
+  'bg-pink-900 text-pink-100',
+  'bg-indigo-900 text-indigo-100',
+];
+
 const DEFAULT_ROWS = 5;
 
 export default function AvailablePlayersTable({ draftId, recommendations, availableData }) {
@@ -27,7 +35,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
     return Object.values(availableData.players_by_position)
       .flat()
       .reduce((acc, p) => {
-        acc[p.player_id] = { adp_delta: p.adp_delta, adp_ppr: p.adp_ppr };
+        acc[p.player_id] = { adp_delta: p.adp_delta, adp_ppr: p.adp_ppr, tier: p.tier, positional_tier: p.positional_tier };
         return acc;
       }, {});
   }, [availableData]);
@@ -37,6 +45,8 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
       ...rec,
       adp_delta: adpByPlayerId[rec.player_id]?.adp_delta ?? null,
       adp_ppr: adpByPlayerId[rec.player_id]?.adp_ppr ?? null,
+      tier: adpByPlayerId[rec.player_id]?.tier ?? null,
+      positional_tier: adpByPlayerId[rec.player_id]?.positional_tier ?? null,
     }));
   }, [activeRecs, adpByPlayerId]);
 
@@ -129,7 +139,20 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                     <td className="px-3 py-2 text-sleeper-gray-300">
                       {rec.avg_ppg != null ? rec.avg_ppg.toFixed(1) : '—'}
                     </td>
-                    <td className="px-3 py-2 text-sleeper-gray-400 text-xs hidden sm:table-cell">{rec.interpretation}</td>
+                    <td className="px-3 py-2 hidden sm:table-cell">
+                      {(() => {
+                        const tierValue = positionFilter === 'ALL' ? rec.tier : rec.positional_tier;
+                        if (tierValue == null) {
+                          return <span className="text-sleeper-gray-400 text-xs">—</span>;
+                        }
+                        const colorClass = TIER_COLORS[(tierValue - 1) % TIER_COLORS.length];
+                        return (
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${colorClass}`}>
+                            T{tierValue}
+                          </span>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 );
               })}

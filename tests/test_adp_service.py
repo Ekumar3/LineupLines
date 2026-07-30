@@ -44,8 +44,8 @@ class TestADPService:
 
     def test_get_adp_data_fetches_fresh(self, adp_service, mock_players_list):
         """Test fetching fresh ADP data."""
-        with patch.object(adp_service.fp_client, "fetch_adp_data", return_value=mock_players_list):
-            with patch.object(adp_service.fp_client, "get_cached_data", return_value=None):
+        with patch.object(adp_service.ds_client, "fetch_adp_data", return_value=mock_players_list):
+            with patch.object(adp_service.ds_client, "get_cached_data", return_value=None):
                 players = adp_service.get_adp_data("ppr")
 
         assert players is not None
@@ -54,13 +54,13 @@ class TestADPService:
 
     def test_get_adp_data_uses_cache(self, adp_service, mock_players_list):
         """Test that cached ADP data is used."""
-        with patch.object(adp_service.fp_client, "fetch_adp_data", return_value=mock_players_list):
-            with patch.object(adp_service.fp_client, "get_cached_data", return_value=mock_players_list):
+        with patch.object(adp_service.ds_client, "fetch_adp_data", return_value=mock_players_list):
+            with patch.object(adp_service.ds_client, "get_cached_data", return_value=mock_players_list):
                 # First call fetches fresh
                 adp_service.get_adp_data("ppr")
 
                 # Second call should use cache
-                with patch.object(adp_service.fp_client, "fetch_adp_data", side_effect=Exception("Should not call")):
+                with patch.object(adp_service.ds_client, "fetch_adp_data", side_effect=Exception("Should not call")):
                     cached = adp_service.get_adp_data("ppr")
                     assert cached is not None
 
@@ -69,8 +69,8 @@ class TestADPService:
         # Set up cache with old timestamp
         adp_service.last_refresh["ppr"] = datetime.utcnow() - timedelta(hours=25)
 
-        with patch.object(adp_service.fp_client, "fetch_adp_data", return_value=mock_players_list):
-            with patch.object(adp_service.fp_client, "get_cached_data", return_value=None):
+        with patch.object(adp_service.ds_client, "fetch_adp_data", return_value=mock_players_list):
+            with patch.object(adp_service.ds_client, "get_cached_data", return_value=None):
                 players = adp_service.get_adp_data("ppr")
 
         # Should have fetched fresh since cache expired
@@ -158,8 +158,8 @@ class TestADPService:
 
     def test_scoring_formats(self, adp_service, mock_players_list):
         """Test that service handles different scoring formats."""
-        with patch.object(adp_service.fp_client, "fetch_adp_data", return_value=mock_players_list):
-            with patch.object(adp_service.fp_client, "get_cached_data", return_value=None):
+        with patch.object(adp_service.ds_client, "fetch_adp_data", return_value=mock_players_list):
+            with patch.object(adp_service.ds_client, "get_cached_data", return_value=None):
                 ppr_players = adp_service.get_adp_data("ppr")
                 half_ppr_players = adp_service.get_adp_data("half_ppr")
                 standard_players = adp_service.get_adp_data("standard")

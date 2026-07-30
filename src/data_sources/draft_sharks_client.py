@@ -1,16 +1,16 @@
-"""FantasyPros ADP data client.
+"""DraftSharks ADP data client.
 
-Fetches Average Draft Position (ADP) data from FantasyPros for multiple scoring formats.
-Provides historical ADP data for building draft recommendations.
+Fetches Average Draft Position (ADP) data and expert tiers from DraftSharks for
+multiple scoring formats. Provides ADP + tier data for building draft
+recommendations.
 """
 
 import logging
-import re
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import json
-import os
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 @dataclass
 class Player:
-    """Represents a player with ADP information."""
+    """Represents a player with ADP and tier information."""
     player_name: str
     position: str
     team: str
@@ -30,35 +30,35 @@ class Player:
     scoring_format: str
     updated_at: datetime
     tier: int = 0
+    positional_tier: int = 0
 
 
-class FantasyProsClient:
-    """Client for fetching FantasyPros ADP data.
+class DraftSharksClient:
+    """Client for fetching DraftSharks ADP + tier data.
 
     Supports multiple scoring formats (PPR, Standard, Half-PPR).
     Data can be fetched via web scraping or cached locally.
     """
 
     SCORING_FORMATS = ["ppr", "standard", "half_ppr"]
-    BASE_URL = "https://www.fantasypros.com/nfl/rankings"
+    BASE_URL = "https://www.draftsharks.com/rankings"
 
     def __init__(self):
-        """Initialize the FantasyPros client."""
+        """Initialize the DraftSharks client."""
         self.data_cache: Dict[str, List[Player]] = {}
         self.last_updated: Dict[str, datetime] = {}
 
     def fetch_adp_data(self, scoring_format: str) -> List[Player]:
-        """Fetch ADP data from FantasyPros for the given scoring format.
+        """Fetch ADP data from DraftSharks for the given scoring format.
 
         Args:
             scoring_format: One of "ppr", "standard", "half_ppr"
 
         Returns:
-            List of Player objects with ADP information
+            List of Player objects with ADP and tier information
 
         Raises:
             ValueError: If scoring_format is not supported
-            Exception: If fetching fails
         """
         if scoring_format not in self.SCORING_FORMATS:
             raise ValueError(
@@ -77,7 +77,7 @@ class FantasyProsClient:
             logger.info(f"Loaded {len(players)} players from saved file")
         else:
             # Fall back to scraping if no saved file exists
-            logger.info(f"No saved ADP file found, fetching from FantasyPros for {scoring_format}")
+            logger.info(f"No saved ADP file found, fetching from DraftSharks for {scoring_format}")
             players = self._scrape_adp_data(scoring_format)
 
         # Cache the data
@@ -123,7 +123,6 @@ class FantasyProsClient:
             with open(latest_file, "r", encoding="utf-8") as f:
                 players_data = json.load(f)
 
-            # Convert dicts back to Player objects
             players = [
                 Player(
                     player_name=p["player_name"],
@@ -135,6 +134,7 @@ class FantasyProsClient:
                     scoring_format=p["scoring_format"],
                     updated_at=datetime.utcnow(),
                     tier=p.get("tier", 0),
+                    positional_tier=p.get("positional_tier", 0),
                 )
                 for p in players_data
             ]
@@ -147,11 +147,13 @@ class FantasyProsClient:
             return None
 
     def _scrape_adp_data(self, scoring_format: str) -> List[Player]:
-        """Scrape ADP data from FantasyPros website.
+        """Scrape ADP + tier data from the DraftSharks rankings page.
 
-        Note: FantasyPros uses JavaScript to render rankings. This method uses Selenium
-        to render the page. If Selenium is unavailable, it falls back to basic requests
-        (which may not work if content is dynamically loaded).
+        Note: DraftSharks renders its rankings table with Alpine.js. All ~250
+        ranked players are present in the DOM on initial load (hidden via
+        `display:none`/`x-show` until scrolled into view) rather than being
+        lazy-loaded via a follow-up API call, so no scroll loop is required -
+        we just need to wait for the Alpine app to finish rendering rows.
 
         Requirements: selenium, beautifulsoup4, requests
 
@@ -171,20 +173,19 @@ class FantasyProsClient:
             )
             return []
 
-        # Map format to URL parameter (cheatsheets pages)
+        # "standard" has no URL suffix - it's the bare /rankings page, not /rankings/standard.
         format_map = {
-            "ppr": "ppr-cheatsheets.php",
-            "standard": "standard-cheatsheets.php",
-            "half_ppr": "half-ppr-cheatsheets.php"
+            "ppr": "ppr",
+            "standard": "",
+            "half_ppr": "half-ppr",
         }
 
-        url = f"{self.BASE_URL}/{format_map[scoring_format]}"
+        suffix = format_map[scoring_format]
+        url = f"{self.BASE_URL}/{suffix}" if suffix else self.BASE_URL
 
         try:
-            # Try to fetch with Selenium for JavaScript rendering
             html_content = self._fetch_with_selenium(url)
             if not html_content:
-                # Fallback to basic requests
                 logger.info("Selenium unavailable, trying basic requests fetch")
                 response = requests.get(url, timeout=30)
                 response.raise_for_status()
@@ -193,18 +194,20 @@ class FantasyProsClient:
             soup = BeautifulSoup(html_content, "html.parser")
             players = self._parse_adp_table(soup, scoring_format)
 
-            logger.info(f"Fetched {len(players)} players from FantasyPros for {scoring_format}")
+            logger.info(f"Fetched {len(players)} players from DraftSharks for {scoring_format}")
             return players
 
         except Exception as e:
-            logger.error(f"Failed to fetch FantasyPros ADP data: {e}")
+            logger.error(f"Failed to fetch DraftSharks ADP data: {e}")
             return []
 
     def _fetch_with_selenium(self, url: str) -> Optional[str]:
         """Fetch page content using Selenium for JavaScript rendering.
 
-        Selenium renders the page with a headless Chrome browser to load dynamically
-        generated content. This is required for FantasyPros cheatsheets pages.
+        DraftSharks only renders the first ~25 players on initial load; the
+        rest are lazy-loaded as the table is scrolled. We repeatedly scroll
+        the table container to the bottom and wait for the player-row tbody
+        count to stop growing (capped at MAX_PLAYERS) before returning.
 
         Args:
             url: URL to fetch
@@ -224,12 +227,10 @@ class FantasyProsClient:
         try:
             logger.debug(f"Fetching {url} with Selenium for JavaScript rendering")
 
-            # Configure headless browser with stability improvements
             options = webdriver.ChromeOptions()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
-            # Additional stability flags
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-extensions")
             options.add_argument("--disable-plugins")
@@ -239,51 +240,31 @@ class FantasyProsClient:
             options.add_argument("--disable-client-side-phishing-detection")
 
             driver = webdriver.Chrome(options=options)
-            driver.set_page_load_timeout(45)  # Increased timeout
-            driver.set_script_timeout(45)  # Added script timeout
+            driver.set_page_load_timeout(45)
+            driver.set_script_timeout(45)
 
             try:
                 logger.debug("Navigating to URL...")
                 driver.get(url)
-                logger.debug("Page loaded, waiting for ranking table...")
+                logger.debug("Page loaded, waiting for player rows to render...")
 
-                # Wait for ranking table rows to load and stop growing. The table element
-                # renders immediately as an empty skeleton, then player rows stream in via
-                # a follow-up API call in batches, so waiting for a single row can still
-                # capture page_source mid-render with only a handful of rows present.
                 table_found = False
                 try:
                     wait = WebDriverWait(driver, 20)
                     wait.until(
                         EC.presence_of_element_located(
-                            (By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
+                            (By.CSS_SELECTOR, "#rankingsTable tbody[data-player-row]")
                         )
                     )
 
-                    last_count = -1
-
-                    def _rows_stopped_growing(d):
-                        nonlocal last_count
-                        count = len(
-                            d.find_elements(By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
-                        )
-                        stable = count > 0 and count == last_count
-                        last_count = count
-                        return stable
-
-                    wait.until(_rows_stopped_growing)
-                    row_count = len(
-                        driver.find_elements(By.CSS_SELECTOR, "#ranking-table tbody tr.player-row")
-                    )
-                    logger.debug(f"Table rows stabilized: {row_count} player rows")
+                    row_count = self._scroll_to_load_all_rows(driver)
+                    logger.debug(f"Player rows stabilized: {row_count} rows")
                     table_found = True
                 except Exception as wait_error:
-                    # Table didn't load in time, but try to get whatever HTML we have
                     logger.warning(
                         f"Table timeout after 20s: {type(wait_error).__name__}. Attempting fallback..."
                     )
 
-                # Get rendered HTML (works even if table wait failed)
                 html_content = driver.page_source
                 if html_content and len(html_content) > 5000:
                     logger.debug(
@@ -296,10 +277,7 @@ class FantasyProsClient:
                     return None
 
             except Exception as e:
-                logger.error(
-                    f"Selenium page navigation failed: {type(e).__name__}: {e}"
-                )
-                # Last resort: try to get whatever HTML is available
+                logger.error(f"Selenium page navigation failed: {type(e).__name__}: {e}")
                 try:
                     html = driver.page_source
                     if len(html) > 1000:
@@ -316,11 +294,72 @@ class FantasyProsClient:
             logger.error(f"Selenium initialization/fetch failed: {type(e).__name__}: {e}")
             return None
 
+    def _scroll_to_load_all_rows(
+        self,
+        driver,
+        required_stable_reads: int = 4,
+        poll_interval: float = 1.0,
+        max_total_wait: float = 45.0,
+    ) -> int:
+        """Trigger DraftSharks' lazy-loaded player rows and wait for them to settle.
+
+        A single scroll trigger appears to cause the site to render its full
+        player list (observed ~980 rows across all positions incl. IDP)
+        client-side in one batch, but that render isn't always instantaneous -
+        polling for a fixed "did it grow in N seconds" was unreliable because
+        it could catch the count mid-batch. Instead we poll the row count on
+        an interval and require several consecutive identical reads before
+        trusting it's finished, re-scrolling each time it hasn't stabilized
+        yet, bounded by max_total_wait as a safety net.
+
+        Args:
+            driver: Active Selenium webdriver
+            required_stable_reads: Consecutive identical counts needed to finish
+            poll_interval: Seconds between polls
+            max_total_wait: Overall time budget before giving up
+
+        Returns:
+            Final count of loaded player-row tbodies
+        """
+        from selenium.webdriver.common.by import By
+        import time
+
+        selector = "#rankingsTable tbody[data-player-row]"
+        # rankingsTableContainer has a "hide-scrollbars" class, indicating it's
+        # an internally-scrollable div (its own overflow), not the page body -
+        # scroll it directly rather than relying solely on window.scrollTo.
+        scroll_container_ids = ["rankingsTableContainer", "table-container"]
+
+        def _trigger_scroll():
+            for container_id in scroll_container_ids:
+                driver.execute_script(
+                    "var el = document.getElementById(arguments[0]); "
+                    "if (el) { el.scrollTop = el.scrollHeight; }",
+                    container_id,
+                )
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+        _trigger_scroll()
+
+        deadline = time.monotonic() + max_total_wait
+        last_count = -1
+        stable_reads = 0
+
+        while time.monotonic() < deadline:
+            count = len(driver.find_elements(By.CSS_SELECTOR, selector))
+            stable_reads = stable_reads + 1 if count == last_count else 0
+            last_count = count
+
+            if stable_reads >= required_stable_reads:
+                break
+
+            _trigger_scroll()
+            time.sleep(poll_interval)
+
+        return last_count
+
     def _save_players_json(self, players: List[Player], scoring_format: str) -> None:
         """Save parsed players to JSON file for debugging.
-
-        Saves to ./debug_html/{scoring_format}_{timestamp}_players.json
-        Contains all extracted player data in readable format.
 
         Args:
             players: List of Player objects that were parsed
@@ -333,7 +372,6 @@ class FantasyProsClient:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = debug_dir / f"{scoring_format}_{timestamp}_players.json"
 
-            # Convert players to dicts for JSON serialization
             players_data = [
                 {
                     "player_name": p.player_name,
@@ -344,6 +382,7 @@ class FantasyProsClient:
                     "round": p.round,
                     "scoring_format": p.scoring_format,
                     "tier": p.tier,
+                    "positional_tier": p.positional_tier,
                 }
                 for p in players
             ]
@@ -358,13 +397,10 @@ class FantasyProsClient:
     def _save_html_debug(self, html_content: str, scoring_format: str, filename_suffix: str = "") -> None:
         """Save HTML content to a local file for debugging.
 
-        Saves ADP table HTML to ./debug_html/{scoring_format}_{timestamp}{suffix}.html
-        Used to inspect table structure when parsing fails.
-
         Args:
-            html_content: The HTML table to save
+            html_content: The HTML to save
             scoring_format: The scoring format (ppr, half_ppr, standard)
-            filename_suffix: Optional suffix for the filename (e.g., "table")
+            filename_suffix: Optional suffix for the filename
         """
         try:
             debug_dir = PROJECT_ROOT / "debug_html"
@@ -382,10 +418,14 @@ class FantasyProsClient:
             logger.debug(f"Failed to save HTML debug file: {e}")
 
     def _parse_adp_table(self, soup, scoring_format: str) -> List[Player]:
-        """Parse the ADP table from FantasyPros HTML.
+        """Parse the ADP + tier table from DraftSharks HTML.
 
-        The cheatsheets page uses a table with id="ranking-table" and class containing "player-table".
-        Table structure: Rank | Player | Team/Pos | ADP | vs ADP | etc.
+        DraftSharks renders one `<tbody data-player-row ...>` per player, with
+        the player's overall and positional tier already attached as
+        `data-tier-overall`/`data-tier-positional` attributes on that same
+        tbody - so unlike FantasyPros's flat "tier-row" dividers, no stateful
+        tier-tracking is needed while walking the rows. Non-player tbodies
+        (tier dividers) lack `data-player-row` and are skipped outright.
 
         Args:
             soup: BeautifulSoup object of the page
@@ -394,107 +434,43 @@ class FantasyProsClient:
         Returns:
             List of Player objects
         """
-        players = []
+        players: List[Player] = []
 
-        # Look for the main ranking table by id
-        table = soup.find("table", {"id": "ranking-table"})
-
+        table = soup.find("table", {"id": "rankingsTable"})
         if not table:
-            # Detailed debugging when table not found
-            logger.warning("Could not find ranking table on FantasyPros page")
-
-            # Debug: check if page has any tables at all
-            all_tables = soup.find_all("table")
-            logger.debug(f"Total tables found: {len(all_tables)}")
-
-            # Debug: check for divs with ranking in the name
-            ranking_divs = soup.find_all("div", class_=lambda x: x and "ranking" in x.lower())
-            logger.debug(f"Divs with 'ranking' in class: {len(ranking_divs)}")
-
-            # Debug: check page content length
-            page_text = soup.get_text()
-            logger.debug(f"Page text length: {len(page_text)} characters")
-
-            # Debug: look for any element with "ranking-table" in id
-            all_ranking_elements = soup.find_all(id=lambda x: x and "ranking" in x.lower())
-            logger.debug(f"Elements with 'ranking' in id: {len(all_ranking_elements)}")
-            if all_ranking_elements:
-                for elem in all_ranking_elements[:3]:
-                    logger.debug(f"  - {elem.name}: id={elem.get('id')}")
-
-            # Debug: check for specific player names that might appear
-            if "Ja'Marr" in page_text or "Ja&rsquo;Marr" in page_text:
-                logger.debug("Page contains player data (found 'Ja'Marr Chase')")
-            else:
-                logger.debug("Page does NOT contain expected player names - may be blank page")
-
+            logger.warning("Could not find rankingsTable on DraftSharks page")
             return []
 
-        # Get rows from tbody (more precise than getting all tr and skipping first)
-        tbody = table.find("tbody")
-        if not tbody:
-            logger.warning("Could not find tbody in ranking table")
+        player_rows = table.find_all("tbody", attrs={"data-player-row": True})
+        if not player_rows:
+            logger.warning("Could not find any player rows in rankingsTable")
             return []
 
-        rows = tbody.find_all("tr")
-
-        current_tier = 1
-
-        for idx, row in enumerate(rows, 1):
+        for tbody in player_rows:
             try:
-                row_classes = row.get("class") or []
-                if "tier-row" in row_classes:
-                    tier_text = row.get_text(" ", strip=True)
-                    match = re.search(r"Tier\s+(\d+)", tier_text)
-                    if match:
-                        current_tier = int(match.group(1))
+                player_name = tbody.get("data-player-name")
+                position = tbody.get("data-fantasy-position")
+                if not player_name or not position:
                     continue
 
-                cols = row.find_all("td")
-                if len(cols) < 7:  # Need at least up to col 6 for ADP
+                tier = int(tbody.get("data-tier-overall", 0) or 0)
+                positional_tier = int(tbody.get("data-tier-positional", 0) or 0)
+
+                team_el = tbody.find(class_="player-details-group__team-name")
+                team = team_el.text.strip().upper() if team_el else "UNK"
+
+                adp_cell = tbody.find("td", attrs={"data-attribute": "adp"})
+                if not adp_cell or not adp_cell.get("data-value"):
+                    continue
+                round_num, adp_overall = self._parse_round_pick_adp(adp_cell["data-value"])
+
+                if adp_overall is None or not (1 <= adp_overall <= 500):
                     continue
 
-                # Validate rank is numeric (skip tier rows and header rows)
-                rank_text = cols[0].text.strip()
-                try:
-                    int(rank_text)
-                except (ValueError, IndexError):
-                    # Skip non-numeric rank rows (tier headers, etc.)
-                    continue
-
-                # Extract player information from known column positions
-                # Structure: Rank | Checkbox | Player(Team) | Position | Pos_Rank | Bye | ADP | vs_ADP | ...
-                player_info = cols[2].text.strip()
-                if not player_info:
-                    continue
-
-                # Position designation is in col 3 (e.g., "WR1", "RB2")
-                pos_designation = cols[3].text.strip()  # e.g., "WR1", "RB2"
-
-                # Extract position from designation
-                position = self._extract_position(pos_designation)
-
-                # Extract team from player info (format: "Player Name (TEAM)")
-                team = self._extract_team_from_player_info(player_info)
-
-                # ADP is in col 6 (0-indexed)
-                try:
-                    adp_overall = float(cols[6].text.strip())
-                except (ValueError, IndexError):
-                    continue
-
-                # Validate ADP is in reasonable range
-                if not (1 <= adp_overall <= 500):
-                    continue
-
-                # Calculate round from ADP (assuming 12-team league)
-                round_num = int((adp_overall - 1) // 12) + 1
-
-                # Calculate position rank
-                adp_by_position = self._calculate_position_rank(players, position)
+                adp_by_position = self._extract_positional_rank(tbody, position)
 
                 player = Player(
-                    player_name=player_info,
+                    player_name=player_name,
                     position=position,
                     team=team,
                     adp_overall=adp_overall,
@@ -502,79 +478,67 @@ class FantasyProsClient:
                     round=round_num,
                     scoring_format=scoring_format,
                     updated_at=datetime.utcnow(),
-                    tier=current_tier,
+                    tier=tier,
+                    positional_tier=positional_tier,
                 )
 
                 players.append(player)
                 logger.debug(
-                    f"Parsed player: {player_info} ({position}) - ADP: {adp_overall:.1f}"
+                    f"Parsed player: {player_name} ({position}) - ADP: {adp_overall:.1f} "
+                    f"- Tier: {tier} - Positional Tier: {positional_tier}"
                 )
 
-            except (ValueError, IndexError) as e:
-                logger.debug(f"Skipped row {idx}: {e}")
+            except (ValueError, TypeError, KeyError) as e:
+                logger.debug(f"Skipped player row: {e}")
                 continue
 
         return players
 
-    def _extract_position(self, team_pos_str: str) -> str:
-        """Extract position from team/position string.
+    LEAGUE_SIZE = 12
+
+    def _parse_round_pick_adp(self, raw_value: str) -> tuple:
+        """Convert DraftSharks' "round.pick" ADP notation to (round, overall_pick).
+
+        DraftSharks encodes ADP as Round.Pick for a 12-team league (e.g. "1.04"
+        is round 1, pick 4; "2.01" is round 2, pick 1 - the pick component
+        rolls over to the next round after 12, per LEAGUE_SIZE). This is not a
+        straight overall pick number, so it must be converted before use as
+        Player.adp_overall - the ADP-delta convention elsewhere in this app
+        assumes a true overall pick value.
 
         Args:
-            team_pos_str: String like "SF - RB" or "KC - WR"
+            raw_value: The raw "data-value" string from the ADP cell, e.g. "2.1"
 
         Returns:
-            Position string (QB, RB, WR, TE, K, DEF)
+            (round_num, overall_pick) as (int, float), or (None, None) if unparseable
         """
-        # Typical format: "TEAM - POS" or "POS"
-        positions = ["QB", "RB", "WR", "TE", "K", "DEF"]
-        for pos in positions:
-            if pos in team_pos_str.upper():
-                return pos
-        return "UNKNOWN"
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            return None, None
 
-    def _extract_team(self, team_pos_str: str) -> str:
-        """Extract team from team/position string.
+        round_num = int(value)
+        pick_in_round = round((value - round_num) * 100)
+        overall_pick = (round_num - 1) * self.LEAGUE_SIZE + pick_in_round
+
+        return round_num, float(overall_pick)
+
+    def _extract_positional_rank(self, tbody, position: str) -> int:
+        """Extract positional rank (e.g. 1 from "WR1") from a player's tbody.
 
         Args:
-            team_pos_str: String like "SF - RB" or "KC - WR"
+            tbody: The player's `<tbody data-player-row>` element
+            position: The player's position, used to strip the leading letters
 
         Returns:
-            Team abbreviation
+            1-indexed positional rank, or 0 if it can't be parsed
         """
-        # Typical format: "TEAM - POS"
-        parts = team_pos_str.split("-")
-        return parts[0].strip()[:3].upper() if parts else "UNK"
+        pill = tbody.find("pos-roster-spot")
+        if not pill:
+            return 0
 
-    def _extract_team_from_player_info(self, player_info: str) -> str:
-        """Extract team from player info string.
-
-        Args:
-            player_info: String like "Ja'Marr Chase (CIN)" or "Player Name (TB)"
-
-        Returns:
-            Team abbreviation (e.g., "CIN", "TB")
-        """
-        # Format: "Player Name (TEAM)"
-        if "(" in player_info and ")" in player_info:
-            start = player_info.rfind("(")
-            end = player_info.rfind(")")
-            if start >= 0 and end > start:
-                team = player_info[start + 1 : end].strip().upper()
-                return team[:3]  # Limit to 3 chars
-        return "UNK"
-
-    def _calculate_position_rank(self, players: List[Player], position: str) -> int:
-        """Calculate the positional rank (e.g., RB5, WR12).
-
-        Args:
-            players: List of players already processed
-            position: Position to rank
-
-        Returns:
-            1-indexed position rank
-        """
-        count = sum(1 for p in players if p.position == position)
-        return count + 1
+        match = re.search(r"(\d+)\s*$", pill.text.strip())
+        return int(match.group(1)) if match else 0
 
     def load_from_file(self, filepath: str, scoring_format: str) -> List[Player]:
         """Load ADP data from a local JSON file.
@@ -601,6 +565,7 @@ class FantasyProsClient:
                     scoring_format=scoring_format,
                     updated_at=datetime.fromisoformat(p["updated_at"]),
                     tier=p.get("tier", 0),
+                    positional_tier=p.get("positional_tier", 0),
                 )
                 for p in data
             ]
@@ -641,6 +606,7 @@ class FantasyProsClient:
                     "scoring_format": p.scoring_format,
                     "updated_at": p.updated_at.isoformat(),
                     "tier": p.tier,
+                    "positional_tier": p.positional_tier,
                 }
                 for p in players
             ]

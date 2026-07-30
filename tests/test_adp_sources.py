@@ -44,24 +44,24 @@ class TestSleeperSource:
             "2307": _make_proj("2307", 3.5),
             "4866": _make_proj("4866", 10.0),
         }
-        adp_map, available = adp_sources.get_adp_map("sleeper", "ppr", PLAYER_UNIVERSE, sleeper_proj)
+        adp_map, tier_map, available = adp_sources.get_adp_map("sleeper", "ppr", PLAYER_UNIVERSE, sleeper_proj)
 
         assert available is True
         assert adp_map == {"2307": 3.5, "4866": 10.0}
 
     def test_skips_projections_with_no_adp(self):
         sleeper_proj = {"2307": _make_proj("2307", None)}
-        adp_map, available = adp_sources.get_adp_map("sleeper", "ppr", PLAYER_UNIVERSE, sleeper_proj)
+        adp_map, tier_map, available = adp_sources.get_adp_map("sleeper", "ppr", PLAYER_UNIVERSE, sleeper_proj)
 
         assert available is True
         assert adp_map == {}
 
 
-class TestFantasyProsSource:
+class TestDraftSharksSource:
     def test_fresh_snapshot_joins_by_normalized_name_and_position(self):
         snapshot = {
             "scraped_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [
                 {"name": "Christian McCaffrey (SF)", "position": "RB", "team": "SF", "adp": 2.1},
@@ -73,7 +73,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is True
         assert adp_map == {"2307": 2.1, "4866": 8.4}
@@ -82,7 +82,7 @@ class TestFantasyProsSource:
         """Two real players can share a name — position must disambiguate them."""
         snapshot = {
             "scraped_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [
                 {"name": "Josh Allen", "position": "QB", "team": "BUF", "adp": 25.0},
@@ -94,7 +94,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is True
         assert adp_map == {"6001": 25.0, "6002": 410.0}
@@ -102,7 +102,7 @@ class TestFantasyProsSource:
     def test_stale_snapshot_falls_back(self):
         snapshot = {
             "scraped_at": (datetime.now(timezone.utc) - timedelta(hours=49)).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [{"name": "Christian McCaffrey (SF)", "position": "RB", "team": "SF", "adp": 2.1}],
         }
@@ -111,7 +111,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is False
         assert adp_map == {}
@@ -119,7 +119,7 @@ class TestFantasyProsSource:
     def test_snapshot_just_under_staleness_threshold_is_used(self):
         snapshot = {
             "scraped_at": (datetime.now(timezone.utc) - timedelta(hours=47)).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [{"name": "Christian McCaffrey (SF)", "position": "RB", "team": "SF", "adp": 2.1}],
         }
@@ -128,7 +128,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is True
         assert adp_map == {"2307": 2.1}
@@ -139,14 +139,14 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is False
         assert adp_map == {}
 
     def test_missing_bucket_env_var_falls_back_without_raising(self):
         with patch.dict("os.environ", {}, clear=True):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is False
         assert adp_map == {}
@@ -154,7 +154,7 @@ class TestFantasyProsSource:
     def test_unmatched_names_are_dropped(self):
         snapshot = {
             "scraped_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [{"name": "Nobody Real (XX)", "position": "RB", "team": "XX", "adp": 99.0}],
         }
@@ -163,7 +163,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is True
         assert adp_map == {}
@@ -172,7 +172,7 @@ class TestFantasyProsSource:
         """A name match with a mismatched position must not be joined."""
         snapshot = {
             "scraped_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "source": "fantasypros",
+            "source": "draftsharks",
             "scoring_format": "ppr",
             "players": [{"name": "Christian McCaffrey (SF)", "position": "WR", "team": "SF", "adp": 2.1}],
         }
@@ -181,7 +181,7 @@ class TestFantasyProsSource:
 
         with patch.dict("os.environ", {"ADP_S3_BUCKET": "test-bucket"}), \
              patch.object(adp_sources, "boto3", MagicMock(client=MagicMock(return_value=mock_s3))):
-            adp_map, available = adp_sources.get_adp_map("fantasypros", "ppr", PLAYER_UNIVERSE, {})
+            adp_map, tier_map, available = adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
 
         assert available is True
         assert adp_map == {}
@@ -189,4 +189,4 @@ class TestFantasyProsSource:
 
 def test_unknown_source_raises_value_error():
     with pytest.raises(ValueError):
-        adp_sources.get_adp_map("draftsharks", "ppr", PLAYER_UNIVERSE, {})
+        adp_sources.get_adp_map("not_a_real_source", "ppr", PLAYER_UNIVERSE, {})
