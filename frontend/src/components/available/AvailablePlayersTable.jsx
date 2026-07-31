@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, Fragment } from 'react';
 import ADPBadge from '../common/ADPBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
@@ -24,36 +24,16 @@ const TIER_COLORS = [
 
 const DEFAULT_ROWS = 5;
 
-export default function AvailablePlayersTable({ draftId, recommendations, availableData }) {
+export default function AvailablePlayersTable({ draftId, players }) {
   const [expanded, setExpanded] = useState(false);
   const [positionFilter, setPositionFilter] = useState('ALL');
 
-  const activeRecs = recommendations;
-
-  const adpByPlayerId = useMemo(() => {
-    if (!availableData?.players_by_position) return {};
-    return Object.values(availableData.players_by_position)
-      .flat()
-      .reduce((acc, p) => {
-        acc[p.player_id] = { adp_delta: p.adp_delta, adp_ppr: p.adp_ppr, tier: p.tier, positional_tier: p.positional_tier };
-        return acc;
-      }, {});
-  }, [availableData]);
-
-  const rows = useMemo(() => {
-    return (activeRecs || []).map((rec) => ({
-      ...rec,
-      adp_delta: adpByPlayerId[rec.player_id]?.adp_delta ?? null,
-      adp_ppr: adpByPlayerId[rec.player_id]?.adp_ppr ?? null,
-      tier: adpByPlayerId[rec.player_id]?.tier ?? null,
-      positional_tier: adpByPlayerId[rec.player_id]?.positional_tier ?? null,
-    }));
-  }, [activeRecs, adpByPlayerId]);
+  const rows = players || [];
 
   const filtered =
     positionFilter === 'ALL' ? rows : rows.filter((r) => r.position === positionFilter);
 
-  if (!recommendations || recommendations.length === 0) return null;
+  if (!players || players.length === 0) return null;
 
   const visible = expanded ? filtered : filtered.slice(0, DEFAULT_ROWS);
   const hasMore = filtered.length > DEFAULT_ROWS;
@@ -64,6 +44,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white">Best Available</h2>
+          <p className="text-xs text-sleeper-gray-500">Ranked by ADP</p>
         </div>
       </div>
 
@@ -144,7 +125,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                         <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
                       </td>
                       <td className="px-2 py-1.5 text-sleeper-gray-300">
-                        {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}
+                        {rec.projected_pts != null ? rec.projected_pts.toFixed(1) : '—'}
                       </td>
                     </tr>
                   </Fragment>

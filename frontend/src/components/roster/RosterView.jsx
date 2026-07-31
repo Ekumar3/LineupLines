@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
-import { useVORAnalysis } from '../../hooks/useVORAnalysis';
 import { useNextPick } from '../../hooks/useNextPick';
 
 import PositionTable from './PositionTable';
@@ -17,10 +16,9 @@ const ADP_SOURCE_LABELS = {
 };
 
 export default function RosterView({ draftId, userId }) {
-  const [adpSource, setAdpSource] = useState('sleeper');
+  const [adpSource, setAdpSource] = useState('draftsharks');
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
   const { data: availableData } = useAvailableByPosition(draftId, 20, adpSource);
-  const { data: vorData, loading: vorLoading, error: vorError } = useVORAnalysis(draftId);
   const { draftStatus } = useNextPick(draftId, userId);
 
   const positionData = useMemo(() =>
@@ -31,6 +29,17 @@ export default function RosterView({ draftId, userId }) {
     })),
     [rosterData]
   );
+
+  // Best Available is ranked by raw ADP (ascending — lowest ADP first) rather
+  // than a computed value score, so it mirrors the source's own consensus
+  // rankings directly instead of a formula layered on top of them.
+  const bestAvailablePlayers = useMemo(() => {
+    if (!availableData?.players_by_position) return [];
+    return Object.values(availableData.players_by_position)
+      .flat()
+      .filter((p) => p.adp_ppr != null)
+      .sort((a, b) => a.adp_ppr - b.adp_ppr);
+  }, [availableData]);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} />;
@@ -101,11 +110,10 @@ export default function RosterView({ draftId, userId }) {
         )}
 
         {/* Best Available, filterable by position */}
-        {vorData?.recommendations?.length > 0 && (
+        {bestAvailablePlayers.length > 0 && (
           <AvailablePlayersTable
             draftId={draftId}
-            recommendations={vorData.recommendations}
-            availableData={availableData}
+            players={bestAvailablePlayers}
           />
         )}
 
