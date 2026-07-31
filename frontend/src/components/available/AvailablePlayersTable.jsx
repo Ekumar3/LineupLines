@@ -96,11 +96,11 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-sleeper-gray-800 text-sleeper-gray-300 text-left">
-                <th className="px-3 py-2 w-8">#</th>
-                <th className="px-3 py-2">Player</th>
-                <th className="px-3 py-2">Pos</th>
-                <th className="px-3 py-2">ADP Delta</th>
-                <th className="px-3 py-2">Proj Pts</th>
+                <th className="px-2 py-1.5 w-8">#</th>
+                <th className="px-2 py-1.5">Player</th>
+                <th className="px-2 py-1.5 w-16">Pos</th>
+                <th className="px-2 py-1.5 w-28 text-center">ADP Delta</th>
+                <th className="px-2 py-1.5 w-20">Proj Pts</th>
               </tr>
             </thead>
             <tbody>
@@ -116,7 +116,7 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                   <Fragment key={rec.player_id}>
                     {showTierDivider && (
                       <tr>
-                        <td colSpan={5} className={`px-3 py-1 text-xs font-semibold ${tierColorClass}`}>
+                        <td colSpan={5} className={`px-2 py-0.5 text-xs font-semibold ${tierColorClass}`}>
                           Tier {tierValue}
                         </td>
                       </tr>
@@ -124,8 +124,8 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                     <tr
                       className={`border-t border-sleeper-gray-700 ${isTop ? 'border-l-2 border-l-green-500' : ''} hover:bg-sleeper-gray-800/50`}
                     >
-                      <td className="px-3 py-2 text-sleeper-gray-400 font-mono">{rank}</td>
-                      <td className="px-3 py-2 text-white font-medium">
+                      <td className="px-2 py-1.5 text-sleeper-gray-400 font-mono">{rank}</td>
+                      <td className="px-2 py-1.5 text-white font-medium">
                         <div className="flex items-center gap-2">
                           <PlayerHeadshot
                             playerId={rec.player_id}
@@ -135,15 +135,15 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                           <span>{formatPlayerName(rec.player_name)}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-1.5">
                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${POSITION_COLORS[rec.position] ?? 'bg-sleeper-gray-700 text-sleeper-gray-300'}`}>
                           {rec.position}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-1.5 text-center">
                         <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
                       </td>
-                      <td className="px-3 py-2 text-sleeper-gray-300">
+                      <td className="px-2 py-1.5 text-sleeper-gray-300">
                         {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}
                       </td>
                     </tr>

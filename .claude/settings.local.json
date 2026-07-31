@@ -205,7 +205,10 @@
       "Bash(python -m pytest tests/)",
       "Bash(where astro *)",
       "Bash(astro version *)",
-      "Bash(docker version *)"
+      "Bash(docker version *)",
+      "Bash(terraform output *)",
+      "Bash(sleep 3 && cat /tmp/vite.log)",
+      "Bash(pkill -f vite)"
     ]
   }
 }

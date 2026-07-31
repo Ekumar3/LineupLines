@@ -32,7 +32,7 @@ export default memo(function ADPBadge({ adpDelta, adpPpr }) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-center gap-1">
       <span className={`badge ${bgClass} ${colorClass}`}>
         {adpDelta > 0 ? '+' : ''}{adpDelta.toFixed(1)}
       </span>
