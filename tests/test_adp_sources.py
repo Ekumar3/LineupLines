@@ -190,3 +190,55 @@ class TestDraftSharksSource:
 def test_unknown_source_raises_value_error():
     with pytest.raises(ValueError):
         adp_sources.get_adp_map("not_a_real_source", "ppr", PLAYER_UNIVERSE, {})
+
+
+class TestResolveDraftSharksRankingKey:
+    """Tests for mapping a Sleeper league's settings to a scraped DraftSharks key."""
+
+    def test_redraft_league_uses_scoring_format_directly(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "0", False, False) == "ppr"
+        assert adp_sources.resolve_draftsharks_ranking_key("half_ppr", "0", False, False) == "half_ppr"
+        assert adp_sources.resolve_draftsharks_ranking_key("standard", "0", False, False) == "standard"
+
+    def test_redraft_superflex_and_te_premium_have_no_scraped_variant_so_ignored(self):
+        # No redraft superflex/TE-premium key was scraped — falls back to scoring format.
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "0", True, True) == "ppr"
+
+    def test_dynasty_ppr(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "2", False, False) == "dynasty_ppr"
+
+    def test_dynasty_half_ppr(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("half_ppr", "2", False, False) == "dynasty_half_ppr"
+
+    def test_dynasty_standard_falls_back_to_dynasty_ppr(self):
+        # No non-PPR dynasty key was scraped.
+        assert adp_sources.resolve_draftsharks_ranking_key("standard", "2", False, False) == "dynasty_ppr"
+
+    def test_dynasty_superflex(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "2", True, False) == "dynasty_ppr_superflex"
+
+    def test_dynasty_te_premium(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "2", False, True) == "dynasty_te_premium"
+
+    def test_dynasty_te_premium_superflex(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "2", True, True) == "dynasty_te_premium_superflex"
+
+    def test_dynasty_te_premium_takes_priority_over_superflex_alone(self):
+        # TE premium + superflex together must land on the combined key, not just superflex.
+        assert adp_sources.resolve_draftsharks_ranking_key("half_ppr", "2", True, True) == "dynasty_te_premium_superflex"
+
+    def test_keeper_ppr(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "1", False, False) == "keeper_ppr"
+
+    def test_keeper_superflex(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "1", True, False) == "keeper_superflex"
+
+    def test_keeper_ignores_te_premium_since_no_variant_was_scraped(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "1", False, True) == "keeper_ppr"
+
+    def test_keeper_half_ppr_falls_back_to_keeper_ppr(self):
+        # No non-PPR keeper key was scraped.
+        assert adp_sources.resolve_draftsharks_ranking_key("half_ppr", "1", False, False) == "keeper_ppr"
+
+    def test_unknown_league_type_treated_as_redraft(self):
+        assert adp_sources.resolve_draftsharks_ranking_key("ppr", "99", False, False) == "ppr"

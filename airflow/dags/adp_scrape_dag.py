@@ -1,13 +1,20 @@
 """Daily ADP scrape -> validate -> cross-reference -> write-to-S3 pipeline.
 
-Structure per (source, scoring_format) pair, three formats in parallel:
+Structure per (source, ranking_key) pair, one group per key in parallel:
 
-    scrape_{source}_{format} -> validate_{source}_{format}
-        -> cross_reference_{source}_{format} -> write_s3_{source}_{format}
+    scrape_{source}_{key} -> validate_{source}_{key}
+        -> cross_reference_{source}_{key} -> write_s3_{source}_{key}
 
 The DAG iterates adp_sources.REGISTERED_SOURCES rather than hardcoding a
 source name, so adding a new scraper (one file + one registry entry, see
 plugins/adp_sources/__init__.py) requires no changes here.
+
+RANKING_KEYS covers redraft (by scoring format) plus a subset of DraftSharks'
+dynasty/keeper/auction rankings. Keep this list in sync with
+DraftSharksClient.RANKING_PATHS (src/data_sources/draft_sharks_client.py) —
+the redraft keys ("ppr", "standard", "half_ppr") are load-bearing since
+src/services/adp_sources.py reads S3 snapshots at exactly those keys for the
+live draft's ADP delta; the rest are additive.
 
 Paused automatically after ADP_PIPELINE_END_DATE (an Airflow Variable, so it
 can be moved without a code deploy) since there are no live drafts during the
@@ -27,7 +34,25 @@ from adp_sources.sleeper_universe import build_name_position_index
 from adp_sources.slack_alerts import notify_slack_on_failure
 from src.analytics.adp_service import adp_service
 
-SCORING_FORMATS = ["ppr", "half_ppr", "standard"]
+RANKING_KEYS = [
+    # Redraft
+    "ppr",
+    "half_ppr",
+    "standard",
+    # Dynasty
+    "dynasty_ppr",
+    "dynasty_half_ppr",
+    "dynasty_ppr_superflex",
+    "dynasty_ppr_rookies",
+    "dynasty_ppr_superflex_rookies",
+    "dynasty_te_premium",
+    "dynasty_te_premium_superflex",
+    # Keeper
+    "keeper_ppr",
+    "keeper_superflex",
+    # Auction
+    "auction_ppr",
+]
 
 MIN_PLAYERS = 100
 MIN_ADP = 1.0
@@ -57,36 +82,36 @@ def _end_date() -> pendulum.DateTime:
     tags=["adp", "scraping"],
 )
 def adp_scrape_dag():
-    for scoring_format in SCORING_FORMATS:
+    for ranking_key in RANKING_KEYS:
 
-        @task_group(group_id=f"format_group_{scoring_format}")
-        def format_group(scoring_format=scoring_format):
+        @task_group(group_id=f"format_group_{ranking_key}")
+        def format_group(ranking_key=ranking_key):
             for source in REGISTERED_SOURCES:
 
                 @task_group(group_id=source.source_name)
-                def source_group(source=source, scoring_format=scoring_format):
+                def source_group(source=source, ranking_key=ranking_key):
                     task_params = {
-                        "scoring_format": scoring_format,
+                        "scoring_format": ranking_key,
                         "source_name": source.source_name,
                     }
 
-                    @task(task_id=f"scrape_{source.source_name}_{scoring_format}", params=task_params)
+                    @task(task_id=f"scrape_{source.source_name}_{ranking_key}", params=task_params)
                     def scrape():
-                        return source.scrape(scoring_format)
+                        return source.scrape(ranking_key)
 
-                    @task(task_id=f"validate_{source.source_name}_{scoring_format}", params=task_params)
+                    @task(task_id=f"validate_{source.source_name}_{ranking_key}", params=task_params)
                     def validate(players):
                         if len(players) < MIN_PLAYERS:
                             raise AirflowException(
                                 f"Only {len(players)} players scraped for "
-                                f"{source.source_name}/{scoring_format}, expected at least {MIN_PLAYERS}"
+                                f"{source.source_name}/{ranking_key}, expected at least {MIN_PLAYERS}"
                             )
 
                         missing_adp = sum(1 for p in players if p.get("adp") is None)
                         if missing_adp / len(players) > MAX_MISSING_ADP_FRACTION:
                             raise AirflowException(
                                 f"{missing_adp}/{len(players)} players missing ADP for "
-                                f"{source.source_name}/{scoring_format}, exceeds "
+                                f"{source.source_name}/{ranking_key}, exceeds "
                                 f"{MAX_MISSING_ADP_FRACTION:.0%} threshold"
                             )
 
@@ -97,13 +122,13 @@ def adp_scrape_dag():
                         if out_of_range:
                             raise AirflowException(
                                 f"{len(out_of_range)} players have ADP outside "
-                                f"[{MIN_ADP}, {MAX_ADP}] for {source.source_name}/{scoring_format}: "
+                                f"[{MIN_ADP}, {MAX_ADP}] for {source.source_name}/{ranking_key}: "
                                 f"{out_of_range[:5]}"
                             )
 
                         return players
 
-                    @task(task_id=f"cross_reference_{source.source_name}_{scoring_format}", params=task_params)
+                    @task(task_id=f"cross_reference_{source.source_name}_{ranking_key}", params=task_params)
                     def cross_reference(players):
                         name_position_index = build_name_position_index()
 
@@ -123,22 +148,22 @@ def adp_scrape_dag():
                         if match_rate < MIN_MATCH_RATE_WARNING_THRESHOLD:
                             print(
                                 f"WARNING: match rate {match_rate:.1%} for "
-                                f"{source.source_name}/{scoring_format} is below "
+                                f"{source.source_name}/{ranking_key} is below "
                                 f"{MIN_MATCH_RATE_WARNING_THRESHOLD:.0%} threshold"
                             )
 
                         return matched
 
-                    @task(task_id=f"write_s3_{source.source_name}_{scoring_format}", params=task_params)
+                    @task(task_id=f"write_s3_{source.source_name}_{ranking_key}", params=task_params)
                     def write_s3(players):
                         import boto3
 
                         bucket = Variable.get("ADP_S3_BUCKET")
-                        key = f"adp/{source.source_name}/{scoring_format}/latest.json"
+                        key = f"adp/{source.source_name}/{ranking_key}/latest.json"
                         body = {
                             "scraped_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                             "source": source.source_name,
-                            "scoring_format": scoring_format,
+                            "scoring_format": ranking_key,
                             "players": players,
                         }
 

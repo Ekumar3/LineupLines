@@ -24,7 +24,7 @@ const TIER_COLORS = [
 
 const DEFAULT_ROWS = 5;
 
-export default function AvailablePlayersTable({ draftId, players }) {
+export default function AvailablePlayersTable({ draftId, players, rankingLabel }) {
   const [expanded, setExpanded] = useState(false);
   const [positionFilter, setPositionFilter] = useState('ALL');
 
@@ -44,7 +44,7 @@ export default function AvailablePlayersTable({ draftId, players }) {
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white">Best Available</h2>
-          <p className="text-xs text-sleeper-gray-500">Ranked by ADP</p>
+          <p className="text-xs text-sleeper-gray-500">Ranked by {rankingLabel || 'ADP'}</p>
         </div>
       </div>
 

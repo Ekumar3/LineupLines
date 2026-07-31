@@ -767,7 +767,7 @@ def get_available_by_position(
     request: Request,
     draft_id: str,
     limit: int = Query(default=20, ge=1, le=100, description="Max players per position"),
-    adp_source: str = Query(default="sleeper", pattern="^(sleeper|draftsharks)$", description="Which ADP source drives adp_delta"),
+    adp_source: str = Query(default="draftsharks", pattern="^(sleeper|draftsharks)$", description="Which ADP source drives adp_delta"),
 ) -> AvailableByPositionResponse:
     """Get available players grouped by position with ADP delta analysis.
 
@@ -805,6 +805,16 @@ def get_available_by_position(
         # Step 3: Get scoring format for ADP matching
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
 
+        # Resolve league type (redraft/keeper/dynasty), superflex, and TE premium
+        # so DraftSharks rankings reflect how this league actually drafts, not
+        # just its PPR/half-PPR/standard scoring format.
+        league_info = sleeper_client.get_league_info(league_id) or {}
+        league_type = str(league_info.get("settings", {}).get("type", 0))
+        slots_super_flex = draft_details.get("settings", {}).get("slots_super_flex", 0) or 0
+        slots_qb = draft_details.get("settings", {}).get("slots_qb", 1) or 1
+        is_superflex = slots_super_flex > 0 or slots_qb > 1
+        is_te_premium = league_info.get("scoring_settings", {}).get("bonus_rec_te", 0) > 0
+
         # Step 4: Load player universe
         all_players = load_player_universe()
         if not all_players:
@@ -825,10 +835,16 @@ def get_available_by_position(
         _avail_year = int(draft_details.get("season", 2026))
         sleeper_proj = sleeper_projections_client.fetch_projections(_avail_year, scoring_format)
 
-        # Resolve which ADP source drives adp_delta. Non-Sleeper sources fall back
+        # Resolve which ADP source drives adp_delta. For DraftSharks, match the
+        # league's actual format (dynasty/keeper/superflex/TE premium) rather than
+        # always using the plain redraft rankings. Non-Sleeper sources fall back
         # to Sleeper ADP silently if their snapshot is missing/stale.
+        draftsharks_ranking_key = adp_sources.resolve_draftsharks_ranking_key(
+            scoring_format, league_type, is_superflex, is_te_premium
+        )
+        ranking_key = draftsharks_ranking_key if adp_source == "draftsharks" else scoring_format
         adp_map, tier_map, adp_source_available = adp_sources.get_adp_map(
-            adp_source, scoring_format, all_players, sleeper_proj
+            adp_source, ranking_key, all_players, sleeper_proj
         )
         if adp_source != "sleeper" and not adp_source_available:
             adp_map, tier_map, _ = adp_sources.get_adp_map("sleeper", scoring_format, all_players, sleeper_proj)
@@ -923,6 +939,7 @@ def get_available_by_position(
             players_by_position=limited_by_position,
             adp_source=adp_source,
             adp_source_available=adp_source_available,
+            ranking_key=ranking_key if adp_source == "draftsharks" else None,
         )
 
     except HTTPException:

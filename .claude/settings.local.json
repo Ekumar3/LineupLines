@@ -208,7 +208,16 @@
       "Bash(docker version *)",
       "Bash(terraform output *)",
       "Bash(sleep 3 && cat /tmp/vite.log)",
-      "Bash(pkill -f vite)"
+      "Bash(pkill -f vite)",
+      "Bash(npx vite *)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.draftsharks.com/dynasty-rankings/rookies\" -o /tmp/dyn_rookies.html)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.draftsharks.com/site/rankings-sitemap\" -o /tmp/sitemap.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -A \"Mozilla/5.0\" \"https://www.draftsharks.com/dynasty-rankings/totally-bogus-path-xyz123\")",
+      "Bash(echo 'bogus: __CMDSUB_OUTPUT__')",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.draftsharks.com/dynasty-rankings/totally-bogus-path-xyz123\" -o /tmp/bogus.html)",
+      "Bash(python -m pytest tests/test_adp_sources.py -q)",
+      "Bash(python -c \"import airflow\")",
+      "Bash(python -m pytest tests/dags/test_dag_import.py -q)"
     ]
   }
 }

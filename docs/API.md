@@ -504,6 +504,7 @@ Get available (undrafted) players grouped by position, sorted by ADP delta. This
 **Parameters**:
 - `draft_id` (path, required): Sleeper draft ID
 - `limit` (query, optional): Max players to return per position (default: 20, max: 100)
+- `adp_source` (query, optional): Which ADP source drives `adp_delta` — `sleeper` or `draftsharks` (default: `draftsharks`)
 
 **Response** (200):
 ```json
@@ -531,7 +532,10 @@ Get available (undrafted) players grouped by position, sorted by ADP delta. This
     "TE": [],
     "K": [],
     "DEF": []
-  }
+  },
+  "adp_source": "draftsharks",
+  "adp_source_available": true,
+  "ranking_key": "dynasty_ppr_superflex"
 }
 ```
 
@@ -540,6 +544,8 @@ Get available (undrafted) players grouped by position, sorted by ADP delta. This
 - `current_round`: Current draft round
 - `scoring_format`: League's scoring format (ppr, half_ppr, standard)
 - `adp_delta` in AvailablePlayerDetail: Positive means player is available later than their ADP (good value), negative means they're expected to go earlier (reaching if drafted now)
+- `adp_source_available`: `false` if the requested non-Sleeper source had no fresh (<48h) S3 snapshot and the response silently fell back to Sleeper ADP
+- `ranking_key`: The DraftSharks S3 key actually used (e.g. `dynasty_ppr_superflex`, `keeper_ppr`), chosen from the league's type (redraft/keeper/dynasty), superflex, and TE-premium settings — see `resolve_draftsharks_ranking_key` in `src/services/adp_sources.py`. `null` when `adp_source` is `sleeper`.
 
 **Errors**:
 - 404: Draft not found

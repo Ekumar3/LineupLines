@@ -25,14 +25,14 @@ def test_adp_scrape_dag_loaded(dagbag):
 def test_adp_scrape_dag_has_one_group_per_format_and_source():
     from adp_sources import REGISTERED_SOURCES
 
-    from dags.adp_scrape_dag import adp_scrape_dag, SCORING_FORMATS
+    from dags.adp_scrape_dag import adp_scrape_dag, RANKING_KEYS
 
     dag = adp_scrape_dag()
     task_ids = set(dag.task_ids)
 
-    for scoring_format in SCORING_FORMATS:
+    for ranking_key in RANKING_KEYS:
         for source in REGISTERED_SOURCES:
-            prefix = f"format_group_{scoring_format}.{source.source_name}"
+            prefix = f"format_group_{ranking_key}.{source.source_name}"
             for step in ("scrape", "validate", "cross_reference", "write_s3"):
-                expected = f"{prefix}.{step}_{source.source_name}_{scoring_format}"
+                expected = f"{prefix}.{step}_{source.source_name}_{ranking_key}"
                 assert expected in task_ids, f"missing task {expected}"

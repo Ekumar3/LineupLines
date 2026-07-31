@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { draftAPI } from '../utils/api';
 
-export const useAvailableByPosition = (draftId, limit = 20, adpSource = 'sleeper') => {
+export const useAvailableByPosition = (draftId, limit = 20, adpSource = 'draftsharks') => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

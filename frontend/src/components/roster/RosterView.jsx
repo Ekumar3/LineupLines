@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRosterData } from '../../hooks/useRosterData';
 import { useAvailableByPosition } from '../../hooks/useAvailableByPosition';
 import { useNextPick } from '../../hooks/useNextPick';
@@ -10,15 +10,34 @@ import ErrorMessage from '../common/ErrorMessage';
 
 const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
-const ADP_SOURCE_LABELS = {
-  sleeper: 'Sleeper',
-  draftsharks: 'DraftSharks',
+const RANKING_KEY_LABELS = {
+  ppr: 'PPR',
+  half_ppr: 'Half-PPR',
+  standard: 'Standard',
+  dynasty_ppr: 'Dynasty PPR',
+  dynasty_half_ppr: 'Dynasty Half-PPR',
+  dynasty_ppr_superflex: 'Dynasty PPR Superflex',
+  dynasty_te_premium: 'Dynasty TE Premium',
+  dynasty_te_premium_superflex: 'Dynasty TE Premium Superflex',
+  keeper_ppr: 'Keeper PPR',
+  keeper_superflex: 'Keeper Superflex',
 };
 
+// Ranking keys built on a PPR base even though the league might score
+// half-PPR/standard — no non-PPR variant is scraped for these, so the backend
+// fell back to the closest PPR-based key instead of an exact scoring match.
+const PPR_FALLBACK_KEYS = new Set([
+  'dynasty_ppr',
+  'dynasty_ppr_superflex',
+  'dynasty_te_premium',
+  'dynasty_te_premium_superflex',
+  'keeper_ppr',
+  'keeper_superflex',
+]);
+
 export default function RosterView({ draftId, userId }) {
-  const [adpSource, setAdpSource] = useState('draftsharks');
   const { data: rosterData, loading, error } = useRosterData(draftId, userId);
-  const { data: availableData } = useAvailableByPosition(draftId, 20, adpSource);
+  const { data: availableData } = useAvailableByPosition(draftId, 20, 'draftsharks');
   const { draftStatus } = useNextPick(draftId, userId);
 
   const positionData = useMemo(() =>
@@ -75,38 +94,19 @@ export default function RosterView({ draftId, userId }) {
           </div>
         </div>
 
-        {/* ADP source toggle */}
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium text-sleeper-gray-400 uppercase tracking-wider">
-            ADP Source
-          </span>
-          <div className="flex rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium w-fit">
-            {Object.entries(ADP_SOURCE_LABELS).map(([source, label]) => (
-              <button
-                key={source}
-                onClick={() => setAdpSource(source)}
-                className={`px-3 py-1.5 transition-colors ${
-                  adpSource === source
-                    ? 'bg-sleeper-blue text-white'
-                    : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* ADP source warnings */}
-        {adpSource !== 'sleeper' && availableData?.adp_source_available === false && (
+        {availableData?.adp_source_available === false && (
           <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
-            {ADP_SOURCE_LABELS[adpSource]} ADP unavailable — showing Sleeper ADP
+            DraftSharks ADP unavailable — showing Sleeper ADP
           </div>
         )}
-        {adpSource === 'draftsharks' && availableData?.adp_source_available && availableData?.scoring_format !== 'ppr' && (
-          <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
-            DraftSharks ADP shown is PPR — your league scoring is {availableData.scoring_format}.
-          </div>
+        {availableData?.adp_source_available &&
+          PPR_FALLBACK_KEYS.has(availableData?.ranking_key) &&
+          availableData?.scoring_format !== 'ppr' && (
+            <div className="mb-4 rounded-lg border border-yellow-800 bg-yellow-900/20 px-4 py-2 text-sm text-yellow-200">
+              Showing {RANKING_KEY_LABELS[availableData.ranking_key]} rankings — a {availableData.scoring_format} equivalent
+              isn't available for your league type yet.
+            </div>
         )}
 
         {/* Best Available, filterable by position */}
@@ -114,6 +114,7 @@ export default function RosterView({ draftId, userId }) {
           <AvailablePlayersTable
             draftId={draftId}
             players={bestAvailablePlayers}
+            rankingLabel={RANKING_KEY_LABELS[availableData?.ranking_key]}
           />
         )}
 

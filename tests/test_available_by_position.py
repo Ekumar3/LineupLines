@@ -32,6 +32,18 @@ class TestGetAvailableByPosition:
         """Create test client."""
         return TestClient(app)
 
+    @pytest.fixture(autouse=True)
+    def mock_league_info(self):
+        """Default league info: redraft, non-superflex, no TE premium.
+
+        Autoused so every test in this class gets a fast, deterministic
+        response instead of sleeper_client.get_league_info hitting the network.
+        Tests exercising dynasty/keeper/superflex resolution override this via
+        their own nested `with patch(...)`.
+        """
+        with patch("src.api.main.sleeper_client.get_league_info", return_value={}) as mock:
+            yield mock
+
     @pytest.fixture
     def mock_draft_details(self):
         """Mock draft details response."""
@@ -460,6 +472,125 @@ class TestGetAvailableByPosition:
         mahomes = next((p for p in qbs if "Mahomes" in p["player_name"]), None)
         assert mahomes is not None
         assert mahomes["adp_ppr"] == 45.2  # fell back to Sleeper ADP
+
+    def test_dynasty_superflex_league_resolves_matching_ranking_key(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """A dynasty superflex league should drive draftsharks lookups off
+        dynasty_ppr_superflex, not the plain redraft PPR key."""
+        dynasty_superflex_draft_details = {
+            **mock_draft_details,
+            "settings": {**mock_draft_details["settings"], "slots_super_flex": 1},
+        }
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+        }
+        captured = {}
+
+        def fake_get_adp_map(source, scoring_format, all_players, sleeper_proj):
+            captured["ranking_key"] = scoring_format
+            return {"5000": 30.0}, {}, True
+
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=dynasty_superflex_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.sleeper_client.get_league_info",
+            return_value={"settings": {"type": 2}},  # 2 = dynasty
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.adp_sources.get_adp_map",
+            side_effect=fake_get_adp_map,
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
+            )
+
+        assert response.status_code == 200
+        assert captured["ranking_key"] == "dynasty_ppr_superflex"
+        assert response.json()["ranking_key"] == "dynasty_ppr_superflex"
+
+    def test_keeper_league_resolves_keeper_ranking_key(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """A keeper league should drive draftsharks lookups off keeper_ppr."""
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+        }
+        captured = {}
+
+        def fake_get_adp_map(source, scoring_format, all_players, sleeper_proj):
+            captured["ranking_key"] = scoring_format
+            return {"5000": 30.0}, {}, True
+
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.sleeper_client.get_league_info",
+            return_value={"settings": {"type": 1}},  # 1 = keeper
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.adp_sources.get_adp_map",
+            side_effect=fake_get_adp_map,
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
+            )
+
+        assert response.status_code == 200
+        assert captured["ranking_key"] == "keeper_ppr"
+
+    def test_redraft_league_ranking_key_omitted_for_sleeper_source(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """ranking_key should be null when adp_source is sleeper, even for a
+        dynasty league — it's only meaningful for draftsharks lookups."""
+        mock_projections = {
+            "5000": _make_proj("5000", "Patrick Mahomes", "QB", "KC", 45.2),
+        }
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.sleeper_client.get_league_info",
+            return_value={"settings": {"type": 2}},
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ):
+            response = client.get("/api/v1/drafts/123/available-by-position?adp_source=sleeper")
+
+        assert response.status_code == 200
+        assert response.json()["ranking_key"] is None
 
     def test_adp_source_invalid_value_rejected(self, client, mock_draft_details):
         """Test adp_source is validated against the allowed pattern."""

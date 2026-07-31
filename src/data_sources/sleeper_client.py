@@ -243,6 +243,8 @@ class SleeperClient:
                     "rounds": response.get("settings", {}).get("rounds", 15),
                     "reversal_round": response.get("settings", {}).get("reversal_round"),
                     "type": response.get("type", ""),
+                    "slots_qb": response.get("settings", {}).get("slots_qb", 1),
+                    "slots_super_flex": response.get("settings", {}).get("slots_super_flex", 0),
                 },
                 "metadata": {
                     "name": response.get("metadata", {}).get("name"),

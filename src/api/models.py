@@ -300,6 +300,7 @@ class AvailableByPositionResponse(BaseModel):
                 },
                 "adp_source": "sleeper",
                 "adp_source_available": True,
+                "ranking_key": None,
             }
         }
     )
@@ -320,6 +321,11 @@ class AvailableByPositionResponse(BaseModel):
     adp_source_available: bool = Field(
         ...,
         description="False if the requested non-Sleeper source had no fresh (<48h) snapshot and the response fell back to Sleeper ADP",
+    )
+    ranking_key: Optional[str] = Field(
+        None,
+        description="The DraftSharks S3 ranking key actually used (e.g. 'dynasty_ppr_superflex'), "
+        "chosen from the league's type/superflex/TE-premium settings. None when adp_source is 'sleeper'.",
     )
 
 

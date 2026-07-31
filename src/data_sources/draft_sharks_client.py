@@ -36,12 +36,36 @@ class Player:
 class DraftSharksClient:
     """Client for fetching DraftSharks ADP + tier data.
 
-    Supports multiple scoring formats (PPR, Standard, Half-PPR).
+    Supports multiple rankings pages, keyed by `scoring_format` even though not
+    every key is strictly a scoring format anymore (e.g. "dynasty_te_premium",
+    "keeper_superflex") — see RANKING_PATHS for the full key -> URL mapping.
     Data can be fetched via web scraping or cached locally.
     """
 
-    SCORING_FORMATS = ["ppr", "standard", "half_ppr"]
-    BASE_URL = "https://www.draftsharks.com/rankings"
+    # Redraft keys ("ppr", "standard", "half_ppr") are load-bearing: they match
+    # the S3 snapshot keys already consumed by src/services/adp_sources.py for
+    # the live draft's ADP delta. Don't rename them without updating that path.
+    RANKING_PATHS: Dict[str, str] = {
+        # Redraft
+        "ppr": "/rankings/ppr",
+        "standard": "/rankings",
+        "half_ppr": "/rankings/half-ppr",
+        # Dynasty
+        "dynasty_ppr": "/dynasty-rankings/ppr",
+        "dynasty_half_ppr": "/dynasty-rankings/half-ppr",
+        "dynasty_ppr_superflex": "/dynasty-rankings/ppr-superflex",
+        "dynasty_ppr_rookies": "/dynasty-rankings/ppr/rookies",
+        "dynasty_ppr_superflex_rookies": "/dynasty-rankings/ppr-superflex/rookies",
+        "dynasty_te_premium": "/dynasty-rankings/te-premium",
+        "dynasty_te_premium_superflex": "/dynasty-rankings/te-premium-superflex",
+        # Keeper
+        "keeper_ppr": "/keeper-rankings/ppr",
+        "keeper_superflex": "/keeper-rankings/superflex",
+        # Auction
+        "auction_ppr": "/auction-values/ppr",
+    }
+    SCORING_FORMATS = list(RANKING_PATHS.keys())
+    DOMAIN = "https://www.draftsharks.com"
 
     def __init__(self):
         """Initialize the DraftSharks client."""
@@ -49,10 +73,10 @@ class DraftSharksClient:
         self.last_updated: Dict[str, datetime] = {}
 
     def fetch_adp_data(self, scoring_format: str) -> List[Player]:
-        """Fetch ADP data from DraftSharks for the given scoring format.
+        """Fetch ADP/rankings data from DraftSharks for the given ranking key.
 
         Args:
-            scoring_format: One of "ppr", "standard", "half_ppr"
+            scoring_format: A key in RANKING_PATHS, e.g. "ppr", "dynasty_te_premium"
 
         Returns:
             List of Player objects with ADP and tier information
@@ -60,9 +84,9 @@ class DraftSharksClient:
         Raises:
             ValueError: If scoring_format is not supported
         """
-        if scoring_format not in self.SCORING_FORMATS:
+        if scoring_format not in self.RANKING_PATHS:
             raise ValueError(
-                f"Unsupported scoring format: {scoring_format}. "
+                f"Unsupported ranking key: {scoring_format}. "
                 f"Must be one of {self.SCORING_FORMATS}"
             )
 
@@ -158,7 +182,7 @@ class DraftSharksClient:
         Requirements: selenium, beautifulsoup4, requests
 
         Args:
-            scoring_format: One of "ppr", "standard", "half_ppr"
+            scoring_format: A key in RANKING_PATHS, e.g. "ppr", "dynasty_te_premium"
 
         Returns:
             List of Player objects
@@ -173,15 +197,7 @@ class DraftSharksClient:
             )
             return []
 
-        # "standard" has no URL suffix - it's the bare /rankings page, not /rankings/standard.
-        format_map = {
-            "ppr": "ppr",
-            "standard": "",
-            "half_ppr": "half-ppr",
-        }
-
-        suffix = format_map[scoring_format]
-        url = f"{self.BASE_URL}/{suffix}" if suffix else self.BASE_URL
+        url = f"{self.DOMAIN}{self.RANKING_PATHS[scoring_format]}"
 
         try:
             html_content = self._fetch_with_selenium(url)

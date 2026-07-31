@@ -153,3 +153,57 @@ def get_adp_map(
         raise ValueError(f"Unknown ADP source: {source}. Must be one of {ADP_SOURCES}")
 
     return loader(scoring_format, all_players, sleeper_proj)
+
+
+# Only the S3 keys scraped for a live snake/linear draft's undrafted-player view
+# (excludes the dynasty rookies-only keys, which are for a rookie-draft-only
+# view we don't have yet, and auction_ppr, whose values are dollar amounts, not
+# pick numbers — mixing that into adp_delta's "current_pick - adp" math would
+# be nonsensical). See src/data_sources/draft_sharks_client.py RANKING_PATHS
+# for the full scraped set.
+DRAFTSHARKS_STANDARD_KEYS = {"ppr", "half_ppr", "standard"}
+DRAFTSHARKS_DYNASTY_KEYS = {
+    "ppr": "dynasty_ppr",
+    "half_ppr": "dynasty_half_ppr",
+    "superflex": "dynasty_ppr_superflex",
+    "te_premium": "dynasty_te_premium",
+    "te_premium_superflex": "dynasty_te_premium_superflex",
+}
+DRAFTSHARKS_KEEPER_KEYS = {
+    "ppr": "keeper_ppr",
+    "superflex": "keeper_superflex",
+}
+
+
+def resolve_draftsharks_ranking_key(
+    scoring_format: str, league_type: str, is_superflex: bool, is_te_premium: bool
+) -> str:
+    """Pick the DraftSharks S3 key that best matches a Sleeper league's settings.
+
+    Args:
+        scoring_format: "ppr" | "half_ppr" | "standard" (from league scoring_settings.rec)
+        league_type: Sleeper's league.settings.type as a string — "0" (redraft),
+            "1" (keeper), or "2" (dynasty). Anything else is treated as redraft.
+        is_superflex: True if the league starts a QB in a superflex/2QB slot.
+        is_te_premium: True if the league awards bonus points for TE receptions.
+
+    Returns:
+        A key from DraftSharksClient.RANKING_PATHS. Falls back to the closest
+        available combination when the league's exact combo wasn't scraped
+        (e.g. a standard-scoring dynasty league falls back to dynasty_ppr,
+        since no non-PPR dynasty key is scraped) rather than silently
+        dropping the dynasty/keeper adjustment.
+    """
+    if league_type == "2":  # dynasty
+        if is_te_premium:
+            return DRAFTSHARKS_DYNASTY_KEYS["te_premium_superflex" if is_superflex else "te_premium"]
+        if is_superflex:
+            return DRAFTSHARKS_DYNASTY_KEYS["superflex"]
+        return DRAFTSHARKS_DYNASTY_KEYS["half_ppr" if scoring_format == "half_ppr" else "ppr"]
+
+    if league_type == "1":  # keeper
+        return DRAFTSHARKS_KEEPER_KEYS["superflex" if is_superflex else "ppr"]
+
+    # Redraft: no superflex/TE-premium variant scraped for this section, so
+    # scoring format is the only axis we can honor.
+    return scoring_format if scoring_format in DRAFTSHARKS_STANDARD_KEYS else "ppr"
