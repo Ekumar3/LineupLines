@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import ADPBadge from '../common/ADPBadge';
 import PlayerHeadshot from '../common/PlayerHeadshot';
 import { formatPlayerName } from '../../utils/formatPlayerName';
@@ -101,59 +101,53 @@ export default function AvailablePlayersTable({ draftId, recommendations, availa
                 <th className="px-3 py-2">Pos</th>
                 <th className="px-3 py-2">ADP Delta</th>
                 <th className="px-3 py-2">Proj Pts</th>
-                <th className="px-3 py-2">PPG</th>
-                <th className="px-3 py-2 hidden sm:table-cell">Tier</th>
               </tr>
             </thead>
             <tbody>
               {visible.map((rec, idx) => {
                 const rank = idx + 1;
                 const isTop = rank === 1;
+                const tierValue = positionFilter === 'ALL' ? rec.tier : rec.positional_tier;
+                const prevTierValue =
+                  idx > 0 ? (positionFilter === 'ALL' ? visible[idx - 1].tier : visible[idx - 1].positional_tier) : undefined;
+                const showTierDivider = tierValue != null && tierValue !== prevTierValue;
+                const tierColorClass = tierValue != null ? TIER_COLORS[(tierValue - 1) % TIER_COLORS.length] : '';
                 return (
-                  <tr
-                    key={rec.player_id}
-                    className={`border-t border-sleeper-gray-700 ${isTop ? 'border-l-2 border-l-green-500' : ''} hover:bg-sleeper-gray-800/50`}
-                  >
-                    <td className="px-3 py-2 text-sleeper-gray-400 font-mono">{rank}</td>
-                    <td className="px-3 py-2 text-white font-medium">
-                      <div className="flex items-center gap-2">
-                        <PlayerHeadshot
-                          playerId={rec.player_id}
-                          playerName={rec.player_name}
-                          position={rec.position}
-                        />
-                        <span>{formatPlayerName(rec.player_name)}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${POSITION_COLORS[rec.position] ?? 'bg-sleeper-gray-700 text-sleeper-gray-300'}`}>
-                        {rec.position}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
-                    </td>
-                    <td className="px-3 py-2 text-sleeper-gray-300">
-                      {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-sleeper-gray-300">
-                      {rec.avg_ppg != null ? rec.avg_ppg.toFixed(1) : '—'}
-                    </td>
-                    <td className="px-3 py-2 hidden sm:table-cell">
-                      {(() => {
-                        const tierValue = positionFilter === 'ALL' ? rec.tier : rec.positional_tier;
-                        if (tierValue == null) {
-                          return <span className="text-sleeper-gray-400 text-xs">—</span>;
-                        }
-                        const colorClass = TIER_COLORS[(tierValue - 1) % TIER_COLORS.length];
-                        return (
-                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${colorClass}`}>
-                            T{tierValue}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
+                  <Fragment key={rec.player_id}>
+                    {showTierDivider && (
+                      <tr>
+                        <td colSpan={5} className={`px-3 py-1 text-xs font-semibold ${tierColorClass}`}>
+                          Tier {tierValue}
+                        </td>
+                      </tr>
+                    )}
+                    <tr
+                      className={`border-t border-sleeper-gray-700 ${isTop ? 'border-l-2 border-l-green-500' : ''} hover:bg-sleeper-gray-800/50`}
+                    >
+                      <td className="px-3 py-2 text-sleeper-gray-400 font-mono">{rank}</td>
+                      <td className="px-3 py-2 text-white font-medium">
+                        <div className="flex items-center gap-2">
+                          <PlayerHeadshot
+                            playerId={rec.player_id}
+                            playerName={rec.player_name}
+                            position={rec.position}
+                          />
+                          <span>{formatPlayerName(rec.player_name)}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${POSITION_COLORS[rec.position] ?? 'bg-sleeper-gray-700 text-sleeper-gray-300'}`}>
+                          {rec.position}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <ADPBadge adpDelta={rec.adp_delta} adpPpr={rec.adp_ppr} />
+                      </td>
+                      <td className="px-3 py-2 text-sleeper-gray-300">
+                        {rec.projected_points != null ? rec.projected_points.toFixed(1) : '—'}
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

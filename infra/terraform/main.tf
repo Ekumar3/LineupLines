@@ -44,6 +44,10 @@ module "compute" {
   # already depends on compute for the ECS task role.
   analytics_table_name  = "${var.project}-analytics-events"
   analytics_admin_token = var.analytics_admin_token
+  # Same deterministic-name trick as analytics_table_name above — data_storage
+  # (which owns the actual bucket resource) depends on compute for the ECS
+  # task role, so compute can't reference module.data_storage back.
+  adp_s3_bucket = "${var.project}-player-data-prod"
 }
 
 module "cdn" {
