@@ -27,16 +27,30 @@ const DEFAULT_ROWS = 5;
 export default function AvailablePlayersTable({ draftId, players, rankingLabel }) {
   const [expanded, setExpanded] = useState(false);
   const [positionFilter, setPositionFilter] = useState('ALL');
+  const [sortMode, setSortMode] = useState('adp'); // 'adp' | 'tier'
 
   const rows = players || [];
 
   const filtered =
     positionFilter === 'ALL' ? rows : rows.filter((r) => r.position === positionFilter);
 
+  // Tier sort uses overall tier for "All" and positional tier once filtered to
+  // one position — same field the divider rows below key off of — so grouping
+  // by tier and the divider labels always agree. ADP is the tiebreak within a
+  // tier so ties still land in a sensible order.
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortMode === 'tier') {
+      const tierA = (positionFilter === 'ALL' ? a.tier : a.positional_tier) ?? Infinity;
+      const tierB = (positionFilter === 'ALL' ? b.tier : b.positional_tier) ?? Infinity;
+      if (tierA !== tierB) return tierA - tierB;
+    }
+    return (a.adp_ppr ?? Infinity) - (b.adp_ppr ?? Infinity);
+  });
+
   if (!players || players.length === 0) return null;
 
-  const visible = expanded ? filtered : filtered.slice(0, DEFAULT_ROWS);
-  const hasMore = filtered.length > DEFAULT_ROWS;
+  const visible = expanded ? sorted : sorted.slice(0, DEFAULT_ROWS);
+  const hasMore = sorted.length > DEFAULT_ROWS;
 
   return (
     <div className="mb-8">
@@ -44,28 +58,55 @@ export default function AvailablePlayersTable({ draftId, players, rankingLabel }
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white">Best Available</h2>
-          <p className="text-xs text-sleeper-gray-500">Ranked by {rankingLabel || 'ADP'}</p>
+          <p className="text-xs text-sleeper-gray-500">
+            Sorted by {sortMode === 'tier' ? (positionFilter === 'ALL' ? 'Overall Tier' : `${positionFilter} Tier`) : `${rankingLabel || 'ADP'}`}
+          </p>
         </div>
       </div>
 
-      {/* Position filter */}
-      <div className="mb-3 flex flex-wrap rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium w-fit">
-        {['ALL', ...POSITION_ORDER].map((pos) => (
-          <button
-            key={pos}
-            onClick={() => {
-              setPositionFilter(pos);
-              setExpanded(false);
-            }}
-            className={`px-3 py-1.5 transition-colors ${
-              positionFilter === pos
-                ? 'bg-sleeper-blue text-white'
-                : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
-            }`}
-          >
-            {pos === 'ALL' ? 'All' : pos}
-          </button>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        {/* Position filter */}
+        <div className="flex flex-wrap rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium w-fit">
+          {['ALL', ...POSITION_ORDER].map((pos) => (
+            <button
+              key={pos}
+              onClick={() => {
+                setPositionFilter(pos);
+                setExpanded(false);
+              }}
+              className={`px-3 py-1.5 transition-colors ${
+                positionFilter === pos
+                  ? 'bg-sleeper-blue text-white'
+                  : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
+              }`}
+            >
+              {pos === 'ALL' ? 'All' : pos}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort mode toggle */}
+        <div className="flex rounded-lg overflow-hidden border border-sleeper-gray-600 text-xs font-medium w-fit">
+          {[
+            { key: 'adp', label: 'ADP' },
+            { key: 'tier', label: 'Tier' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => {
+                setSortMode(key);
+                setExpanded(false);
+              }}
+              className={`px-3 py-1.5 transition-colors ${
+                sortMode === key
+                  ? 'bg-sleeper-blue text-white'
+                  : 'bg-sleeper-gray-800 text-sleeper-gray-300 hover:bg-sleeper-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-sleeper-gray-700">
@@ -98,7 +139,7 @@ export default function AvailablePlayersTable({ draftId, players, rankingLabel }
                     {showTierDivider && (
                       <tr>
                         <td colSpan={5} className={`px-2 py-0.5 text-xs font-semibold ${tierColorClass}`}>
-                          Tier {tierValue}
+                          {positionFilter === 'ALL' ? 'Overall' : positionFilter} Tier {tierValue}
                         </td>
                       </tr>
                     )}

@@ -1069,6 +1069,7 @@ def get_user_roster(request: Request, draft_id: str, user_id: str):
             user_id=user_id,
             draft_slot=draft_slot,
             total_picks=len(user_picks),
+            league_name=draft_details.get("metadata", {}).get("name") if draft_details else None,
             roster_by_position=dict(picks_by_position),
             position_summary=position_summary,
         )

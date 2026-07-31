@@ -520,6 +520,7 @@ class UserRosterResponse(BaseModel):
     user_id: str = Field(..., description="The user ID")
     draft_slot: int = Field(..., description="User's draft slot position (1-based, 0 if not found)")
     total_picks: int = Field(..., description="Total number of picks made by this user")
+    league_name: Optional[str] = Field(None, description="The league/draft's display name, as set on Sleeper")
     roster_by_position: Dict[str, List[PickDetail]] = Field(
         ..., description="User's picks grouped by position"
     )

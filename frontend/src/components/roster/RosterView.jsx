@@ -79,9 +79,14 @@ export default function RosterView({ draftId, userId }) {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            My Roster
+          <h1 className="text-3xl font-bold text-white mb-1">
+            {rosterData.league_name || 'My Roster'}
           </h1>
+          {availableData?.scoring_format && (
+            <p className="text-sleeper-gray-400 mb-2">
+              {RANKING_KEY_LABELS[availableData.scoring_format] || availableData.scoring_format} Scoring
+            </p>
+          )}
           <div className="flex gap-4 text-sleeper-gray-400 flex-wrap items-center">
             <span>Draft Slot: {rosterData.draft_slot}</span>
             <span>Total Picks: {rosterData.total_picks}</span>
