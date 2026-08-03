@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.data_sources.sleeper_client import SleeperClient
 from src.data_sources.sleeper_projections_client import SleeperProjectionsClient
 from src.analytics.adp_service import adp_service
-from src.services import adp_sources
+from src.services import adp_sources, environment_score
 from src.api.models import (
     UserDraftsResponse,
     DraftSummary,
@@ -849,6 +849,8 @@ def get_available_by_position(
         if adp_source != "sleeper" and not adp_source_available:
             adp_map, tier_map, _ = adp_sources.get_adp_map("sleeper", scoring_format, all_players, sleeper_proj)
 
+        environment_map = environment_score.get_environment_map()
+
         for player_id, player_data in all_players.items():
             # Skip drafted players
             if player_id in drafted_player_ids:
@@ -885,11 +887,13 @@ def get_available_by_position(
 
             # Create player detail
             player_tier = tier_map.get(player_id)
+            team = player_data.get("team") or "FA"
+            player_environment = environment_map.get(team)
             available_player = AvailablePlayerDetail(
                 player_id=player_id,
                 player_name=player_name,
                 position=position,
-                team=player_data.get("team") or "FA",
+                team=team,
                 age=player_data.get("age"),
                 years_exp=player_data.get("years_exp"),
                 adp_ppr=adp_value,
@@ -897,16 +901,23 @@ def get_available_by_position(
                 projected_pts=round(_proj.projected_pts, 1) if _proj else None,
                 avg_ppg=round(_proj.avg_ppg, 1) if _proj else None,
                 tier=player_tier.get("tier") if player_tier else None,
-                positional_tier=player_tier.get("positional_tier") if player_tier else None
+                positional_tier=player_tier.get("positional_tier") if player_tier else None,
+                environment_rank=player_environment.get("rank") if player_environment else None,
+                environment_score=player_environment.get("score") if player_environment else None
             )
 
             available_by_position[position].append(available_player)
 
-        # Step 6: Sort each position by ADP delta (descending - best value first)
-        # Players with no ADP data go to end
+        # Step 6: Sort each position by tier (ascending), then environment score
+        # (descending) to break ties within a tier, then ADP delta (descending)
+        # as a final tiebreak. Missing data always sorts last within its level.
         for position in available_by_position:
             available_by_position[position].sort(
-                key=lambda p: (p.adp_delta is None, -(p.adp_delta or 0))
+                key=lambda p: (
+                    p.tier is None, p.tier or 0,
+                    p.environment_score is None, -(p.environment_score or 0),
+                    p.adp_delta is None, -(p.adp_delta or 0),
+                )
             )
 
         # Step 7: Limit to top N per position

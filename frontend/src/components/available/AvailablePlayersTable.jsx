@@ -123,6 +123,12 @@ export default function AvailablePlayersTable({ draftId, players, rankingLabel }
                 <th className="px-2 py-1.5 w-16">Pos</th>
                 <th className="px-2 py-1.5 w-28 text-center">ADP Delta</th>
                 <th className="px-2 py-1.5 w-20">Proj Pts</th>
+                <th
+                  className="px-2 py-1.5 w-20 cursor-help"
+                  title="The environment rank uses sportsbook projections for how the teams will score. It's a good way to understand which teams to take players from. The factors that go into it are: the team's implied points per game, the average game total, shootout rate, and low total rate."
+                >
+                  Env Rank
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -138,7 +144,7 @@ export default function AvailablePlayersTable({ draftId, players, rankingLabel }
                   <Fragment key={rec.player_id}>
                     {showTierDivider && (
                       <tr>
-                        <td colSpan={5} className={`px-2 py-0.5 text-xs font-semibold ${tierColorClass}`}>
+                        <td colSpan={6} className={`px-2 py-0.5 text-xs font-semibold ${tierColorClass}`}>
                           {positionFilter === 'ALL' ? 'Overall' : positionFilter} Tier {tierValue}
                         </td>
                       </tr>
@@ -167,6 +173,9 @@ export default function AvailablePlayersTable({ draftId, players, rankingLabel }
                       </td>
                       <td className="px-2 py-1.5 text-sleeper-gray-300">
                         {rec.projected_pts != null ? rec.projected_pts.toFixed(1) : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 text-sleeper-gray-300">
+                        {rec.environment_rank ?? '—'}
                       </td>
                     </tr>
                   </Fragment>

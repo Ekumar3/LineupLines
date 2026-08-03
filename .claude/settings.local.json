@@ -217,7 +217,9 @@
       "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.draftsharks.com/dynasty-rankings/totally-bogus-path-xyz123\" -o /tmp/bogus.html)",
       "Bash(python -m pytest tests/test_adp_sources.py -q)",
       "Bash(python -c \"import airflow\")",
-      "Bash(python -m pytest tests/dags/test_dag_import.py -q)"
+      "Bash(python -m pytest tests/dags/test_dag_import.py -q)",
+      "Bash(python -m pytest tests/test_environment_score.py tests/test_available_by_position.py -v)",
+      "Bash(python -m pytest tests/test_environment_score.py tests/test_available_by_position.py -q)"
     ]
   }
 }

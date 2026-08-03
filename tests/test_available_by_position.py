@@ -279,6 +279,143 @@ class TestGetAvailableByPosition:
             assert qbs[0]["player_name"] == "Patrick Mahomes"
             assert qbs[0]["adp_delta"] == -25.0  # 25 - 50.0 = -25.0
 
+    def test_environment_rank_and_score_populate_from_team(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """Environment rank/score are joined onto players by team abbreviation."""
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 30.0),
+        }
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.environment_score.get_environment_map",
+            return_value={"SF": {"rank": 7, "score": 1.58}},
+        ):
+            response = client.get("/api/v1/drafts/123/available-by-position")
+
+        assert response.status_code == 200
+        data = response.json()
+        rbs = data["players_by_position"]["RB"]
+        mccaffrey = next(p for p in rbs if "McCaffrey" in p["player_name"])
+        assert mccaffrey["environment_rank"] == 7
+        assert mccaffrey["environment_score"] == 1.58
+
+    def test_environment_data_missing_for_team_is_null(
+        self, client, mock_draft_details, mock_draft_picks, mock_player_universe
+    ):
+        """Teams absent from the environment map get null fields, not an error."""
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 30.0),
+        }
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=mock_player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.environment_score.get_environment_map",
+            return_value={},
+        ):
+            response = client.get("/api/v1/drafts/123/available-by-position")
+
+        assert response.status_code == 200
+        data = response.json()
+        rbs = data["players_by_position"]["RB"]
+        mccaffrey = next(p for p in rbs if "McCaffrey" in p["player_name"])
+        assert mccaffrey["environment_rank"] is None
+        assert mccaffrey["environment_score"] is None
+
+    def test_sorting_is_tier_first_then_environment_score_then_adp_delta(
+        self, client, mock_draft_details, mock_draft_picks
+    ):
+        """Within the same tier, higher environment score sorts first; adp_delta
+        only breaks ties that tier + environment score didn't resolve."""
+        player_universe = {
+            "2307": {
+                "first_name": "Christian", "last_name": "McCaffrey",
+                "position": "RB", "team": "SF", "active": True,
+            },
+            "9001": {
+                "first_name": "Worse", "last_name": "Environment",
+                "position": "RB", "team": "MIA", "active": True,
+            },
+            "9002": {
+                "first_name": "Different", "last_name": "Tier",
+                "position": "RB", "team": "KC", "active": True,
+            },
+        }
+        mock_projections = {
+            "2307": _make_proj("2307", "Christian McCaffrey", "RB", "SF", 30.0),
+            "9001": _make_proj("9001", "Worse Environment", "RB", "MIA", 30.0),
+            "9002": _make_proj("9002", "Different Tier", "RB", "KC", 30.0),
+        }
+        # McCaffrey and "Worse Environment" share tier 1 and an identical ADP
+        # (so adp_delta ties too) — only environment score can separate them.
+        # "Different Tier" has the best environment score but a worse tier, so
+        # it must still sort last.
+        tier_map = {
+            "2307": {"tier": 1, "positional_tier": 1},
+            "9001": {"tier": 1, "positional_tier": 1},
+            "9002": {"tier": 2, "positional_tier": 2},
+        }
+        adp_map = {"2307": 30.0, "9001": 30.0, "9002": 30.0}
+
+        with patch(
+            "src.api.main.sleeper_client.get_draft_details",
+            return_value=mock_draft_details,
+        ), patch(
+            "src.api.main.sleeper_client.get_draft_picks",
+            return_value=mock_draft_picks,
+        ), patch(
+            "src.api.main.sleeper_client.get_scoring_format", return_value="ppr"
+        ), patch(
+            "src.api.main.load_player_universe",
+            return_value=player_universe,
+        ), patch(
+            "src.api.main.sleeper_projections_client.fetch_projections",
+            return_value=mock_projections,
+        ), patch(
+            "src.api.main.adp_sources.get_adp_map",
+            return_value=(adp_map, tier_map, True),
+        ), patch(
+            "src.api.main.environment_score.get_environment_map",
+            return_value={
+                "SF": {"rank": 7, "score": 1.58},
+                "MIA": {"rank": 29, "score": -2.12},
+                "KC": {"rank": 1, "score": 3.12},
+            },
+        ):
+            response = client.get(
+                "/api/v1/drafts/123/available-by-position?adp_source=draftsharks"
+            )
+
+        assert response.status_code == 200
+        rbs = response.json()["players_by_position"]["RB"]
+        names = [p["player_name"] for p in rbs]
+        assert names == ["Christian McCaffrey", "Worse Environment", "Different Tier"]
+
     def test_no_adp_data_handling(
         self, client, mock_draft_details, mock_draft_picks, mock_player_universe
     ):

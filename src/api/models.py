@@ -257,7 +257,9 @@ class AvailablePlayerDetail(BaseModel):
                 "projected_pts": 245.6,
                 "avg_ppg": 14.5,
                 "tier": 1,
-                "positional_tier": 1
+                "positional_tier": 1,
+                "environment_rank": 3,
+                "environment_score": 1.58
             }
         }
     )
@@ -277,6 +279,8 @@ class AvailablePlayerDetail(BaseModel):
     avg_ppg: Optional[float] = Field(None, description="Projected average fantasy points per game")
     tier: Optional[int] = Field(None, description="Overall tier for this player based on ADP and projections")
     positional_tier: Optional[int] = Field(None, description="Tier for this player within their position group based on ADP and projections")
+    environment_rank: Optional[int] = Field(None, description="Player's NFL team's offensive scoring-environment rank (1=best), based on Vegas implied team totals")
+    environment_score: Optional[float] = Field(None, description="Continuous scoring-environment score used to break ties within a tier; higher is better")
 
 
 class AvailableByPositionResponse(BaseModel):
