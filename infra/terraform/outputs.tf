@@ -37,3 +37,13 @@ output "route53_nameservers" {
   description = "Nameservers to enter at your domain registrar (if not using Route 53 as registrar)"
   value       = module.dns_tls.nameservers
 }
+
+output "airflow_ecr_repository_url" {
+  description = "Full ECR repository URL for pushing the Airflow image — needed by the GitHub Actions airflow pipeline"
+  value       = module.registry.airflow_repository_url
+}
+
+output "airflow_ecs_service_name" {
+  description = "Airflow ECS service name — needed by the GitHub Actions airflow pipeline"
+  value       = module.airflow.ecs_service_name
+}

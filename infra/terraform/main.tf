@@ -1,5 +1,5 @@
 # Root module — wires all child modules together.
-# Dependency order: dns_tls → networking → registry → compute → cdn → data_storage → feedback
+# Dependency order: dns_tls → networking → registry → compute → cdn → data_storage → feedback → analytics → airflow
 
 module "dns_tls" {
   source      = "./modules/dns_tls"
@@ -77,4 +77,25 @@ module "analytics" {
   source             = "./modules/analytics"
   project            = var.project
   ecs_task_role_name = module.compute.ecs_task_role_name
+}
+
+module "airflow" {
+  source             = "./modules/airflow"
+  project            = var.project
+  region             = var.region
+  vpc_id             = module.networking.vpc_id
+  private_subnet_ids = module.networking.private_subnet_ids
+  ecr_repo_url       = module.registry.airflow_repository_url
+  image_tag          = var.airflow_image_tag
+  fargate_cpu        = var.airflow_fargate_cpu
+  fargate_memory     = var.airflow_fargate_memory
+  ecs_cluster_id     = module.compute.ecs_cluster_id
+  # Deterministic name/ARN (not module.data_storage.*) — same circular-
+  # dependency workaround as compute's adp_s3_bucket above (data_storage
+  # depends on compute for the task role, so it can't be referenced back).
+  adp_s3_bucket_name       = "${var.project}-player-data-prod"
+  adp_s3_bucket_arn        = "arn:aws:s3:::${var.project}-player-data-prod"
+  adp_pipeline_end_date    = var.adp_pipeline_end_date
+  github_actions_role_name = module.compute.github_actions_role_name
+  slack_webhook_url        = var.slack_webhook_url
 }

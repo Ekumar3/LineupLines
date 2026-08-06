@@ -25,3 +25,13 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions.arn
   description = "IAM role ARN for GitHub Actions OIDC — paste into GitHub Actions workflow"
 }
+
+output "ecs_cluster_id" {
+  value       = aws_ecs_cluster.main.id
+  description = "ECS cluster ID — airflow module runs its service in this same cluster"
+}
+
+output "github_actions_role_name" {
+  value       = aws_iam_role.github_actions.name
+  description = "Name of the GitHub Actions OIDC role — airflow module attaches an additional ECR-push policy to it"
+}

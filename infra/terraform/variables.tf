@@ -60,3 +60,34 @@ variable "analytics_admin_token" {
   type        = string
   sensitive   = true
 }
+
+variable "airflow_image_tag" {
+  description = "Docker image tag to deploy for the Airflow scheduler (e.g. a git SHA). Defaults to 'latest' — override in CI/CD."
+  type        = string
+  default     = "latest"
+}
+
+variable "airflow_fargate_cpu" {
+  description = "ECS Fargate task CPU units for the Airflow scheduler (heavier than the API — bundles headless Chromium for Selenium scraping)"
+  type        = number
+  default     = 1024
+}
+
+variable "airflow_fargate_memory" {
+  description = "ECS Fargate task memory in MB for the Airflow scheduler"
+  type        = number
+  default     = 2048
+}
+
+variable "adp_pipeline_end_date" {
+  description = "Date the daily ADP scrape DAG auto-pauses (Airflow Variable ADP_PIPELINE_END_DATE) — no live drafts happen after the NFL season starts"
+  type        = string
+  default     = "2026-09-01"
+}
+
+variable "slack_webhook_url" {
+  description = "Slack incoming webhook URL for the adp_scrape_dag on_failure alerts (slack_adp_alerts connection). Optional — if left empty, scripts/start.sh skips registering the connection and task failures just go unnotified instead of to Slack."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

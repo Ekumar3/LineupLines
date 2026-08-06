@@ -9,3 +9,8 @@ ses_to_email   = "dacalw26@email.com"           # Where you want to receive feed
 # Bearer token for GET /api/v1/summary — pick any long random string.
 # e.g. generate one with: openssl rand -hex 32
 analytics_admin_token = "changeme"
+
+# Optional — Slack incoming webhook URL for the adp_scrape_dag on_failure
+# alerts. Leave unset/empty and task failures just won't be notified anywhere.
+# https://api.slack.com/messaging/webhooks
+# slack_webhook_url = "https://hooks.slack.com/services/changeme"

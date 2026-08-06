@@ -34,10 +34,18 @@ When all five containers are ready the command will open the browser to the Airf
 
 Note: If you already have either of the above ports allocated, you can either [stop your existing Docker containers or change the port](https://www.astronomer.io/docs/astro/cli/troubleshoot-locally#ports-are-not-available-for-my-local-airflow-webserver).
 
-Deploy Your Project to Astronomer
-=================================
+Deploy to Production
+=====================
 
-If you have an Astronomer account, pushing code to a Deployment on Astronomer is simple. For deploying instructions, refer to Astronomer documentation: https://www.astronomer.io/docs/astro/deploy-code/
+This project does not deploy through Astronomer Cloud. On push to `main` (when files under
+`airflow/**` change), `.github/workflows/airflow.yml` vendors the `src/` modules the DAG imports
+(`scripts/vendor_src.py`), builds this Dockerfile, and deploys it to a single-node, self-hosted
+Airflow scheduler running as an AWS ECS Fargate service — no webserver/UI, LocalExecutor +
+SQLite metadata DB persisted on EFS. Infra lives in `infra/terraform/modules/airflow/`.
+
+Runtime config (the `ADP_S3_BUCKET`/`ADP_PIPELINE_END_DATE` Variables, the `slack_adp_alerts`
+Slack connection, and the executor/database settings) is injected via ECS task-definition
+container env vars set by Terraform — not `airflow_settings.yaml`, which is local-dev-only.
 
 Contact
 =======
