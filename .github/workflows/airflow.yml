@@ -37,10 +37,21 @@ jobs:
         # must run before both this test step and the image build below.
         run: python airflow/scripts/vendor_src.py
 
+      - name: Initialize a throwaway metadata DB
+        # DagBag.get_dag() queries the `dag` table, which doesn't exist until
+        # migrated. A fresh SQLite DB in the default AIRFLOW_HOME is fine —
+        # this runner is ephemeral.
+        working-directory: airflow
+        run: airflow db migrate
+
       - name: Run pytest
         working-directory: airflow
         env:
-          PYTHONPATH: dags:plugins:include/vendored_src
+          # "." (not "dags") so `from dags.adp_scrape_dag import ...` resolves
+          # dags/ as a package (implicit namespace package, no __init__.py
+          # needed) from the airflow/ root, alongside plugins/ and the
+          # vendored src/ modules.
+          PYTHONPATH: .:plugins:include/vendored_src
         run: pytest tests/ -v
 
   deploy:

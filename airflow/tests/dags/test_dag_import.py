@@ -5,6 +5,7 @@ import os
 
 import pytest
 from airflow.models import DagBag
+from airflow.utils.dag_cycle_tester import check_cycle
 
 
 @pytest.fixture(scope="module")
@@ -19,7 +20,7 @@ def test_no_import_errors(dagbag):
 def test_adp_scrape_dag_loaded(dagbag):
     dag = dagbag.get_dag("adp_scrape_dag")
     assert dag is not None
-    assert not dag.test_cycle()
+    check_cycle(dag)  # raises AirflowDagCycleException if a cycle is found
 
 
 def test_adp_scrape_dag_has_one_group_per_format_and_source():
