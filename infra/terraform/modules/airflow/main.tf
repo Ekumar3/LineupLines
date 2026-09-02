@@ -144,6 +144,28 @@ resource "aws_iam_role_policy" "airflow_task_s3_write" {
   })
 }
 
+# Required on the task role (not the execution role) for `aws ecs
+# execute-command` to open a shell into the running task via SSM.
+resource "aws_iam_role_policy" "airflow_task_exec" {
+  name = "${var.project}-airflow-task-exec"
+  role = aws_iam_role.airflow_task.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "ECSExec"
+      Effect = "Allow"
+      Action = [
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
 # ECS Task Definition — scheduler only, LocalExecutor + SQLite on EFS.
 # No command/entrypoint override: the image's own CMD (bash scripts/start.sh)
 # runs `airflow db migrate` then execs `airflow scheduler`.
@@ -221,6 +243,13 @@ resource "aws_ecs_service" "airflow" {
   task_definition = aws_ecs_task_definition.airflow.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
+  # Lets `aws ecs execute-command` open a shell into the running task for
+  # live debugging — task-instance logs live only on the container's local
+  # filesystem (not on the EFS-mounted /usr/local/airflow/db path, and not
+  # captured by the scheduler's stdout->CloudWatch log group), so this is
+  # the only way to inspect them without adding remote task logging.
+  enable_execute_command = true
 
   network_configuration {
     subnets          = var.private_subnet_ids

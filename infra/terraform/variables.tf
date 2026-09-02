@@ -74,15 +74,15 @@ variable "airflow_fargate_cpu" {
 }
 
 variable "airflow_fargate_memory" {
-  description = "ECS Fargate task memory in MB for the Airflow scheduler"
+  description = "ECS Fargate task memory in MB for the Airflow scheduler. Bumped from 2048 to 4096: the scheduler + DagFileProcessorManager + a spawned headless Chromium (for Selenium scraping) sharing 2GB is tight, and the DAG never once wrote a successful snapshot to S3 in its first ~3.5 weeks of running — memory pressure during task execution is a real suspect, not confirmed but cheap to rule out."
   type        = number
-  default     = 2048
+  default     = 4096
 }
 
 variable "adp_pipeline_end_date" {
-  description = "Date the daily ADP scrape DAG auto-pauses (Airflow Variable ADP_PIPELINE_END_DATE) — no live drafts happen after the NFL season starts"
+  description = "Date the daily ADP scrape DAG auto-pauses (Airflow Variable ADP_PIPELINE_END_DATE) — no live drafts happen after the NFL season starts. NOTE: despite the original intent (see adp_scrape_dag.py's docstring) of this being movable without a redeploy via the Airflow Variable, it's actually baked in as a container env var here, so moving it DOES require terraform apply + a service redeploy."
   type        = string
-  default     = "2026-09-01"
+  default     = "2026-12-31"
 }
 
 variable "slack_webhook_url" {
