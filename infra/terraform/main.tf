@@ -89,6 +89,7 @@ module "airflow" {
   image_tag          = var.airflow_image_tag
   fargate_cpu        = var.airflow_fargate_cpu
   fargate_memory     = var.airflow_fargate_memory
+  desired_count      = var.airflow_desired_count
   ecs_cluster_id     = module.compute.ecs_cluster_id
   # Deterministic name/ARN (not module.data_storage.*) — same circular-
   # dependency workaround as compute's adp_s3_bucket above (data_storage

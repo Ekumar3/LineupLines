@@ -237,11 +237,13 @@ resource "aws_ecs_task_definition" "airflow" {
 }
 
 # ECS Service — single always-on scheduler task, no load balancer.
+# Parked at desired_count = 0 outside of draft season (see var.desired_count
+# in the root module); flip to 1 + `terraform apply` to revive.
 resource "aws_ecs_service" "airflow" {
   name            = "${var.project}-airflow"
   cluster         = var.ecs_cluster_id
   task_definition = aws_ecs_task_definition.airflow.arn
-  desired_count   = 1
+  desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
   # Lets `aws ecs execute-command` open a shell into the running task for

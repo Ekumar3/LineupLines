@@ -79,6 +79,12 @@ variable "airflow_fargate_memory" {
   default     = 4096
 }
 
+variable "airflow_desired_count" {
+  description = "Running Airflow scheduler tasks. Parked at 0 outside draft season — the DAG only matters July–early Sept. Flip to 1 + `terraform apply` next preseason to revive (and fix the known unpaused-DAG bug first: it needs AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False or an `airflow dags unpause` in start.sh, since SQLite-on-EFS doesn't persist and the DAG re-pauses on every restart)."
+  type        = number
+  default     = 0
+}
+
 variable "adp_pipeline_end_date" {
   description = "Date the daily ADP scrape DAG auto-pauses (Airflow Variable ADP_PIPELINE_END_DATE) — no live drafts happen after the NFL season starts. NOTE: despite the original intent (see adp_scrape_dag.py's docstring) of this being movable without a redeploy via the Airflow Variable, it's actually baked in as a container env var here, so moving it DOES require terraform apply + a service redeploy."
   type        = string
