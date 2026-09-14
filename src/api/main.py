@@ -838,7 +838,7 @@ def get_available_by_position(
         # Resolve which ADP source drives adp_delta. For DraftSharks, match the
         # league's actual format (dynasty/keeper/superflex/TE premium) rather than
         # always using the plain redraft rankings. Non-Sleeper sources fall back
-        # to Sleeper ADP silently if their snapshot is missing/stale.
+        # to Sleeper ADP silently if their snapshot is missing.
         draftsharks_ranking_key = adp_sources.resolve_draftsharks_ranking_key(
             scoring_format, league_type, is_superflex, is_te_premium
         )

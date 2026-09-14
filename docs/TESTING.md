@@ -4,34 +4,37 @@ Comprehensive guide to running, writing, and maintaining tests for the Draft Hel
 
 ## Test Overview
 
-**Current Coverage**: 101 tests across 9 files
+**Current Coverage**: 144 tests across 12 files
 
 ### Test Distribution
 
 ```
 tests/test_adp_service.py             (13 tests)  - ADP service unit tests
+tests/test_adp_sources.py             (23 tests)  - ADP source registry (Sleeper + DraftSharks snapshot) tests
+tests/test_analytics_tracking.py       (5 tests)  - Analytics tracking tests
 tests/test_api.py                      (1 test)   - Health check
 tests/test_api_storage.py              (9 tests)  - Storage layer unit tests
-tests/test_available_by_position.py    (9 tests)  - Available-by-position endpoint tests
+tests/test_available_by_position.py   (18 tests)  - Available-by-position endpoint tests
 tests/test_draft_endpoints.py         (38 tests)  - API endpoint integration tests
+tests/test_environment_score.py        (6 tests)  - Environment score service tests
 tests/test_fetcher.py                 (10 tests)  - SleeperClient unit tests
 tests/test_league_settings.py          (8 tests)  - League settings endpoint tests
 tests/test_rate_limiting.py            (7 tests)  - Rate limiting + broadcaster caps
 tests/test_sleeper_cache.py            (6 tests)  - Sleeper response cache TTL
 ───────────────────────────────────────────────────
-Total:                                101 tests
+Total:                                144 tests
 ```
 
 ### Test Types
 
 | Type | Count | Purpose | Tools |
 |------|-------|---------|-------|
-| Unit | 33 | Test individual functions | pytest + mocks |
-| Integration | 46 | Test API endpoints | TestClient |
+| Unit | 74 | Test individual functions | pytest + mocks |
+| Integration | 55 | Test API endpoints | TestClient |
 | Storage | 9 | Test persistence | Temp files |
 | Security | 7 | Rate limits + capacity caps | TestClient + asyncio |
 | Cache | 6 | TTL behavior | pytest |
-| **Total** | **101** | **Verify all layers** | pytest |
+| **Total** | **144** | **Verify all layers** | pytest |
 
 ### Coverage Gaps
 
@@ -52,7 +55,7 @@ Output:
 tests/test_api.py::test_health PASSED
 tests/test_api_storage.py::TestPlayerUniverseStorage::test_save_and_load_player_universe PASSED
 ...
-======================== 88 passed in 1.23s ========================
+======================== 144 passed in 9.19s ========================
 ```
 
 ### Run Specific Test File

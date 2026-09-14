@@ -27,7 +27,6 @@ adding its name to EXTERNAL_SOURCES below — no endpoint changes required.
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
 
 from src.analytics.adp_service import adp_service
@@ -43,8 +42,6 @@ except Exception:
 EXTERNAL_SOURCES = ("draftsharks",)
 ADP_SOURCES = ("sleeper",) + EXTERNAL_SOURCES
 
-STALE_AFTER = timedelta(hours=48)
-
 
 def _load_sleeper(scoring_format: str, all_players: dict, sleeper_proj: dict) -> Tuple[Dict[str, float], Dict[str, Dict[str, int]], bool]:
     """Reshape already-fetched Sleeper projections into player_id -> adp."""
@@ -58,8 +55,8 @@ def _load_sleeper(scoring_format: str, all_players: dict, sleeper_proj: dict) ->
 def _load_external_snapshot(source: str, scoring_format: str, all_players: dict, sleeper_proj: dict) -> Tuple[Dict[str, float], Dict[str, Dict[str, int]], bool]:
     """Load an externally-scraped ADP snapshot from S3 and join it to player_id by name.
 
-    Returns ({}, {}, False) whenever the snapshot is missing, stale (>48h old), or
-    can't be read — callers are expected to fall back to Sleeper ADP in that case.
+    Returns ({}, {}, False) whenever the snapshot is missing or can't be read —
+    callers are expected to fall back to Sleeper ADP in that case.
     """
     bucket = os.environ.get("ADP_S3_BUCKET")
     if not bucket:
@@ -77,22 +74,6 @@ def _load_external_snapshot(source: str, scoring_format: str, all_players: dict,
         snapshot = json.loads(obj["Body"].read())
     except Exception as e:
         logger.info("No ADP snapshot available for %s/%s: %s", source, scoring_format, e)
-        return {}, {}, False
-
-    try:
-        scraped_at = datetime.fromisoformat(snapshot["scraped_at"].replace("Z", "+00:00"))
-        if scraped_at.tzinfo is None:
-            scraped_at = scraped_at.replace(tzinfo=timezone.utc)
-    except Exception as e:
-        logger.warning("Malformed scraped_at in %s/%s snapshot: %s", source, scoring_format, e)
-        return {}, {}, False
-
-    age = datetime.now(timezone.utc) - scraped_at
-    if age > STALE_AFTER:
-        logger.warning(
-            "Stale ADP snapshot for %s/%s (age=%s, threshold=%s), falling back",
-            source, scoring_format, age, STALE_AFTER,
-        )
         return {}, {}, False
 
     snapshot_players = snapshot.get("players") or []
