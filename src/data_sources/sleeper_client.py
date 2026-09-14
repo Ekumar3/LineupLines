@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime
 import time
 
+from src.analytics.scoring_format import format_from_scoring_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -371,23 +373,7 @@ class SleeperClient:
             return None
 
         scoring_settings = league_info.get("scoring_settings", {})
-        rec_points = scoring_settings.get("rec", 0)
-
-        # Map reception points to format
-        if rec_points == 1.0:
-            result = "ppr"
-        elif rec_points == 0.5:
-            result = "half_ppr"
-        elif rec_points == 0.0:
-            result = "standard"
-        else:
-            # Custom scoring - default to closest match
-            if rec_points > 0.75:
-                result = "ppr"
-            elif rec_points > 0.25:
-                result = "half_ppr"
-            else:
-                result = "standard"
+        result = format_from_scoring_settings(scoring_settings)
 
         self._scoring_format_cache[league_id] = result
         return result

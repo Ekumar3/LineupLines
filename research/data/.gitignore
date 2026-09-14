@@ -1,0 +1,4 @@
+raw/*.parquet
+predictions/**
+!predictions/.gitkeep
+!raw/.gitkeep
