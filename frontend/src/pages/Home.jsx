@@ -87,9 +87,13 @@ export default function Home() {
     }
   };
 
-  const avatarUrl = userData?.avatar 
-    ? `https://sleepercdn.com/avatars/${userData.avatar}` 
+  const avatarUrl = userData?.avatar
+    ? `https://sleepercdn.com/avatars/${userData.avatar}`
     : null;
+
+  const liveDrafts = draftsData?.drafts?.filter(
+    (d) => ['drafting', 'in_progress'].includes(d.status)
+  ) || [];
 
   return (
     <div className="min-h-screen bg-sleeper-darker py-8 px-4 sm:px-6 lg:px-8 font-sans">
@@ -110,7 +114,7 @@ export default function Home() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. ekumar3"
+                  placeholder="type yungdoinem for a demo"
                   className="w-full bg-sleeper-gray-900 border border-sleeper-gray-700 rounded-lg px-4 py-3 text-white placeholder-sleeper-gray-500 focus:outline-none focus:border-sleeper-blue focus:ring-1 focus:ring-sleeper-blue transition-colors"
                   required
                 />
@@ -163,7 +167,7 @@ export default function Home() {
                   <h3 className="text-white font-semibold text-lg leading-tight">
                     {userData?.display_name || username}
                   </h3>
-                  <p className="text-sleeper-gray-400 text-sm mt-0.5">{draftsData.total_drafts} Total Drafts</p>
+                  <p className="text-sleeper-gray-400 text-sm mt-0.5">{liveDrafts.length} Live Draft{liveDrafts.length === 1 ? '' : 's'}</p>
                 </div>
               </div>
               <button
@@ -175,7 +179,7 @@ export default function Home() {
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {draftsData.drafts?.map((draft) => (
+              {liveDrafts.map((draft) => (
                 <div
                   key={draft.draft_id}
                   onClick={() => handleDraftClick(draft, draftsData.user_id)}
@@ -237,14 +241,14 @@ export default function Home() {
                 </div>
               ))}
               
-              {(!draftsData.drafts || draftsData.drafts.length === 0) && (
+              {liveDrafts.length === 0 && (
                 <div className="col-span-full flex flex-col items-center justify-center py-16 bg-sleeper-dark rounded-xl border border-sleeper-gray-800 border-dashed">
                   <div className="w-16 h-16 bg-sleeper-gray-900 rounded-full flex items-center justify-center mb-4">
                     <span className="text-2xl">🏈</span>
                   </div>
-                  <h3 className="text-white font-medium text-lg mb-2">No Drafts Found</h3>
+                  <h3 className="text-white font-medium text-lg mb-2">No Live Drafts Right Now</h3>
                   <p className="text-sleeper-gray-400 text-center max-w-sm">
-                    We couldn't find any drafts for this season. Make sure you've joined a league on Sleeper!
+                    None of your leagues are currently drafting. Check back once a draft goes live!
                   </p>
                 </div>
               )}

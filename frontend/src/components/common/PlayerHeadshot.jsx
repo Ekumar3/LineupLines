@@ -23,7 +23,6 @@ export default memo(function PlayerHeadshot({ playerId, playerName, position }) 
     <img
       src={`https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`}
       alt={playerName}
-      loading="lazy"
       onError={() => setImgError(true)}
       className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-sleeper-gray-800"
     />

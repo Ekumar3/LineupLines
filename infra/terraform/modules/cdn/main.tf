@@ -62,6 +62,15 @@ resource "aws_cloudfront_distribution" "main" {
   aliases             = [var.domain_name, "www.${var.domain_name}"]
   price_class         = "PriceClass_100" # US + Europe edge nodes only (cheapest)
 
+  # Force HTTP/1.1 to the viewer. The /api/* behavior serves a long-lived SSE
+  # stream (draft picks pushed over server-sent events), and CloudFront's default
+  # HTTP/2 framing for that behavior reliably breaks EventSource connections in
+  # the browser with ERR_HTTP2_PROTOCOL_ERROR — a known CloudFront+SSE incompatibility.
+  # This applies to the whole distribution (CloudFront negotiates protocol per
+  # connection, not per path), trading HTTP/2 for the static asset behavior for a
+  # working live-draft stream.
+  http_version = "http1.1"
+
   # Origin 1: S3 bucket (frontend static assets)
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
