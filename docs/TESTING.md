@@ -4,7 +4,13 @@ Comprehensive guide to running, writing, and maintaining tests for the Draft Hel
 
 ## Test Overview
 
-**Current Coverage**: 144 tests across 12 files
+**Current Coverage**: 174 tests across 16 files
+
+> **Stale below.** The distribution table was written when there were 144 tests
+> across 12 files and no longer matches `tests/`. It is commented out pending a
+> regenerated version. Run `pytest tests/ -v` for the current picture.
+
+<!-- STALE — 144-test distribution, retained for review, needs regenerating.
 
 ### Test Distribution
 
@@ -35,6 +41,8 @@ Total:                                144 tests
 | Security | 7 | Rate limits + capacity caps | TestClient + asyncio |
 | Cache | 6 | TTL behavior | pytest |
 | **Total** | **144** | **Verify all layers** | pytest |
+
+-->
 
 ### Coverage Gaps
 

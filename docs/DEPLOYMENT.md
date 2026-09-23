@@ -576,12 +576,19 @@ Register-ScheduledTask -TaskName "DraftHelperSync" -Trigger $trigger -Action $ac
 
 ### Pre-Deployment Checklist
 
-- [ ] All 144 tests passing locally (`pytest tests/ -v`)
+- [ ] All 174 tests passing locally (`pytest tests/ -v`)
 - [ ] Player data synced within last 24 hours
 - [ ] Environment variables configured
 - [ ] API docs generated at `/docs`
 - [ ] Rate limiting tested (no >1000 req/min)
 - [ ] Error handling verified (404, 422, 500 responses)
+
+> **Superseded.** Production does not run on a VPS and does not run on Lambda.
+> It runs on ECS Fargate behind an ALB, with the frontend in S3 served through
+> CloudFront. See [AWS Deployment](AWS_DEPLOYMENT.md) for the setup that is
+> actually deployed. The two options below are commented out pending review.
+
+<!-- STALE — never-deployed options, retained for review. See AWS_DEPLOYMENT.md.
 
 ### Option 1: Self-Hosted (VPS/EC2)
 
@@ -797,6 +804,8 @@ aws cloudwatch put-metric-alarm \
     --threshold 10 \
     --comparison-operator GreaterThanThreshold
 ```
+
+-->
 
 ### Option 3: Docker (Local Testing & Deployment)
 
