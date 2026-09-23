@@ -1,4 +1,4 @@
-# LineupLines Live at [lineuplines.com](https://lineuplines.com)**
+# LineupLines Live at [lineuplines.com](https://lineuplines.com)
 
 Built for new drafters who want a clear answer on who to take next, with the ADP,
 VOR, and positional depth numbers experienced drafters expect underneath.
