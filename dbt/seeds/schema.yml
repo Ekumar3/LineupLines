@@ -1,0 +1,20 @@
+version: 2
+
+seeds:
+  - name: nfl_team_abbreviations
+    description: >
+      Mapping of NFL team full names to the 2-3 letter abbreviations used
+      across the LineupLines codebase (Sleeper, DraftSharks, nflverse). Mirrors
+      the TEAM_FULL_NAME_TO_ABBR dict in src/services/environment_score.py so
+      every join between a full-name source and an abbreviation source goes
+      through one canonical mapping.
+    columns:
+      - name: team_full_name
+        description: "Full team name (e.g. 'Dallas Cowboys')."
+        tests:
+          - not_null
+      - name: team_abbreviation
+        description: "2-3 letter abbreviation (e.g. 'DAL')."
+        tests:
+          - not_null
+          - unique

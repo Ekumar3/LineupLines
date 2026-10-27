@@ -1,0 +1,3 @@
+# Raw nflverse parquet files — ingested by scripts/ingest_nflverse.py.
+# Don't commit the data itself (it's large and reproducible from nflverse).
+*.parquet

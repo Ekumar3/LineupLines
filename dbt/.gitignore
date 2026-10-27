@@ -1,0 +1,10 @@
+# Compiled artifacts and dependencies — never commit these.
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# Local DuckDB database files (dev target)
+*.duckdb
+*.duckdb.wal
+*.duckdb.preset

@@ -1,0 +1,39 @@
+# dbt-duckdb profiles for LineupLines.
+#
+# Copy this file to ~/.dbt/profiles.yml, or use --profiles-dir . to pick it up
+# from the dbt/ directory:
+#
+#   dbt debug --profiles-dir .
+#
+# dev: a local DuckDB file (lineuplines.duckdb) created in the project dir.
+#      Reads parquet from the local data/raw/ directory. No AWS credentials
+#      needed — this is the profile you use during development.
+#
+# prod: DuckDB with the httpfs extension so it can read parquet directly from
+#       S3. AWS credentials come from environment variables (or the AWS CLI
+#       profile / IAM role if running on ECS Fargate). The local DuckDB file
+#       is ephemeral — it only exists for the duration of the dbt run.
+#
+# Both profiles load the httpfs extension so S3 paths work in either target.
+
+lineuplines:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'lineuplines.duckdb') }}"
+      threads: 4
+      extensions:
+        - httpfs
+
+    prod:
+      type: duckdb
+      # Ephemeral in-memory DB in prod — we only need it for the dbt run.
+      path: ':memory:'
+      threads: 4
+      extensions:
+        - httpfs
+      settings:
+        s3_region: "{{ env_var('AWS_REGION', 'us-east-1') }}"
+        s3_access_key_id: "{{ env_var('AWS_ACCESS_KEY_ID', '') }}"
+        s3_secret_access_key: "{{ env_var('AWS_SECRET_ACCESS_KEY', '') }}"

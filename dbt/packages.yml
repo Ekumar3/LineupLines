@@ -1,0 +1,6 @@
+# dbt packages — installed via `dbt deps`.
+# dbt-utils provides reusable test macros (accepted_range, etc.) and SQL
+# helpers we use across staging and intermediate models.
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0

@@ -225,7 +225,10 @@
       "Bash(aws s3api *)",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('scraped_at:', d.get\\('scraped_at'\\)\\); print\\('players:', len\\(d.get\\('players',[]\\)\\)\\)\")",
       "Bash(grep -i \"airflow/.env$\")",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(code --list-extensions)",
+      "Bash(npm list:*)",
+      "Bash(pip3 show:*)"
     ]
   }
 }

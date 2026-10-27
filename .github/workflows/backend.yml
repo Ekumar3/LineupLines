@@ -35,11 +35,18 @@ jobs:
           cache: pip
 
       - name: Install dependencies
+        # requirements.txt carries both runtime and test deps (pytest,
+        # pytest-cov, hypothesis, polars, numpy, scipy, fastapi, httpx).
         run: pip install -r requirements.txt
 
-      - name: Run pytest
+      - name: Run pytest (unit + integration + property tests)
         # `python -m pytest` puts the repo root on sys.path so `import src.*`
-        # resolves without needing a packaged install.
+        # resolves without needing a packaged install. `tests/` recursively
+        # collects tests/property_tests/, so Hypothesis property suites run too.
+        # Coverage is reported (term-missing) but not gated: the 80% target
+        # from the in-season spec (req 13.1/13.2) is tracked via this report
+        # rather than a hard --cov-fail-under so pre-existing untested legacy
+        # modules don't block the build.
         run: python -m pytest tests/ -v --cov=src --cov-report=term-missing
 
   deploy:

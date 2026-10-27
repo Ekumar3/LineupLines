@@ -1,0 +1,136 @@
+version: 2
+
+# Intermediate models — per-team-game OL/DL proxy metrics computed from
+# stg_pbp, plus the player-week feature table built from stg_player_stats +
+# stg_snap_counts + stg_schedules. Rolling trailing averages with no future
+# leak (same expanding-window pattern as research/model.py).
+#
+# Models added in Task 3:
+#   - int_team_pass_metrics  (dropbacks, sacks, pressure_rate, sack_rate, pass_epa_per_dropback)
+#   - int_team_run_metrics   (carries, yards, stuff_rate, run_epa_per_carry, yards_per_carry)
+#
+# Models added in Task 9:
+#   - int_player_week_features  (the feature table the prediction service reads)
+#   - int_defense_factor_inputs  (team-game yardage by channel for the ridge regression)
+
+models:
+  - name: int_team_pass_metrics
+    description: >
+      Per team-game pass metrics from both the offensive (posteam) and
+      defensive (defteam) perspective, distinguished by the `side` column.
+      Trailing rolling averages with a prior-season fallback and no future
+      leak: only rows with (season, week) strictly before the target row
+      contribute to each trailing average. Feeds mart_ol_grade (side = 'off')
+      and mart_dl_grade (side = 'def'). Primary key: (season, week, team, side).
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: side
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['off', 'def']
+      - name: pressure_rate_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: sack_rate_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: pass_epa_per_dropback_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -3
+              max_value: 3
+              inclusive: true
+      - name: games_trailing
+        tests: [not_null]
+
+  - name: int_team_run_metrics
+    description: >
+      Per team-game run metrics from both the offensive (posteam) and
+      defensive (defteam) perspective, distinguished by the `side` column.
+      stuff = run stopped at or behind the line of scrimmage
+      (yards_gained <= 0). Trailing rolling averages with a prior-season
+      fallback and no future leak: only rows with (season, week) strictly
+      before the target row contribute. Primary key: (season, week, team, side).
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: side
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['off', 'def']
+      - name: stuff_rate_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: yards_per_carry_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -5
+              max_value: 15
+              inclusive: true
+      - name: run_epa_per_carry_trailing
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: -3
+              max_value: 3
+              inclusive: true
+      - name: games_trailing
+        tests: [not_null]
+
+  - name: int_defense_factor_inputs
+    description: >
+      Team-game yardage by channel (passing_yards, rushing_yards) for
+      QB/RB/WR/TE, grouped by (season, week, team, opponent_team). The input
+      matrix the Python ridge regression reads (mirrors
+      research/defense.py::team_games).
+    columns:
+      - name: season
+        tests:
+          - not_null
+      - name: week
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: opponent_team
+        tests:
+          - not_null
+      - name: passing_yards
+        tests:
+          - not_null
+      - name: rushing_yards
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - season
+            - week
+            - team
+            - opponent_team

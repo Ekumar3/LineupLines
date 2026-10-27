@@ -1,0 +1,256 @@
+version: 2
+
+# Marts — the final, tested tables the API and Python prediction service
+# read. Materialized as tables (not views) because they're read repeatedly
+# at request time and on the daily pipeline run.
+#
+# Models added in Task 4:
+#   - mart_ol_grade       (composite OL grade per team-week, 0-100)
+#   - mart_dl_grade       (composite DL grade per team-week, 0-100)
+#   - mart_matchup_grade  (OL vs DL per scheduled game, pass + rush channels)
+#
+# Models added in Task 9:
+#   - mart_player_week_features  (player-week features + defense factor inputs)
+
+models:
+  - name: mart_ol_grade
+    description: >
+      Composite 0-100 offensive-line grade per (team, season, week), built from
+      the trailing pass-protection and run-blocking percentiles within each
+      (season, week) league snapshot. pass_protection_grade is 60% of the
+      composite ol_grade, run_blocking_grade the remaining 40%. 50 = league
+      average, higher = better OL. Primary key: (season, week, team).
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: pass_protection_grade
+        description: Pass-protection sub-grade (60% weight in ol_grade), 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: run_blocking_grade
+        description: Run-blocking sub-grade (40% weight in ol_grade), 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: ol_grade
+        description: Composite OL grade = 0.60*pass_protection + 0.40*run_blocking, 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - season
+            - week
+            - team
+
+  - name: mart_dl_grade
+    description: >
+      Composite 0-100 defensive-line grade per (team, season, week), the
+      defensive mirror of mart_ol_grade with percentile directions flipped
+      (higher pressure/sack and lower yards/EPA allowed = better DL).
+      pass_rush_grade is 60% of the composite dl_grade, run_defense_grade the
+      remaining 40%. 50 = league average, higher = better DL. Primary key:
+      (season, week, team).
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: pass_rush_grade
+        description: Pass-rush sub-grade (60% weight in dl_grade), 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: run_defense_grade
+        description: Run-defense sub-grade (40% weight in dl_grade), 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: dl_grade
+        description: Composite DL grade = 0.60*pass_rush + 0.40*run_defense, 0-100.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - season
+            - week
+            - team
+
+  - name: mart_player_week_features
+    description: >
+      One row per (player, season, week) for QB/RB/WR/TE, carrying the
+      9-component stat line plus every input the Python delta/projection model
+      needs (opportunity shares, snap pct, implied team total, EPA columns).
+      Ports research/model.py::build_feature_table to SQL. Primary key:
+      (player_id, season, week).
+    columns:
+      - name: player_id
+        description: Stable nflverse player id.
+        tests:
+          - not_null
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      # --- 9 stat components: present and never null (coalesced to 0) ---
+      - name: passing_yards
+        tests: [not_null]
+      - name: passing_tds
+        tests: [not_null]
+      - name: interceptions
+        tests: [not_null]
+      - name: rushing_yards
+        tests: [not_null]
+      - name: rushing_tds
+        tests: [not_null]
+      - name: receptions
+        tests: [not_null]
+      - name: receiving_yards
+        tests: [not_null]
+      - name: receiving_tds
+        tests: [not_null]
+      - name: fumbles_lost
+        tests: [not_null]
+      # --- bounded inputs ---
+      - name: offense_pct
+        description: Fraction of team offensive snaps the player was on the field for.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1
+              inclusive: true
+      - name: implied_team_total
+        description: Vegas-implied point total for the player's team that week.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 60
+              inclusive: true
+    tests:
+      # Primary key: (player_id, season, week) is unique.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_id
+            - season
+            - week
+
+  - name: mart_matchup_grade
+    description: >
+      OL vs DL matchup grade per scheduled game. Joins the offense team's
+      mart_ol_grade against the opponent's mart_dl_grade per channel, then joins
+      stg_schedules so every scheduled game has a row. Each game produces two
+      rows (home offense vs away defense, away offense vs home defense). Channel
+      grades are offense sub-grade minus defense sub-grade (positive = offense
+      favored): pass_matchup, rush_matchup, overall_matchup. Signals are
+      favorable (>10), unfavorable (<-10), neutral otherwise. Primary key:
+      (season, week, team, opponent).
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: opponent
+        tests: [not_null]
+      - name: pass_protection_grade
+        description: Offense OL pass-protection sub-grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: run_blocking_grade
+        description: Offense OL run-blocking sub-grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: ol_grade
+        description: Offense composite OL grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: pass_rush_grade
+        description: Opponent DL pass-rush sub-grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: run_defense_grade
+        description: Opponent DL run-defense sub-grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: dl_grade
+        description: Opponent composite DL grade, 0-100.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+              inclusive: true
+      - name: pass_matchup
+        description: pass_protection_grade - pass_rush_grade (positive = offense favored).
+      - name: rush_matchup
+        description: run_blocking_grade - run_defense_grade (positive = offense favored).
+      - name: overall_matchup
+        description: ol_grade - dl_grade (positive = offense favored).
+      - name: pass_signal
+        description: favorable (>10) / unfavorable (<-10) / neutral on pass_matchup.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['favorable', 'neutral', 'unfavorable']
+      - name: rush_signal
+        description: favorable (>10) / unfavorable (<-10) / neutral on rush_matchup.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['favorable', 'neutral', 'unfavorable']
+      - name: overall_signal
+        description: favorable (>10) / unfavorable (<-10) / neutral on overall_matchup.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['favorable', 'neutral', 'unfavorable']
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - season
+            - week
+            - team
+            - opponent

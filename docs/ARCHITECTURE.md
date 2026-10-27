@@ -577,6 +577,139 @@ Each model includes:
 
 ---
 
+## In-Season Matchup Recommendations
+
+The in-season feature is the second half of LineupLines. The draft-helper
+endpoints above help you build a roster; the in-season endpoints help you run
+it week to week — start/sit calls, OL/DL matchup grades, and waiver-wire
+recommendations for a real Sleeper roster.
+
+### Separation from the draft features
+
+In-season is deliberately kept **separate** from the draft-only features:
+
+- **Endpoints** live under `/api/v1/in-season/` (tagged `In-Season` in Swagger).
+  The draft endpoints under `/api/v1/drafts/` and `/api/v1/draft/` are untouched.
+- **Services** live in `src/services/` (`matchup_grade.py`, `projection_service.py`,
+  `lineup_optimizer.py`, `waiver_service.py`) plus `src/data_sources/projections_store.py`.
+- **Data models** are a dedicated block of Pydantic models in `src/api/models.py`
+  (`MatchupGradeResponse`, `RosterResponse`, `RecommendationsResponse`,
+  `WaiverResponse`, `DropAddResponse`, and their row models).
+- **dbt models** are new and feed only the in-season layer — nothing in the draft
+  path reads them.
+
+The optional prediction services are imported defensively inside the endpoint
+handlers. If a service or its data isn't wired up yet, the endpoint degrades to
+a clear error (or a neutral default) rather than breaking app startup.
+
+### Three-layer architecture
+
+In-season is built as three layers with a clean handoff between each. dbt owns
+**data transformation**, Python owns **prediction/modeling**, and FastAPI owns
+**serving**. dbt never predicts; Python never transforms raw data. The boundary
+between the first two layers is the mart parquet: dbt writes it, Python reads it
+via `projections_store.py` (S3 in prod, local `data/` in dev).
+
+```mermaid
+graph TD
+    subgraph Ingestion["Layer 0 — Ingestion (Airflow daily)"]
+        NFL[nflverse parquet<br/>via nflreadpy]
+        RAW[data/raw/*.parquet]
+        NFL -->|scripts/ingest_nflverse.py| RAW
+    end
+
+    subgraph dbt["Layer 1 — dbt-duckdb transform (SQL)"]
+        STG["stg_pbp / stg_player_stats<br/>stg_snap_counts / stg_schedules"]
+        INT["int_team_pass_metrics<br/>int_team_run_metrics<br/>int_defense_factor_inputs"]
+        MARTS["mart_ol_grade / mart_dl_grade<br/>mart_matchup_grade<br/>mart_player_week_features"]
+        RAW --> STG
+        STG --> INT
+        STG --> MARTS
+        INT --> MARTS
+    end
+
+    subgraph Python["Layer 2 — Prediction (Python)"]
+        PROJ["projection_service.py<br/>baseline → deltas → ridge → expected line"]
+        MATCH["matchup_grade.py<br/>loads mart_matchup_grade"]
+        LINEUP["lineup_optimizer.py<br/>scipy bipartite matching"]
+        WAIVER["waiver_service.py<br/>FA ranking + drop/add"]
+        MARTS -->|parquet via projections_store.py| PROJ
+        MARTS -->|parquet via projections_store.py| MATCH
+    end
+
+    subgraph API["Layer 3 — FastAPI (src/api/main.py)"]
+        EP["/in-season/{lid}/rosters<br/>/in-season/{lid}/{uid}/roster<br/>/in-season/{lid}/{uid}/recommendations<br/>/in-season/{lid}/waiver<br/>/in-season/{lid}/{uid}/drop-add"]
+    end
+
+    subgraph Sleeper["Sleeper API"]
+        SC["SleeperClient<br/>rosters, nfl_state, transactions, trending"]
+    end
+
+    PROJ --> EP
+    MATCH --> EP
+    LINEUP --> EP
+    WAIVER --> EP
+    SC --> EP
+```
+
+**Data flow**: nflverse → `data/raw/*.parquet` → dbt staging → dbt intermediate
+→ dbt marts → projection parquet → FastAPI response.
+
+### The layers in detail
+
+**Layer 1 — dbt-duckdb transform (SQL)**. From the raw nflverse play-by-play,
+player-stats, snap-count, and schedule parquet, dbt derives:
+
+- `int_team_pass_metrics` / `int_team_run_metrics` — per team-game trailing
+  pass/run metrics from both the offensive (`side='off'`) and defensive
+  (`side='def'`) perspective, with no future leak (only weeks strictly before the
+  target).
+- `mart_ol_grade` / `mart_dl_grade` — composite 0–100 OL and DL grades, computed
+  as league percentile ranks within each `(season, week)` snapshot.
+- `mart_matchup_grade` — joins each offense's OL grade against the opponent's DL
+  grade per channel, so every scheduled game gets a pass/rush/overall matchup and
+  a `favorable | neutral | unfavorable` signal.
+- `int_defense_factor_inputs` + `mart_player_week_features` — the per-player-week
+  feature table (9-component stat line plus every input the delta model needs)
+  that the Python projection service reads.
+
+**Layer 2 — Prediction (Python)**. Refactored from the `research/` prototype:
+
+- `projections_store.py` — parquet I/O abstraction. S3 in prod (env
+  `MART_S3_BUCKET`), local `data/` in dev. Missing mart returns empty, never raises.
+- `projection_service.py` — baseline → deltas → ridge defense factors →
+  expected stat line → scored projection, written to parquet.
+- `matchup_grade.py` — serves the OL/DL matchup grade for a
+  `(team, opponent, season, week)` query; returns a neutral default when no row
+  matches.
+- `lineup_optimizer.py` — optimal lineup assignment via max-weight bipartite
+  matching (`scipy.optimize.linear_sum_assignment`), excluding bye/OUT/IR players.
+- `waiver_service.py` — Phase 1 ranks free agents by projected points (augmented
+  with Sleeper trending adds); Phase 2 ranks drop/add pairs by net points gained.
+
+**Layer 3 — FastAPI**. Five endpoints under `/api/v1/in-season/` surface the
+above. They reuse the existing `SleeperClient` singleton (extended with
+`get_league_rosters`, `get_nfl_state`, `get_league_transactions`,
+`get_trending_players`) and follow the same defensive-programming and
+ID-normalization conventions as the draft endpoints. See `docs/API.md` for the
+full contracts.
+
+### Daily pipeline
+
+An Airflow DAG (`airflow/dags/in_season_pipeline.py`) runs the layers once a day
+during the regular season:
+
+```
+bye_week_gate (ShortCircuit) → ingest_nflverse → dbt_build → generate_projections
+```
+
+`bye_week_gate` short-circuits any run whose target week has no scheduled
+regular-season games, and an `IN_SEASON_PIPELINE_END_DATE` Airflow Variable parks
+the DAG after the season. See `docs/DEPLOYMENT_IN_SEASON.md` for env vars, the S3
+layout, and operation.
+
+---
+
 ## Summary
 
 **Key Architectural Decisions**:

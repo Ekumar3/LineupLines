@@ -1,0 +1,75 @@
+version: 2
+
+# Staging models — one-to-one reads of the raw nflverse parquet with light
+# cleaning (column selection, type casts, regular-season filter). No joins,
+# no aggregation. Each staging model gets a unique + not_null test on its
+# primary key.
+
+models:
+  - name: stg_pbp
+    description: >
+      Play-by-play data (regular season only) from nflverse, column-selected
+      to the ~35 fields needed for OL/DL metrics and the feature table.
+      Primary key: (game_id, play_id).
+    columns:
+      - name: game_id
+        tests: [not_null]
+      - name: play_id
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: posteam
+        tests: [not_null]
+      - name: defteam
+        tests: [not_null]
+
+  - name: stg_player_stats
+    description: >
+      Weekly player stat lines (regular season only) from nflverse. Carries
+      the 9-component stat line, EPA columns, and target_share for the
+      projection model. Primary key: (player_id, season, week).
+    columns:
+      - name: player_id
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: position
+        tests: [not_null]
+
+  - name: stg_snap_counts
+    description: >
+      Weekly snap counts (regular season only) from nflverse. offense_pct
+      feeds the opportunity delta in the projection model. nflverse keys snap
+      counts on the display name, not a stable player_id.
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: team
+        tests: [not_null]
+      - name: player
+        tests: [not_null]
+
+  - name: stg_schedules
+    description: >
+      Game schedules with Vegas lines (regular season only) from nflverse.
+      spread_line and total_line drive the implied team totals used by the
+      environment delta. Primary key: game_id.
+    columns:
+      - name: game_id
+        tests:
+          - not_null
+          - unique
+      - name: season
+        tests: [not_null]
+      - name: week
+        tests: [not_null]
+      - name: home_team
+        tests: [not_null]
+      - name: away_team
+        tests: [not_null]

@@ -1,0 +1,62 @@
+# dbt project for the LineupLines in-season pipeline.
+#
+# dbt-duckdb owns the SQL transformation layer: raw nflverse parquet lands in
+# S3 (or a local data/raw dir in dev), staging models clean it, intermediate
+# models compute team pass-rush / run-block metrics, and marts produce the
+# OL/DL matchup grade and the player-week feature table the Python prediction
+# service reads. The prediction/modeling logic itself stays in Python — this
+# project transforms data, it does not predict.
+#
+# Run from the dbt/ directory:
+#   dbt debug --profiles-dir .          # verify DuckDB connection
+#   dbt seed --profiles-dir .           # load seed files (team abbreviations)
+#   dbt run --profiles-dir .            # build all models
+#   dbt test --profiles-dir .           # run all tests
+#   dbt docs generate --profiles-dir .  # generate documentation
+
+name: 'lineuplines'
+version: '1.0.0'
+config-version: 2
+
+# Which profile to load from profiles.yml
+profile: 'lineuplines'
+
+# Directory layout
+model-paths: ['models']
+seed-paths: ['seeds']
+test-paths: ['tests']
+analysis-paths: ['analyses']
+macro-paths: ['macros']
+snapshot-paths: ['snapshots']
+
+# Where compiled artifacts go (gitignored)
+target-path: 'target'
+clean-targets:
+  - 'target'
+  - 'dbt_packages'
+
+# Per-directory materialization and schema naming.
+# Staging/intermediate are views (cheap to rebuild, always reflect raw data);
+# marts are tables (the Python service reads them repeatedly).
+models:
+  lineuplines:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  lineuplines:
+    +schema: seeds
+
+# Path to the raw nflverse parquet files (written by scripts/ingest_nflverse.py).
+# In dev this is a local directory relative to the dbt/ project dir; in prod
+# override with --vars '{raw_data_path: "s3://bucket/raw"}' (httpfs extension
+# handles S3 reads).
+vars:
+  raw_data_path: "../data/raw"

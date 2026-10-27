@@ -593,3 +593,342 @@ class VORAnalysisResponse(BaseModel):
         False,
         description="Whether projection-based VOR is active for this response"
     )
+
+
+# ---------------------------------------------------------------------------
+# In-Season Matchup Recommendations models
+#
+# Response models for the /api/v1/in-season/ endpoints. These follow the same
+# conventions as the draft models above: BaseModel with ConfigDict examples,
+# Field(..., description=...), and all IDs normalized to strings.
+# ---------------------------------------------------------------------------
+
+
+class MatchupGradeResponse(BaseModel):
+    """OL/DL matchup grade for a team vs opponent."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "team": "SF",
+                "opponent": "SEA",
+                "season": 2025,
+                "week": 8,
+                "pass_matchup": 15.2,
+                "rush_matchup": -3.1,
+                "overall_matchup": 8.4,
+                "pass_signal": "favorable",
+                "rush_signal": "neutral",
+                "overall_signal": "favorable",
+                "ol_grade": 78.5,
+                "dl_grade": 60.1,
+            }
+        }
+    )
+
+    team: str = Field(..., description="Offense team abbreviation")
+    opponent: str = Field(..., description="Defense team abbreviation")
+    season: int = Field(..., description="NFL season year")
+    week: int = Field(..., description="NFL week")
+    pass_matchup: Optional[float] = Field(
+        None, description="OL pass grade - DL pass grade; positive = offense favored"
+    )
+    rush_matchup: Optional[float] = Field(
+        None, description="OL run grade - DL run grade"
+    )
+    overall_matchup: Optional[float] = Field(
+        None, description="OL grade - DL grade; positive = offense favored"
+    )
+    pass_signal: str = Field("neutral", description="favorable | neutral | unfavorable")
+    rush_signal: str = Field("neutral", description="favorable | neutral | unfavorable")
+    overall_signal: str = Field(
+        "neutral", description="favorable | neutral | unfavorable"
+    )
+    ol_grade: Optional[float] = Field(
+        None, description="Offense OL composite grade 0-100"
+    )
+    dl_grade: Optional[float] = Field(
+        None, description="Defense DL composite grade 0-100"
+    )
+
+
+class RosterPlayer(BaseModel):
+    """A player on a roster with slot assignment."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "player_id": "4046",
+                "player_name": "Patrick Mahomes",
+                "position": "QB",
+                "team": "KC",
+                "slot": "QB",
+                "projected_points": 24.3,
+                "matchup_grade": None,
+                "on_bye": False,
+                "injury_status": None,
+            }
+        }
+    )
+
+    player_id: str = Field(..., description="Sleeper player ID")
+    player_name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Player position (QB, RB, WR, TE, etc.)")
+    team: str = Field(..., description="NFL team abbreviation or 'FA'")
+    slot: str = Field(..., description="Assigned slot or 'BENCH'/'RESERVE'")
+    projected_points: Optional[float] = Field(
+        None, description="Projected fantasy points for the week, when available"
+    )
+    matchup_grade: Optional[MatchupGradeResponse] = Field(
+        None, description="OL/DL matchup grade for this player's team, when available"
+    )
+    on_bye: bool = Field(False, description="Whether the player is on a bye this week")
+    injury_status: Optional[str] = Field(
+        None, description="Injury status (e.g., Questionable, Out, IR)"
+    )
+
+
+class RosterResponse(BaseModel):
+    """A user's roster with starters and bench."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "user_id": "123456789",
+                "roster_id": "3",
+                "week": 8,
+                "season": 2025,
+                "starters": [],
+                "bench": [],
+                "reserve": [],
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    user_id: str = Field(..., description="Sleeper user ID (roster owner)")
+    roster_id: str = Field(..., description="Sleeper roster ID")
+    week: int = Field(..., description="NFL week")
+    season: int = Field(..., description="NFL season year")
+    starters: List[RosterPlayer] = Field(
+        ..., description="Players in starting slots (ordered)"
+    )
+    bench: List[RosterPlayer] = Field(
+        default_factory=list, description="Bench players (players - starters - reserve)"
+    )
+    reserve: List[RosterPlayer] = Field(
+        default_factory=list, description="Players on reserve/IR"
+    )
+
+
+class LeagueRostersResponse(BaseModel):
+    """All rosters in a league."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "week": 8,
+                "season": 2025,
+                "rosters": [],
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    week: int = Field(..., description="NFL week")
+    season: int = Field(..., description="NFL season year")
+    rosters: List[RosterResponse] = Field(
+        ..., description="All rosters in the league, enriched with player data"
+    )
+
+
+class StartSitRecommendation(BaseModel):
+    """Start/sit recommendation for one player on a user's roster."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "player_id": "4046",
+                "player_name": "Patrick Mahomes",
+                "position": "QB",
+                "team": "KC",
+                "projected_points": 24.3,
+                "recommendation": "START",
+                "slot": "QB",
+                "matchup_grade": None,
+                "on_bye": False,
+                "injury_status": None,
+            }
+        }
+    )
+
+    player_id: str = Field(..., description="Sleeper player ID")
+    player_name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Player position (QB, RB, WR, TE, etc.)")
+    team: str = Field(..., description="NFL team abbreviation or 'FA'")
+    projected_points: Optional[float] = Field(
+        None, description="Projected fantasy points for the week, when available"
+    )
+    recommendation: str = Field(
+        ..., description="START | SIT | SIT (BYE) | SIT (INJURY)"
+    )
+    slot: Optional[str] = Field(
+        None, description="Assigned starting slot when recommendation is START, else None"
+    )
+    matchup_grade: Optional[MatchupGradeResponse] = Field(
+        None, description="OL/DL matchup grade for this player's team, when available"
+    )
+    on_bye: bool = Field(False, description="Whether the player is on a bye this week")
+    injury_status: Optional[str] = Field(
+        None, description="Injury status (e.g., Questionable, Out, IR)"
+    )
+
+
+class RecommendationsResponse(BaseModel):
+    """Start/sit recommendations for a user's roster."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "user_id": "123456789",
+                "week": 8,
+                "season": 2025,
+                "scoring_format": "ppr",
+                "recommendations": [],
+                "optimal_lineup_set": True,
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    user_id: str = Field(..., description="Sleeper user ID (roster owner)")
+    week: int = Field(..., description="NFL week")
+    season: int = Field(..., description="NFL season year")
+    scoring_format: str = Field(
+        ..., description="League scoring format (ppr, half_ppr, standard)"
+    )
+    recommendations: List[StartSitRecommendation] = Field(
+        ..., description="Per-player START/SIT recommendations"
+    )
+    optimal_lineup_set: bool = Field(
+        ..., description="Whether a full optimal lineup was found via assignment"
+    )
+
+
+class WaiverRecResponse(BaseModel):
+    """A single waiver-wire free-agent recommendation (Phase 1)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "player_id": "4046",
+                "player_name": "Jaylen Warren",
+                "position": "RB",
+                "team": "PIT",
+                "projected_points": 11.4,
+                "trending_add_count": 15230,
+                "rank": 1,
+            }
+        }
+    )
+
+    player_id: str = Field(..., description="Sleeper player ID")
+    player_name: str = Field(..., description="Player full name")
+    position: str = Field(..., description="Player position (QB, RB, WR, TE, etc.)")
+    team: str = Field(..., description="NFL team abbreviation or 'FA'")
+    projected_points: Optional[float] = Field(
+        None, description="Projected fantasy points for the week, when available"
+    )
+    trending_add_count: Optional[int] = Field(
+        None, description="Sleeper trending-add count, when available"
+    )
+    rank: int = Field(..., description="1-indexed rank by projected points")
+
+
+class WaiverResponse(BaseModel):
+    """Phase 1 waiver recommendations: top free agents by projected points."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "week": 8,
+                "season": 2025,
+                "position": "RB",
+                "recommendations": [],
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    week: int = Field(..., description="NFL week")
+    season: int = Field(..., description="NFL season year")
+    position: Optional[str] = Field(
+        None, description="Position filter echoed back (None = all positions)"
+    )
+    recommendations: List[WaiverRecResponse] = Field(
+        ..., description="Ranked free-agent recommendations"
+    )
+
+
+class DropAddRecResponse(BaseModel):
+    """A single drop/add pair: swap a bench player for a free agent (Phase 2)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "drop_player_id": "1234",
+                "drop_player_name": "Zach Charbonnet",
+                "drop_projected_points": 6.2,
+                "add_player_id": "4046",
+                "add_player_name": "Jaylen Warren",
+                "add_projected_points": 11.4,
+                "position": "RB",
+                "net_gain": 5.2,
+                "rank": 1,
+            }
+        }
+    )
+
+    drop_player_id: str = Field(..., description="Sleeper player ID to drop")
+    drop_player_name: str = Field(..., description="Name of the player to drop")
+    drop_projected_points: float = Field(
+        ..., description="Projected fantasy points for the drop player"
+    )
+    add_player_id: str = Field(..., description="Sleeper player ID to add")
+    add_player_name: str = Field(..., description="Name of the player to add")
+    add_projected_points: float = Field(
+        ..., description="Projected fantasy points for the add player"
+    )
+    position: str = Field(..., description="Position of the slot being upgraded")
+    net_gain: float = Field(
+        ..., description="Net projected points gained (add - drop); always > 0"
+    )
+    rank: int = Field(..., description="1-indexed rank by net gain")
+
+
+class DropAddResponse(BaseModel):
+    """Phase 2 drop/add recommendations: ranked upgrade swaps for a user."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "user_id": "123456789",
+                "week": 8,
+                "season": 2025,
+                "recommendations": [],
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    user_id: str = Field(..., description="Sleeper user ID / roster owner")
+    week: int = Field(..., description="NFL week")
+    season: int = Field(..., description="NFL season year")
+    recommendations: List[DropAddRecResponse] = Field(
+        ..., description="Ranked drop/add pairs (positive net gain only)"
+    )

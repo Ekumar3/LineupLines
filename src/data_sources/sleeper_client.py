@@ -16,6 +16,18 @@ from src.analytics.scoring_format import format_from_scoring_settings
 logger = logging.getLogger(__name__)
 
 
+def _normalize_id_list(raw: Any) -> List[str]:
+    """Normalize a Sleeper ID list to a list of non-empty strings.
+
+    Sleeper returns roster slot lists that may be None, may contain None
+    placeholders (empty starting slots), or mixed int/str IDs. This coerces
+    every present ID to a string and drops None/empty entries.
+    """
+    if not isinstance(raw, (list, tuple)):
+        return []
+    return [str(item) for item in raw if item is not None and str(item) != ""]
+
+
 @dataclass
 class DraftPick:
     """Represents a single draft pick."""
@@ -40,6 +52,32 @@ class DraftStatus:
     total_picks_made: int
     is_live: bool
     settings: Dict[str, Any]
+
+
+@dataclass
+class Roster:
+    """Represents a Sleeper league roster with normalized string IDs.
+
+    The roster holds the raw Sleeper slot lists (``starters``, ``players``,
+    ``reserve``). The bench is a derived view, computed as
+    ``players - starters - reserve`` (order-preserving set difference). See
+    :meth:`SleeperClient.get_league_rosters`.
+    """
+    roster_id: str
+    owner_id: str
+    starters: List[str]
+    players: List[str]
+    reserve: List[str]
+
+
+def roster_bench(roster: Roster) -> List[str]:
+    """Derive a roster's bench as ``players - starters - reserve``.
+
+    Bench players are those on the roster that are neither in a starting slot
+    nor on reserve/IR. Order is preserved from ``roster.players``.
+    """
+    excluded = set(roster.starters) | set(roster.reserve)
+    return [pid for pid in roster.players if pid not in excluded]
 
 
 class SleeperClient:
@@ -218,7 +256,7 @@ class SleeperClient:
             # Sleeper API returns draft_order with user_ids (int or str),
             # and slot_to_roster_id with roster_ids (int), so we normalize to strings
             raw_draft_order = response.get("draft_order", [])
-            
+
             draft_order = [""] * response.get("settings", {}).get("teams", 12)  # Default empty slots
             for user_id, slot_index in raw_draft_order.items():
                 draft_order[int(slot_index) - 1] = str(user_id)
@@ -440,6 +478,159 @@ class SleeperClient:
             return response if isinstance(response, list) else []
         except Exception as e:
             logger.error(f"Failed to fetch user drafts for {user_id}: {e}")
+            return []
+
+    def get_league_rosters(self, league_id: str) -> List[Roster]:
+        """Get all rosters for a league.
+
+        Calls ``/league/{league_id}/rosters`` and normalizes all IDs to
+        strings. The returned ``Roster`` objects carry the raw Sleeper slot
+        lists (``starters``, ``players``, ``reserve``); the bench is a derived
+        view computed as ``players - starters - reserve`` (order-preserving set
+        difference) — see :func:`roster_bench`.
+
+        Args:
+            league_id: The league ID from Sleeper
+
+        Returns:
+            List of Roster objects, or an empty list on error (never raises)
+        """
+        logger.info(f"Fetching rosters for league {league_id}")
+
+        try:
+            response = self._make_request(f"/league/{league_id}/rosters")
+            rosters_data = response if isinstance(response, list) else []
+
+            rosters: List[Roster] = []
+            for roster_data in rosters_data:
+                if not isinstance(roster_data, dict):
+                    continue
+
+                roster_id = roster_data.get("roster_id")
+                owner_id = roster_data.get("owner_id")
+
+                starters = _normalize_id_list(roster_data.get("starters"))
+                players = _normalize_id_list(roster_data.get("players"))
+                reserve = _normalize_id_list(roster_data.get("reserve"))
+
+                rosters.append(
+                    Roster(
+                        roster_id=str(roster_id) if roster_id is not None else "",
+                        owner_id=str(owner_id) if owner_id is not None else "",
+                        starters=starters,
+                        players=players,
+                        reserve=reserve,
+                    )
+                )
+
+            logger.info(f"Fetched {len(rosters)} rosters from league {league_id}")
+            return rosters
+
+        except Exception as e:
+            logger.error(f"Failed to fetch league rosters: {e}")
+            return []
+
+    def get_nfl_state(self) -> Optional[Dict[str, Any]]:
+        """Get the current NFL season state.
+
+        Calls ``/state/nfl``.
+
+        Returns:
+            Dict with at least ``week``, ``season``, and ``season_type``
+            (passthrough of Sleeper's state object), or None on error.
+            ``season`` is normalized to a string for consistency with the
+            rest of the API.
+        """
+        logger.info("Fetching NFL state")
+
+        try:
+            response = self._make_request("/state/nfl")
+            if not isinstance(response, dict):
+                return None
+
+            state = dict(response)
+            if state.get("season") is not None:
+                state["season"] = str(state["season"])
+            return state
+
+        except Exception as e:
+            logger.error(f"Failed to fetch NFL state: {e}")
+            return None
+
+    def get_league_transactions(
+        self, league_id: str, week: int
+    ) -> List[Dict[str, Any]]:
+        """Get transactions for a league in a given week.
+
+        Calls ``/league/{league_id}/transactions/{week}``.
+
+        Args:
+            league_id: The league ID from Sleeper
+            week: The NFL week (round) to fetch transactions for
+
+        Returns:
+            List of transaction dicts, or an empty list on error (never raises)
+        """
+        logger.info(f"Fetching transactions for league {league_id} week {week}")
+
+        try:
+            response = self._make_request(
+                f"/league/{league_id}/transactions/{week}"
+            )
+            return response if isinstance(response, list) else []
+
+        except Exception as e:
+            logger.error(f"Failed to fetch league transactions: {e}")
+            return []
+
+    def get_trending_players(
+        self,
+        type: str = "add",
+        lookback_hours: int = 24,
+        limit: int = 25,
+    ) -> List[Dict[str, Any]]:
+        """Get trending players (adds or drops) from Sleeper.
+
+        Calls ``/players/nfl/trending/{type}`` with ``lookback_hours`` and
+        ``limit`` query parameters.
+
+        Args:
+            type: "add" or "drop"
+            lookback_hours: Hours to look back for trending counts
+            limit: Maximum number of results
+
+        Returns:
+            List of dicts with normalized string ``player_id`` and a ``count``
+            field, or an empty list on error (never raises).
+        """
+        logger.info(
+            f"Fetching trending players (type={type}, "
+            f"lookback_hours={lookback_hours}, limit={limit})"
+        )
+
+        try:
+            endpoint = (
+                f"/players/nfl/trending/{type}"
+                f"?lookback_hours={lookback_hours}&limit={limit}"
+            )
+            response = self._make_request(endpoint)
+            trending_data = response if isinstance(response, list) else []
+
+            results: List[Dict[str, Any]] = []
+            for item in trending_data:
+                if not isinstance(item, dict):
+                    continue
+                player_id = item.get("player_id")
+                results.append(
+                    {
+                        "player_id": str(player_id) if player_id is not None else "",
+                        "count": item.get("count", 0),
+                    }
+                )
+            return results
+
+        except Exception as e:
+            logger.error(f"Failed to fetch trending players: {e}")
             return []
 
     def get_players(self, force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:

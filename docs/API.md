@@ -723,6 +723,309 @@ curl http://localhost:8000/api/v1/draft/12345/player/6786/vor
 
 ---
 
+## In-Season Endpoints
+
+The in-season endpoints help you run a roster week to week: start/sit calls,
+OL/DL matchup grades, and waiver recommendations for a real Sleeper roster. They
+are kept entirely separate from the draft endpoints above — every route lives
+under `/api/v1/in-season/` and is tagged `In-Season` in Swagger.
+
+The target `(season, week)` is resolved server-side from Sleeper's NFL state, so
+these endpoints take no season/week query parameters. Scoring format is read
+from the league's settings (defaults to `ppr`).
+
+> **Status semantics**: a valid league must have rosters, so an unknown or empty
+> `league_id` returns **404**. Endpoints that require weekly projections return
+> **503** when the daily pipeline hasn't produced them yet for the current week —
+> retry later. Roster/matchup endpoints degrade gracefully instead: when
+> projections or matchup grades are missing, those fields come back `null`.
+
+---
+
+### Get League Rosters (In-Season)
+
+**GET /api/v1/in-season/{league_id}/rosters**
+
+Returns every roster in a league, enriched with player name/position/team, and —
+when available — projected points and OL/DL matchup grades.
+
+**Parameters**:
+- `league_id` (path, required): Sleeper league ID
+
+**Response** (200) — `LeagueRostersResponse`:
+```json
+{
+  "league_id": "987654321",
+  "week": 8,
+  "season": 2025,
+  "rosters": [
+    {
+      "league_id": "987654321",
+      "user_id": "123456789",
+      "roster_id": "3",
+      "week": 8,
+      "season": 2025,
+      "starters": [
+        {
+          "player_id": "4046",
+          "player_name": "Patrick Mahomes",
+          "position": "QB",
+          "team": "KC",
+          "slot": "QB",
+          "projected_points": 24.3,
+          "matchup_grade": null,
+          "on_bye": false,
+          "injury_status": null
+        }
+      ],
+      "bench": [],
+      "reserve": []
+    }
+  ]
+}
+```
+
+**Errors**:
+- 404: No rosters found for league
+- 500: Server error
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/in-season/987654321/rosters
+```
+
+---
+
+### Get User Roster (In-Season)
+
+**GET /api/v1/in-season/{league_id}/{user_id}/roster**
+
+Returns a specific user's roster split into `starters`, `bench`, and `reserve`,
+enriched with player data plus projections and matchup grades when available.
+
+**Parameters**:
+- `league_id` (path, required): Sleeper league ID
+- `user_id` (path, required): Sleeper user ID (roster owner)
+
+**Response** (200) — `RosterResponse`:
+```json
+{
+  "league_id": "987654321",
+  "user_id": "123456789",
+  "roster_id": "3",
+  "week": 8,
+  "season": 2025,
+  "starters": [
+    {
+      "player_id": "4046",
+      "player_name": "Patrick Mahomes",
+      "position": "QB",
+      "team": "KC",
+      "slot": "QB",
+      "projected_points": 24.3,
+      "matchup_grade": {
+        "team": "KC",
+        "opponent": "BUF",
+        "season": 2025,
+        "week": 8,
+        "pass_matchup": 12.1,
+        "rush_matchup": -2.0,
+        "overall_matchup": 6.3,
+        "pass_signal": "favorable",
+        "rush_signal": "neutral",
+        "overall_signal": "neutral",
+        "ol_grade": 74.2,
+        "dl_grade": 67.9
+      },
+      "on_bye": false,
+      "injury_status": null
+    }
+  ],
+  "bench": [],
+  "reserve": []
+}
+```
+
+**Key Fields**:
+- `slot`: assigned starting slot, or `"BENCH"` / `"RESERVE"`
+- `matchup_grade`: `null` when the matchup mart has no row for the player's team
+- `on_bye` / `injury_status`: surfaced so the UI can flag unstartable players
+
+**Errors**:
+- 404: League has no rosters, or the user owns no roster in the league
+- 500: Server error
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/in-season/987654321/123456789/roster
+```
+
+---
+
+### Get Start/Sit Recommendations (In-Season)
+
+**GET /api/v1/in-season/{league_id}/{user_id}/recommendations**
+
+Returns per-player `START` / `SIT` recommendations for a user's roster. Players
+are projected for the current week, then an optimal lineup is assigned by
+max-weight bipartite matching against the league's roster slots. Players assigned
+to a slot are `START`; everyone else is `SIT` (with `SIT (BYE)` / `SIT (INJURY)`
+variants for unstartable players).
+
+**Parameters**:
+- `league_id` (path, required): Sleeper league ID
+- `user_id` (path, required): Sleeper user ID (roster owner)
+
+**Response** (200) — `RecommendationsResponse`:
+```json
+{
+  "league_id": "987654321",
+  "user_id": "123456789",
+  "week": 8,
+  "season": 2025,
+  "scoring_format": "ppr",
+  "recommendations": [
+    {
+      "player_id": "4046",
+      "player_name": "Patrick Mahomes",
+      "position": "QB",
+      "team": "KC",
+      "projected_points": 24.3,
+      "recommendation": "START",
+      "slot": "QB",
+      "matchup_grade": null,
+      "on_bye": false,
+      "injury_status": null
+    }
+  ],
+  "optimal_lineup_set": true
+}
+```
+
+**Key Fields**:
+- `recommendation`: `START | SIT | SIT (BYE) | SIT (INJURY)`
+- `slot`: the assigned starting slot when `recommendation` is `START`, else `null`
+- `optimal_lineup_set`: whether a full optimal lineup was found via the assignment
+
+**Errors**:
+- 404: League has no rosters, or the user owns no roster in the league
+- 503: Projections not yet available for the current week — retry later
+- 500: Server error
+
+**Example**:
+```bash
+curl http://localhost:8000/api/v1/in-season/987654321/123456789/recommendations
+```
+
+---
+
+### Get Waiver Recommendations (In-Season, Phase 1)
+
+**GET /api/v1/in-season/{league_id}/waiver**
+
+Returns the top free agents in a league, ranked by projected points and
+augmented with Sleeper trending-add counts. Free agents are the player universe
+minus every player rostered anywhere in the league.
+
+**Parameters**:
+- `league_id` (path, required): Sleeper league ID
+- `position` (query, optional): filter by position (RB, WR, QB, TE, etc.); default all positions
+- `limit` (query, optional): max recommendations (default 50, min 1, max 500)
+
+**Response** (200) — `WaiverResponse`:
+```json
+{
+  "league_id": "987654321",
+  "week": 8,
+  "season": 2025,
+  "position": "RB",
+  "recommendations": [
+    {
+      "player_id": "4046",
+      "player_name": "Jaylen Warren",
+      "position": "RB",
+      "team": "PIT",
+      "projected_points": 11.4,
+      "trending_add_count": 15230,
+      "rank": 1
+    }
+  ]
+}
+```
+
+**Key Fields**:
+- `position`: the filter echoed back (`null` = all positions)
+- `rank`: 1-indexed rank by projected points
+- `trending_add_count`: Sleeper trending-add count, when available
+
+**Errors**:
+- 404: No rosters found for league
+- 503: Projections not yet available for the current week — retry later
+- 500: Server error
+
+**Examples**:
+```bash
+# Top 50 free agents across all positions
+curl http://localhost:8000/api/v1/in-season/987654321/waiver
+
+# Top 10 RB free agents
+curl "http://localhost:8000/api/v1/in-season/987654321/waiver?position=RB&limit=10"
+```
+
+---
+
+### Get Drop/Add Recommendations (In-Season, Phase 2)
+
+**GET /api/v1/in-season/{league_id}/{user_id}/drop-add**
+
+Returns ranked drop/add pairs that upgrade a user's roster: each pair swaps a
+bench player out for a free agent at the same position, and only pairs with a
+positive net projected-points gain are returned.
+
+**Parameters**:
+- `league_id` (path, required): Sleeper league ID
+- `user_id` (path, required): Sleeper user ID (roster owner)
+- `limit` (query, optional): max recommendations (default 20, min 1, max 500)
+
+**Response** (200) — `DropAddResponse`:
+```json
+{
+  "league_id": "987654321",
+  "user_id": "123456789",
+  "week": 8,
+  "season": 2025,
+  "recommendations": [
+    {
+      "drop_player_id": "1234",
+      "drop_player_name": "Zach Charbonnet",
+      "drop_projected_points": 6.2,
+      "add_player_id": "4046",
+      "add_player_name": "Jaylen Warren",
+      "add_projected_points": 11.4,
+      "position": "RB",
+      "net_gain": 5.2,
+      "rank": 1
+    }
+  ]
+}
+```
+
+**Key Fields**:
+- `net_gain`: `add_projected_points - drop_projected_points`; always `> 0`
+- `rank`: 1-indexed rank by net gain
+
+**Errors**:
+- 404: League has no rosters, or the user owns no roster in the league
+- 503: Projections not yet available for the current week — retry later
+- 500: Server error
+
+**Example**:
+```bash
+curl "http://localhost:8000/api/v1/in-season/987654321/123456789/drop-add?limit=10"
+```
+
+---
+
 ## Status Values
 
 Sleeper uses these draft status values:
@@ -837,6 +1140,144 @@ For the `status_filter` parameter:
   "recommendations": [VORDraftRecommendation],
   "top_value_pick": VORDraftRecommendation,
   "replacement_level_by_position": {"QB": number, "RB": number, ...}
+}
+```
+
+### MatchupGradeResponse (In-Season)
+
+```json
+{
+  "team": "string (offense team)",
+  "opponent": "string (defense team)",
+  "season": number,
+  "week": number,
+  "pass_matchup": number (optional, OL pass grade - DL pass grade; positive = offense favored),
+  "rush_matchup": number (optional),
+  "overall_matchup": number (optional),
+  "pass_signal": "favorable|neutral|unfavorable",
+  "rush_signal": "favorable|neutral|unfavorable",
+  "overall_signal": "favorable|neutral|unfavorable",
+  "ol_grade": number (optional, 0-100),
+  "dl_grade": number (optional, 0-100)
+}
+```
+
+### RosterPlayer (In-Season)
+
+```json
+{
+  "player_id": "string",
+  "player_name": "string",
+  "position": "QB|RB|WR|TE|etc",
+  "team": "KC|FA|etc",
+  "slot": "QB|FLEX|BENCH|RESERVE|etc",
+  "projected_points": number (optional),
+  "matchup_grade": MatchupGradeResponse (optional),
+  "on_bye": boolean,
+  "injury_status": "string (optional, e.g. Questionable, Out, IR)"
+}
+```
+
+### RosterResponse / LeagueRostersResponse (In-Season)
+
+```json
+// RosterResponse
+{
+  "league_id": "string",
+  "user_id": "string",
+  "roster_id": "string",
+  "week": number,
+  "season": number,
+  "starters": [RosterPlayer],
+  "bench": [RosterPlayer],
+  "reserve": [RosterPlayer]
+}
+
+// LeagueRostersResponse
+{
+  "league_id": "string",
+  "week": number,
+  "season": number,
+  "rosters": [RosterResponse]
+}
+```
+
+### StartSitRecommendation / RecommendationsResponse (In-Season)
+
+```json
+// StartSitRecommendation
+{
+  "player_id": "string",
+  "player_name": "string",
+  "position": "QB|RB|WR|TE|etc",
+  "team": "KC|FA|etc",
+  "projected_points": number (optional),
+  "recommendation": "START|SIT|SIT (BYE)|SIT (INJURY)",
+  "slot": "string (optional, set when recommendation is START)",
+  "matchup_grade": MatchupGradeResponse (optional),
+  "on_bye": boolean,
+  "injury_status": "string (optional)"
+}
+
+// RecommendationsResponse
+{
+  "league_id": "string",
+  "user_id": "string",
+  "week": number,
+  "season": number,
+  "scoring_format": "ppr|half_ppr|standard",
+  "recommendations": [StartSitRecommendation],
+  "optimal_lineup_set": boolean
+}
+```
+
+### WaiverRecResponse / WaiverResponse (In-Season)
+
+```json
+// WaiverRecResponse
+{
+  "player_id": "string",
+  "player_name": "string",
+  "position": "QB|RB|WR|TE|etc",
+  "team": "PIT|FA|etc",
+  "projected_points": number (optional),
+  "trending_add_count": number (optional),
+  "rank": number (1-indexed by projected points)
+}
+
+// WaiverResponse
+{
+  "league_id": "string",
+  "week": number,
+  "season": number,
+  "position": "string (optional, null = all positions)",
+  "recommendations": [WaiverRecResponse]
+}
+```
+
+### DropAddRecResponse / DropAddResponse (In-Season)
+
+```json
+// DropAddRecResponse
+{
+  "drop_player_id": "string",
+  "drop_player_name": "string",
+  "drop_projected_points": number,
+  "add_player_id": "string",
+  "add_player_name": "string",
+  "add_projected_points": number,
+  "position": "string",
+  "net_gain": number (add - drop; always > 0),
+  "rank": number (1-indexed by net gain)
+}
+
+// DropAddResponse
+{
+  "league_id": "string",
+  "user_id": "string",
+  "week": number,
+  "season": number,
+  "recommendations": [DropAddRecResponse]
 }
 ```
 

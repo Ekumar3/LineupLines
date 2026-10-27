@@ -3,15 +3,23 @@ boto3>=1.26
 python-dotenv>=1.0
 pytest>=7.0
 pytest-cov>=4.0
+hypothesis>=6.0
 httpx>=0.24
 fastapi>=0.95.0
 uvicorn>=0.22.0
 beautifulsoup4>=4.11.0
 scikit-learn>=1.3.0
 scipy>=1.11.0
+numpy>=1.24
+polars>=0.20
 sse-starlette>=1.6.0
 slowapi>=0.1.9
 
 # research/ — offline start/sit model backtest harness (scipy already listed above)
 nflreadpy>=0.1.5
 duckdb>=1.0
+
+# dbt/ — in-season transformation pipeline (OL/DL grades, feature marts)
+# dbt-duckdb reads parquet from S3 (prod) or local files (dev) via DuckDB.
+dbt-core>=1.8.0
+dbt-duckdb>=1.8.0
