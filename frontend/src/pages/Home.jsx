@@ -9,7 +9,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [draftsData, setDraftsData] = useState(null);
   const [userData, setUserData] = useState(null);
-  
+
   const navigate = useNavigate();
 
   // Load from local storage on mount
@@ -95,13 +95,22 @@ export default function Home() {
     (d) => ['drafting', 'in_progress'].includes(d.status)
   ) || [];
 
+  // Leagues whose draft is finished are in-season: they get weekly lineup help.
+  const inSeasonLeagues = draftsData?.drafts?.filter((d) => d.status === 'complete') || [];
+
+  const handleLeagueClick = (draft, userId) => {
+    navigate(`/lineup/${draft.league_id}/${userId}`, {
+      state: { leagueName: draft.metadata?.name },
+    });
+  };
+
   return (
     <div className="min-h-screen bg-sleeper-darker py-8 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold text-white tracking-tight mb-4">LineupLines</h1>
           <p className="text-sleeper-gray-400 text-lg max-w-xl mx-auto">
-            Live fantasy football draft assistant with real-time ADP value tracking.
+            Live draft assistant with real-time ADP value tracking, and weekly start/sit lineups once the season starts.
           </p>
         </div>
 
@@ -146,9 +155,9 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row justify-between items-center bg-sleeper-dark p-4 sm:p-6 rounded-xl border border-sleeper-gray-800 shadow-sm gap-4">
               <div className="flex items-center gap-4">
                 {avatarUrl ? (
-                  <img 
-                    src={avatarUrl} 
-                    alt={username} 
+                  <img
+                    src={avatarUrl}
+                    alt={username}
                     className="w-12 h-12 rounded-full border border-sleeper-gray-700 shadow-lg object-cover bg-sleeper-gray-800"
                     onError={(e) => {
                       // Fallback to initials if image fails to load
@@ -158,7 +167,7 @@ export default function Home() {
                     }}
                   />
                 ) : null}
-                <div 
+                <div
                   className={`w-12 h-12 bg-gradient-to-br from-sleeper-blue to-sleeper-purple rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg ${avatarUrl ? 'hidden' : ''}`}
                 >
                   {username.charAt(0).toUpperCase()}
@@ -186,7 +195,7 @@ export default function Home() {
                   className="bg-sleeper-dark rounded-xl border border-sleeper-gray-800 p-5 cursor-pointer hover:border-sleeper-blue transition-all group relative overflow-hidden flex flex-col h-full"
                 >
                   <div className="absolute top-0 left-0 w-1 h-full bg-sleeper-gray-800 group-hover:bg-sleeper-blue transition-colors" />
-                  
+
                   <div className="flex justify-between items-start mb-4 pl-2">
                     <h4 className="text-white font-semibold text-lg group-hover:text-sleeper-blue transition-colors truncate pr-3 flex-1 flex items-center gap-2">
                       {draft.metadata?.league_type === "2" ? (
@@ -199,7 +208,7 @@ export default function Home() {
                       <span className="truncate">{draft.metadata?.name || 'Unnamed League'}</span>
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3 pl-2 flex-grow">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-sleeper-gray-500">Status</span>
@@ -210,7 +219,7 @@ export default function Home() {
                           ? 'bg-sleeper-purple/10 text-sleeper-purple border border-sleeper-purple/20'
                           : 'bg-sleeper-gray-800 text-sleeper-gray-400 border border-sleeper-gray-700'
                       }`}>
-                        {['drafting', 'in_progress'].includes(draft.status) ? 'LIVE DRAFT' : 
+                        {['drafting', 'in_progress'].includes(draft.status) ? 'LIVE DRAFT' :
                          draft.status === 'pre_draft' ? 'PRE-DRAFT' : 'COMPLETED'}
                       </span>
                     </div>
@@ -225,7 +234,7 @@ export default function Home() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-sleeper-gray-500">Format</span>
                       <span className="text-sleeper-gray-300 font-medium">
-                        {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'} 
+                        {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'}
                         {draft.metadata?.te_premium ? ` TEP +${draft.metadata.te_premium}` : ''}
                         {draft.settings?.slots_super_flex > 0 ? ' SFX' : ''}
                       </span>
@@ -240,8 +249,8 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              
-              {liveDrafts.length === 0 && (
+
+              {liveDrafts.length === 0 && inSeasonLeagues.length === 0 && (
                 <div className="col-span-full flex flex-col items-center justify-center py-16 bg-sleeper-dark rounded-xl border border-sleeper-gray-800 border-dashed">
                   <div className="w-16 h-16 bg-sleeper-gray-900 rounded-full flex items-center justify-center mb-4">
                     <span className="text-2xl">🏈</span>
@@ -253,6 +262,56 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {inSeasonLeagues.length > 0 && (
+              <div>
+                <h2 className="text-white font-semibold text-xl mb-4">Your Leagues</h2>
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {inSeasonLeagues.map((draft) => (
+                    <div
+                      key={draft.league_id}
+                      onClick={() => handleLeagueClick(draft, draftsData.user_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleLeagueClick(draft, draftsData.user_id);
+                        }
+                      }}
+                      role="link"
+                      tabIndex={0}
+                      className="bg-sleeper-dark rounded-xl border border-sleeper-gray-800 p-5 cursor-pointer hover:border-sleeper-blue focus:outline-none focus:border-sleeper-blue transition-all group relative overflow-hidden flex flex-col h-full"
+                    >
+                      <div className="absolute top-0 left-0 w-1 h-full bg-sleeper-gray-800 group-hover:bg-sleeper-blue transition-colors" />
+
+                      <h4 className="text-white font-semibold text-lg group-hover:text-sleeper-blue transition-colors truncate mb-4 pl-2">
+                        {draft.metadata?.name || 'Unnamed League'}
+                      </h4>
+
+                      <div className="space-y-3 pl-2 flex-grow">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-sleeper-gray-500">Teams</span>
+                          <span className="text-sleeper-gray-300 font-medium">
+                            {draft.settings?.teams} Team
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-sleeper-gray-500">Format</span>
+                          <span className="text-sleeper-gray-300 font-medium">
+                            {draft.metadata?.scoring_type?.toUpperCase() || 'PPR'}
+                            {draft.metadata?.te_premium ? ` TEP +${draft.metadata.te_premium}` : ''}
+                            {draft.settings?.slots_super_flex > 0 ? ' SFX' : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pl-2 mt-5 text-sm font-medium text-sleeper-blue">
+                        View this week&apos;s lineup &rarr;
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

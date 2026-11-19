@@ -99,6 +99,24 @@ ENVIRONMENT_SCALE = 3.0           # implied-team-total point deviation -> delta 
 EFFICIENCY_SCALE = 0.12           # blended EPA/play + yards/touch deviation -> delta of 1.0
 EFFICIENCY_SHRINK_K = 8           # shrinkage strength (in touches) toward position-mean efficiency
 MATCHUP_SHRINK_K = 6              # shrinkage strength (in weeks of history) toward league-average matchup
+TD_SHRINK_K = 6                  # shrinkage strength (in games) toward position-mean per-game TD rate
+
+# TD stat-line components shrunk toward a trailing position mean. A player's
+# own trailing TD/game is a tiny, high-variance sample (a 3-game window with
+# one fluky score projects 0.33 TD/game of pure noise, worth ~2 PPR pts). We
+# blend it toward the league-wide per-game rate for their position, weighting
+# the player's own rate by n_games/(n_games + TD_SHRINK_K). Yards are left
+# untouched — they're far more stable week to week.
+#
+# Backtest tuning (research/results/backtest.md): sweeping K over 0/3/6/12,
+# per-position MAE falls monotonically with K while bias drifts negative
+# (the shrink target is the all-players position mean, which sits below a
+# rostered starter's true rate — so the pull slightly under-projects, roughly
+# uniformly within a position, which does NOT distort start/sit ranking). The
+# v1-over-naive lineup edge peaks sharply at K=6 (+0.82 pts/roster-week, up
+# from +0.35 unshrunk) and regresses by K=12, so K=6 is the chosen operating
+# point. Yardage is deliberately excluded — it is far more stable week to week.
+TD_COMPONENTS: Tuple[str, ...] = ("passing_tds", "rushing_tds", "receiving_tds")
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +254,8 @@ def baseline_stat_line(
     season: int,
     week: int,
     window: int = BASELINE_WINDOW,
+    position: Optional[str] = None,
+    position_td_rates: Optional[Dict[Tuple[str, int, int], Dict[str, float]]] = None,
 ) -> Optional[Dict[str, float]]:
     """Trailing per-component average stat line for a target (season, week).
 
@@ -245,10 +265,26 @@ def baseline_stat_line(
     the entire PRIOR season's per-game average; if that's unavailable too,
     returns None so the caller excludes the player from this week's slate.
 
+    TD SHRINKAGE: when `position` and `position_td_rates` are both supplied,
+    each TD component (TD_COMPONENTS) is pulled from the player's own tiny
+    trailing sample toward the trailing league mean for their position,
+    weighted by sample size:
+
+        shrunk = w * own + (1 - w) * position_mean,  w = n / (n + TD_SHRINK_K)
+
+    where n is the number of games the baseline was averaged over. This
+    tempers the high-variance, heavily-leveraged TD terms without touching
+    yardage (which is far more stable). Omitting either argument reproduces
+    the original unshrunk behavior, so callers that don't pass them are
+    unaffected.
+
     Args:
         player_rows: One player's rows across all cached seasons, any order.
         season, week: The target week being projected (NOT included).
         window: How many trailing in-season weeks to average over.
+        position: The player's position, used to look up the shrink target.
+        position_td_rates: (position, season, week) -> {td_component: rate},
+            from DeltaContext.position_td_rate_trailing.
     """
     prior = _weeks_before(player_rows, season, week)
     current_season_prior = [r for r in prior if r["season"] == season]
@@ -260,7 +296,21 @@ def baseline_stat_line(
         if not recent:
             return None
 
-    return {component: sum(r[component] for r in recent) / len(recent) for component in STAT_COMPONENTS}
+    baseline = {
+        component: sum(r[component] for r in recent) / len(recent) for component in STAT_COMPONENTS
+    }
+
+    if position is not None and position_td_rates is not None:
+        position_mean = position_td_rates.get((position, season, week))
+        if position_mean is not None:
+            n = len(recent)
+            weight = n / (n + TD_SHRINK_K)
+            for component in TD_COMPONENTS:
+                prior_mean = position_mean.get(component)
+                if prior_mean is not None:
+                    baseline[component] = weight * baseline[component] + (1.0 - weight) * prior_mean
+
+    return baseline
 
 
 def actual_stat_line(player_rows: List[dict], season: int, week: int) -> Optional[Dict[str, float]]:
@@ -397,6 +447,58 @@ def position_efficiency_trailing(feature_table: pl.DataFrame) -> Dict[Tuple[str,
     return trailing
 
 
+def position_td_rate_trailing(
+    feature_table: pl.DataFrame,
+) -> Dict[Tuple[str, int, int], Dict[str, float]]:
+    """Trailing league-wide mean per-game TD rate, keyed by (position, season, week).
+
+    For each TD component in TD_COMPONENTS, the value is the average per-game
+    count across every player-week at that position in all weeks strictly
+    before the key's (season, week) — the shrinkage target a player's own
+    trailing TD rate is pulled toward. Computed the same expanding,
+    no-future-leak way as position_efficiency_trailing: week 1 falls back to
+    the entire prior season.
+
+    Returns a nested dict: (position, season, week) -> {component: rate}.
+    Positions with no prior data (and no prior season) are simply absent, in
+    which case baseline_stat_line leaves that player's TDs unshrunk.
+    """
+    # (position, season, week) -> {component: [per-game values across players]}
+    weekly: Dict[Tuple[str, int, int], Dict[str, List[float]]] = {}
+    for r in feature_table.to_dicts():
+        key = (r["position"], r["season"], r["week"])
+        bucket = weekly.setdefault(key, {c: [] for c in TD_COMPONENTS})
+        for c in TD_COMPONENTS:
+            bucket[c].append(float(r[c]))
+
+    # Collapse each snapshot to a per-component mean, then expand trailing.
+    weekly_mean: Dict[Tuple[str, int, int], Dict[str, float]] = {}
+    for key, comps in weekly.items():
+        weekly_mean[key] = {
+            c: (sum(vals) / len(vals)) if vals else 0.0 for c, vals in comps.items()
+        }
+
+    by_position: Dict[str, List[Tuple[str, int, int]]] = {}
+    for k in sorted(weekly_mean, key=lambda k: (k[0], k[1], k[2])):
+        by_position.setdefault(k[0], []).append(k)
+
+    trailing: Dict[Tuple[str, int, int], Dict[str, float]] = {}
+    for position, keys in by_position.items():
+        for i, k in enumerate(keys):
+            _, season, week = k
+            prior_current = [weekly_mean[pk] for pk in keys[:i] if pk[1] == season]
+            if prior_current:
+                snapshots = prior_current
+            else:
+                snapshots = [weekly_mean[pk] for pk in keys[:i] if pk[1] == season - 1]
+            if not snapshots:
+                continue
+            trailing[k] = {
+                c: sum(s[c] for s in snapshots) / len(snapshots) for c in TD_COMPONENTS
+            }
+    return trailing
+
+
 def matchup_percentile_trailing(feature_table: pl.DataFrame) -> Dict[Tuple[str, str, int, int], float]:
     """Shrunk percentile rank (0-100, 50=average) of points allowed to a
     position, keyed by (position, opponent_team, season, week).
@@ -450,6 +552,7 @@ class DeltaContext:
     team_environment_trailing: Dict[Tuple[str, int, int], Optional[float]]
     position_efficiency_trailing: Dict[Tuple[str, int, int], Optional[float]]
     matchup_percentile_trailing: Dict[Tuple[str, str, int, int], float]
+    position_td_rate_trailing: Dict[Tuple[str, int, int], Dict[str, float]] = field(default_factory=dict)
     # v2 only: (team, season, week, channel) -> multiplicative factor, from research.defense
     defense_factors: Dict[defense.FactorKey, float] = field(default_factory=dict)
 
@@ -459,6 +562,7 @@ class DeltaContext:
             team_environment_trailing=team_environment_trailing(schedules),
             position_efficiency_trailing=position_efficiency_trailing(feature_table),
             matchup_percentile_trailing=matchup_percentile_trailing(feature_table),
+            position_td_rate_trailing=position_td_rate_trailing(feature_table),
             defense_factors=defense.defense_factors(feature_table),
         )
 
@@ -622,7 +726,9 @@ def project_player_week(
     Returns None if there's no usable baseline (see baseline_stat_line) —
     the caller should exclude the player from this week's slate.
     """
-    baseline = baseline_stat_line(player_rows, season, week)
+    baseline = baseline_stat_line(
+        player_rows, season, week, position=position, position_td_rates=context.position_td_rate_trailing
+    )
     if baseline is None:
         return None
     deltas = compute_deltas(player_rows, season, week, position, team, opponent_team, implied_team_total, context)
@@ -679,7 +785,9 @@ def project_player_week_v2(
     Same baseline and same None-means-exclude contract as v1. Unknown
     opponent (bye) or no fitted factors yet -> factors of 1.0 (league avg).
     """
-    baseline = baseline_stat_line(player_rows, season, week)
+    baseline = baseline_stat_line(
+        player_rows, season, week, position=position, position_td_rates=context.position_td_rate_trailing
+    )
     if baseline is None:
         return None
     if opponent_team is None:

@@ -339,7 +339,10 @@ def simulate(
                     if team is not None:
                         proj_v1 = model.project_player_week(rows, target_season, week, pos, team, opponent, implied, context)
                         proj_v2 = model.project_player_week_v2(rows, target_season, week, pos, team, opponent, implied, context)
-                    baseline = model.baseline_stat_line(rows, target_season, week)
+                    baseline = model.baseline_stat_line(
+                        rows, target_season, week, position=pos,
+                        position_td_rates=context.position_td_rate_trailing,
+                    )
                     actual = model.actual_stat_line(rows, target_season, week)
 
                     pts = {

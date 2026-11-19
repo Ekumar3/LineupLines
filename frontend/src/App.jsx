@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useLocation } from 'react-router-dom';
 import RosterView from './components/roster/RosterView';
 import RosterPage from './pages/RosterPage';
+import LineupPage from './pages/LineupPage';
 import Home from './pages/Home';
 import FeedbackWidget from './components/common/FeedbackWidget';
 import { trackEvent } from './utils/analytics';
@@ -27,6 +28,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/draftassist/:draftId/:userId" element={<DraftAssistPage />} />
         <Route path="/roster/:leagueId/:userId" element={<RosterPage />} />
+        <Route path="/lineup/:leagueId/:userId" element={<LineupPage />} />
       </Routes>
       {/* Feedback widget floats over every page */}
       <FeedbackWidget />

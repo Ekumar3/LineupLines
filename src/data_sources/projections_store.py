@@ -25,6 +25,7 @@ grade service) may run before its mart exists and must still behave sanely.
 import io
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -50,6 +51,8 @@ LOCAL_DUCKDB_PATH = Path(
 )
 # dev: projection service output lives here.
 LOCAL_PROJECTIONS_DIR = REPO_ROOT / "data" / "projections"
+# dev: live Vegas lines written by scripts/refresh_odds.py live here.
+LOCAL_ODDS_DIR = REPO_ROOT / "data" / "odds"
 
 # S3 key prefixes (prod).
 _MART_S3_PREFIX = "marts"
@@ -223,8 +226,87 @@ def write_projections(
 
     LOCAL_PROJECTIONS_DIR.mkdir(parents=True, exist_ok=True)
     path = LOCAL_PROJECTIONS_DIR / filename
-    df.write_parquet(path)
+    # Write to a temp file then swap it in, so a reader (the API serving the
+    # frontend while a background refresh regenerates this file) never sees a
+    # half-written parquet.
+    tmp_path = path.with_name(path.name + ".tmp")
+    try:
+        df.write_parquet(tmp_path)
+        os.replace(tmp_path, path)
+    except OSError:
+        # e.g. Windows refusing to replace a file another process has open.
+        # Fall back to a direct write rather than failing the refresh.
+        if tmp_path.exists():
+            tmp_path.unlink()
+        df.write_parquet(path)
     logger.info("Wrote projections to %s", path)
 
 
-__all__: List[str] = ["load_mart", "load_projections", "write_projections"]
+def projection_generated_at(
+    season: int, week: int, scoring_format: str
+) -> Optional[datetime]:
+    """When the projection output for (season, week, scoring) was last written.
+
+    Used by the frontend's freshness indicator and its change detection (a new
+    timestamp means "reload the lineup"). Returns None when no projection exists
+    or the store can't be reached. Never raises.
+    """
+    filename = _projection_filename(season, week, scoring_format)
+    bucket = _mart_bucket()
+
+    if bucket:
+        if boto3 is None:
+            return None
+        try:
+            head = boto3.client("s3").head_object(
+                Bucket=bucket, Key=f"{_PROJECTIONS_S3_PREFIX}/{filename}"
+            )
+            return head["LastModified"]
+        except Exception as e:
+            logger.info("No projection object for freshness check (%s): %s", filename, e)
+            return None
+
+    try:
+        return datetime.fromtimestamp(
+            (LOCAL_PROJECTIONS_DIR / filename).stat().st_mtime, tz=timezone.utc
+        )
+    except OSError:
+        return None
+
+
+def odds_fetched_at(season: int, week: int) -> Optional[datetime]:
+    """When the week's live Vegas lines were last fetched, or None.
+
+    None means the projection is using the (older) nflverse schedule lines. Odds
+    files aren't persisted to S3 yet, so in prod this is always None. Reads the
+    newest ``fetched_at`` in the week's file (rows for games that already
+    kicked off are kept from earlier fetches, so a file can hold several times).
+    """
+    if _mart_bucket():
+        return None
+
+    path = LOCAL_ODDS_DIR / f"implied_totals_{season}_wk{week:02d}.parquet"
+    if not path.exists():
+        return None
+    try:
+        df = pl.read_parquet(path, columns=["fetched_at"])
+        stamps = [
+            datetime.fromisoformat(s) for s in df["fetched_at"].drop_nulls().to_list()
+        ]
+        if stamps:
+            return max(stamps)
+    except Exception as e:  # pragma: no cover - fall back to file mtime
+        logger.info("Could not read fetched_at from %s: %s", path, e)
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    except OSError:
+        return None
+
+
+__all__: List[str] = [
+    "load_mart",
+    "load_projections",
+    "write_projections",
+    "projection_generated_at",
+    "odds_fetched_at",
+]

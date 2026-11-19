@@ -15,7 +15,8 @@ layers, see the "In-Season Matchup Recommendations" section of
 3. [S3 bucket layout](#s3-bucket-layout)
 4. [Airflow deployment](#airflow-deployment)
 5. [Daily pipeline operation](#daily-pipeline-operation)
-6. [Deployment checklist](#deployment-checklist)
+6. [Local testing workflow](#local-testing-workflow)
+7. [Deployment checklist](#deployment-checklist)
 
 ---
 
@@ -47,6 +48,7 @@ The handoff between dbt and Python is the mart parquet, abstracted by
 | `MART_S3_BUCKET` | API + Airflow | prod only | S3 bucket holding dbt marts, projection output, and raw parquet. **When set, the app runs in prod mode** (S3 I/O). When unset, it runs in dev mode against the local `data/` directory. |
 | `DUCKDB_PATH` | dbt + Airflow | optional | Path to the DuckDB database file dbt materializes into (dev target). Defaults to the dbt project's configured path when unset. |
 | `IN_SEASON_PIPELINE_END_DATE` | Airflow Variable | optional | Date after which the DAG is parked for the off-season (default `2027-02-15`). This is an **Airflow Variable**, not an OS env var — set it in the Airflow UI/CLI so you can re-arm the DAG for next season without a code deploy. |
+| `ODDS_API_KEY` | `scripts/refresh_odds.py` | optional | The Odds API key for refreshing live Vegas lines (free tier at [the-odds-api.com](https://the-odds-api.com), 500 req/month). Put it in a gitignored `.env` at the repo root. Only needed if you run `refresh_odds.py`; without fresh odds the projection falls back to the nflverse schedule lines. |
 
 Dev vs prod is decided solely by whether `MART_S3_BUCKET` is set — there is no
 separate `ENV` flag. This keeps local runs zero-config: clone, run the pipeline,
@@ -159,6 +161,116 @@ league's settings. Until a week's projection parquet exists, the
 
 ---
 
+## Local testing workflow
+
+In production the Airflow DAG keeps all of this current automatically. Locally
+(no AWS, no Airflow) you run the same four layers by hand with a set of helper
+scripts under `scripts/`. This section is the end-to-end recipe plus the
+sequencing gotchas that will otherwise bite you.
+
+### One-time setup
+
+```bash
+# 1. Create and activate the virtualenv (Python 3.10), install deps.
+python -m venv .venv
+.venv\Scripts\Activate.ps1          # PowerShell  (or: source .venv/Scripts/activate in bash)
+pip install -r requirements.txt
+
+# 2. (Optional) live Vegas lines: get a free key at the-odds-api.com,
+#    then add it to a gitignored .env at the repo root.
+echo ODDS_API_KEY=your_key_here >> .env
+```
+
+`dbt` is installed into the venv, so once the venv is active a bare `dbt`
+command works; otherwise invoke it as `python -m dbt.cli.main ...`.
+
+### The scripts and what each produces
+
+| Script | Layer | Produces |
+|--------|-------|----------|
+| `scripts/ingest_nflverse.py <season>` | 0 — ingest | `data/raw/*.parquet` (pbp, player_stats, snap_counts, schedules). Absent-only: skips files that exist unless `--force`. |
+| `dbt build --profiles-dir . --target dev` (run from `dbt/`) | 1 — transform | marts in `dbt/lineuplines.duckdb` |
+| `scripts/refresh_odds.py <season> [week]` | 1.5 — live lines | `data/odds/implied_totals_<season>_wk<NN>.parquet` (overrides stale schedule lines) |
+| `scripts/generate_projections.py <season> <week>` | 2 — predict | `data/projections/<season>_wk<NN>_<fmt>.parquet` |
+| `scripts/run_api.py` | 3 — serve | the FastAPI app on `:8000` |
+| `scripts/recommend.py --username <name>` | client | a start/sit table (calls the running API) |
+
+### The full flow for a given week
+
+Run these in order. Each layer feeds the next, so order matters:
+
+```bash
+# 0. Ingest raw nflverse data (once per season; re-run with --force weekly to
+#    pull newly-played games).
+python scripts/ingest_nflverse.py 2026
+
+# 1. Build the dbt marts from the raw data.
+cd dbt && dbt build --profiles-dir . --target dev && cd ..
+
+# 1.5. Refresh live Vegas lines — run this BEFORE the week's first kickoff
+#      (free tier has no historical odds; once games start they drop out).
+python scripts/refresh_odds.py 2026 8
+
+# 2. Generate the week's projections (bakes in the marts + fresh odds).
+python scripts/generate_projections.py 2026 8
+
+# 3. Serve the API (leave running in its own terminal).
+python scripts/run_api.py
+
+# 4. Get your start/sit table (in another terminal).
+python scripts/recommend.py --username YOUR_SLEEPER_NAME
+```
+
+Or let `recommend.py` run the pipeline for you (absent-only, with cascade
+invalidation) in a single command:
+
+```bash
+python scripts/recommend.py --username YOUR_SLEEPER_NAME --load-current
+```
+
+### Sequencing gotchas (read this)
+
+- **`refresh_odds.py` must run before `generate_projections.py`.** The odds
+  script updates an *input* (`data/odds/`); the projection is only recomputed
+  when you run `generate_projections` (or `recommend.py --load-current`).
+  Refreshing odds does **not** retroactively change a projection parquet that
+  was already written — regenerate after refreshing.
+
+- **`refresh_odds.py` only works before kickoff.** The free Odds API tier serves
+  upcoming/live games only — no historical odds. Once a game starts it leaves
+  the feed, so you can't backfill a week whose games have begun. It labels each
+  game with its true week from the schedule, so the upcoming slate (which can
+  span two weeks) is split into the correct per-week files; `week` is an
+  optional filter. (A paid tier would add historical odds — see the script's
+  module docstring.)
+
+- **`--load-current` runs the whole chain, in order.** (1) Raw nflverse data is
+  re-pulled when absent or when the schedule lists finished games the pbp file
+  lacks (a 3-hour cooldown avoids re-pulling before nflverse publishes). (2) The
+  marts are rebuilt if raw changed. (3) Vegas lines are fetched from The Odds
+  API, best-effort: with no `ODDS_API_KEY`, no quota, or no upcoming games it
+  logs a warning and the projection uses the nflverse schedule lines. A file
+  fetched under 6 hours ago is not re-fetched, which saves quota. (4) The
+  projection is regenerated if absent, if the marts changed, or if the odds file
+  is newer than it. Run it before the week's first kickoff for fresh odds.
+  `refresh_odds.py` keeps earlier rows for games that have already left the feed,
+  so a late run never discards lines you already have. (In production the
+  Airflow DAG owns freshness; it does not fetch odds.)
+
+- **The API reads the same local files.** `run_api.py` and the generation
+  scripts all resolve `data/` and `dbt/lineuplines.duckdb` relative to the repo
+  root, so run everything from the repo root (the scripts `os.chdir` there
+  anyway). If you regenerate projections while the API is running, the API picks
+  up the new parquet on the next request — no restart needed.
+
+- **Bye weeks and missing projections.** Players on a bye (their team has no
+  scheduled game that week) are labeled `SIT (BYE)` and excluded from the
+  optimal lineup. If a week's projection parquet is missing, the
+  `/recommendations`, `/waiver`, and `/drop-add` endpoints return **503** — run
+  `generate_projections.py` (or `--load-current`) first.
+
+---
+
 ## Deployment checklist
 
 Run these final validation steps in the deployment environment — they require a
@@ -181,3 +293,70 @@ part of the local test suite.
 - [ ] Verify 404 semantics with a bogus `league_id` and a `user_id` not in the league.
 - [ ] Review the daily run's failure/success alert routing (Slack/PagerDuty hook wired).
 - [ ] Run a security review of S3/IAM scoping (pipeline role limited to the bucket + required prefixes).
+
+## Lineup page (frontend) with automatic local updates
+
+The React app has an in-season page at `/lineup/:leagueId/:userId`. The Home page
+lists every league whose draft is complete under **Your Leagues**; clicking one
+opens that league's start/sit lineup for the current week.
+
+Run it locally in two terminals (from the repo root):
+
+```bash
+# 1. API + background data refresh. Use the project venv (it has uvicorn/dbt).
+.venv/Scripts/python.exe scripts/dev_server.py        # add --no-refresh for API only
+
+# 2. Frontend (http://localhost:3000, proxies /api to :8000)
+cd frontend && npm ci && npm run dev
+```
+
+`dev_server.py` runs the API and, every 30 minutes (`--interval-min`), a refresh
+cycle for the current week across `ppr`, `half_ppr` and `standard`
+(`--formats` to change): it refreshes the stored Sleeper player list when it is
+over 24 hours old, re-pulls nflverse data when finished games are missing,
+rebuilds the marts, fetches Vegas lines (best-effort) and regenerates stale
+projections. Stages that are already current skip themselves, so most cycles do
+nothing.
+
+The page polls `GET /api/v1/in-season/{league_id}/status` every minute and
+whenever the tab regains focus. When the projection or odds timestamp changes it
+reloads the lineup in the background. If projections aren't ready yet it shows a
+"preparing" state and keeps retrying.
+
+Notes:
+
+- **Stop the server with Ctrl+C in its own terminal.** Killing only the parent
+  process can leave the reloaded API worker holding port 8000.
+- **K and DEF have no projection** (the model covers QB/RB/WR/TE), so the
+  "Projected" total excludes them and the matchup chip is hidden for them.
+- **Not used in production yet.** The deployed container ships only `src/` and
+  `data/`, so it cannot run this refresh. In production the Airflow DAG must own
+  it. Still to do before deploying: add an odds step and all three scoring formats
+  to `airflow/dags/in_season_pipeline.py`, schedule it more than once a day, and
+  refresh `data/players/nfl_players.json` (it is baked into the image, so rookies
+  and trades go stale until the image is rebuilt).
+
+### Hover breakdown on the lineup page
+
+Hovering (or tapping, on a phone) a player's matchup chip or projected points
+opens a card explaining both. It reads the same projection parquet, which now
+also stores how each number was built:
+
+| Column | Meaning |
+|---|---|
+| `baseline_points` | recent form alone (last-3-game average, scored) |
+| `defense_adjusted_points` | after the opponent's pass/run defense factors |
+| `env_multiplier` | Vegas game-environment multiplier (x0.75 to x1.25) |
+| `implied_team_total`, `trailing_implied_total` | Vegas points for the team this week, and its usual figure |
+| `points_<stat>` | fantasy points each projected stat contributes |
+
+`projected_points = defense_adjusted_points * env_multiplier`, and the
+`points_<stat>` columns sum to `projected_points`. The recommendations endpoint
+returns this as `projection_detail` on each player (none for K/DEF or bye weeks).
+Projection files written before these columns existed still load; the card then
+shows only what the file has, so regenerate a week
+(`scripts/generate_projections.py <season> <week> --scoring <fmt>`) to fill it in.
+
+The **matchup label** (Favorable/Neutral/Tough) comes from the OL-vs-DL grades in
+`mart_matchup_grade` and is informational. It is not an input to the projection,
+which uses the defense factors and the Vegas multiplier above.

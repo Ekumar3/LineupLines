@@ -16,6 +16,40 @@ with games as (
     select season, week, away_team as team, home_team as opponent from {{ ref('stg_schedules') }}
 ),
 
+-- As-of join: OL/DL grades are trailing composites built from games already
+-- played, so there is no grade row for an UPCOMING week (the one we actually
+-- set a lineup for). Matching on exact week would leave every upcoming matchup
+-- NULL -> neutral. Instead resolve each scheduled (team, week) to that team's
+-- most recent grade at or before the scheduled week. For a played week this is
+-- the week's own grade; for an upcoming week it's the latest played snapshot --
+-- the right pregame estimate, mirroring how the projection layer falls back to
+-- the most-recent known metrics for not-yet-played weeks.
+ol_asof as (
+    select
+        g.season, g.week, g.team,
+        ol.pass_protection_grade, ol.run_blocking_grade, ol.ol_grade,
+        row_number() over (
+            partition by g.season, g.week, g.team
+            order by ol.week desc
+        ) as rn
+    from games g
+    left join {{ ref('mart_ol_grade') }} ol
+        on ol.season = g.season and ol.team = g.team and ol.week <= g.week
+),
+
+dl_asof as (
+    select
+        g.season, g.week, g.opponent,
+        dl.pass_rush_grade, dl.run_defense_grade, dl.dl_grade,
+        row_number() over (
+            partition by g.season, g.week, g.opponent
+            order by dl.week desc
+        ) as rn
+    from games g
+    left join {{ ref('mart_dl_grade') }} dl
+        on dl.season = g.season and dl.team = g.opponent and dl.week <= g.week
+),
+
 matchup as (
     select
         g.season, g.week, g.team, g.opponent,
@@ -26,10 +60,10 @@ matchup as (
         round(ol.run_blocking_grade - dl.run_defense_grade, 2) as rush_matchup,
         round(ol.ol_grade - dl.dl_grade, 2) as overall_matchup
     from games g
-    left join {{ ref('mart_ol_grade') }} ol
-        on ol.season = g.season and ol.week = g.week and ol.team = g.team
-    left join {{ ref('mart_dl_grade') }} dl
-        on dl.season = g.season and dl.week = g.week and dl.team = g.opponent
+    left join ol_asof ol
+        on ol.season = g.season and ol.week = g.week and ol.team = g.team and ol.rn = 1
+    left join dl_asof dl
+        on dl.season = g.season and dl.week = g.week and dl.opponent = g.opponent and dl.rn = 1
 )
 
 select

@@ -60,4 +60,22 @@ export const draftAPI = {
   }
 };
 
+export const inSeasonAPI = {
+  // Cheap freshness check: current week + when projections/odds last updated.
+  getStatus: async (leagueId) => {
+    const response = await api.get(`/in-season/${leagueId}/status`);
+    return response.data;
+  },
+
+  // Start/sit recommendations for the user's roster. Computes the optimal
+  // lineup server-side, so allow more time than the default 10s.
+  getRecommendations: async (leagueId, userId) => {
+    const response = await api.get(
+      `/in-season/${leagueId}/${userId}/recommendations`,
+      { timeout: 30000 }
+    );
+    return response.data;
+  }
+};
+
 export default api;

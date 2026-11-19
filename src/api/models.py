@@ -744,6 +744,53 @@ class LeagueRostersResponse(BaseModel):
     )
 
 
+class StatPoints(BaseModel):
+    """Fantasy points one projected stat contributes (e.g. 62 receiving yards = 6.2)."""
+
+    stat: str = Field(
+        ..., description="Stat key, e.g. receiving_yards, receptions, rushing_tds"
+    )
+    value: float = Field(..., description="Projected amount of the stat")
+    points: float = Field(..., description="Fantasy points that amount is worth in this league")
+
+
+class ProjectionDetail(BaseModel):
+    """How a player's projected points were built, for explaining the number.
+
+    projected_points = defense_adjusted_points * env_multiplier, where
+    defense_adjusted_points is the player's recent-form points
+    (baseline_points) scaled by the opponent's pass/rush defense factors.
+    Fields are None when the projection file predates these columns.
+    """
+
+    opponent: Optional[str] = Field(None, description="Opponent team abbreviation")
+    baseline_points: Optional[float] = Field(
+        None, description="Points from recent form alone (trailing ~3-game average)"
+    )
+    defense_adjusted_points: Optional[float] = Field(
+        None, description="Points after the opponent's defense factors, before Vegas"
+    )
+    projected_points: float = Field(..., description="Final projected points")
+    pass_factor: Optional[float] = Field(
+        None, description="Opponent pass-defense factor; above 1.0 = allows more than average"
+    )
+    rush_factor: Optional[float] = Field(
+        None, description="Opponent run-defense factor; above 1.0 = allows more than average"
+    )
+    env_multiplier: Optional[float] = Field(
+        None, description="Vegas game-environment multiplier (1.0 = no change, capped 0.75-1.25)"
+    )
+    implied_team_total: Optional[float] = Field(
+        None, description="Points Vegas expects this player's team to score this week"
+    )
+    trailing_implied_total: Optional[float] = Field(
+        None, description="The team's usual Vegas implied total (the comparison point)"
+    )
+    stats: List[StatPoints] = Field(
+        default_factory=list, description="Non-zero stats and their points, largest first"
+    )
+
+
 class StartSitRecommendation(BaseModel):
     """Start/sit recommendation for one player on a user's roster."""
 
@@ -783,6 +830,10 @@ class StartSitRecommendation(BaseModel):
     on_bye: bool = Field(False, description="Whether the player is on a bye this week")
     injury_status: Optional[str] = Field(
         None, description="Injury status (e.g., Questionable, Out, IR)"
+    )
+    projection_detail: Optional[ProjectionDetail] = Field(
+        None,
+        description="Breakdown of how projected_points was built; None for bye weeks and unprojected players (K, DEF)",
     )
 
 
@@ -931,4 +982,44 @@ class DropAddResponse(BaseModel):
     season: int = Field(..., description="NFL season year")
     recommendations: List[DropAddRecResponse] = Field(
         ..., description="Ranked drop/add pairs (positive net gain only)"
+    )
+
+
+class InSeasonStatusResponse(BaseModel):
+    """How fresh the in-season data behind a league's lineup is.
+
+    The frontend polls this cheaply and reloads the lineup when
+    ``projection_generated_at`` / ``odds_fetched_at`` / ``week`` change.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "league_id": "987654321",
+                "season": 2026,
+                "week": 11,
+                "scoring_format": "ppr",
+                "projection_generated_at": "2026-11-18T18:03:15+00:00",
+                "odds_fetched_at": "2026-11-18T18:03:14+00:00",
+                "odds_source": "live",
+            }
+        }
+    )
+
+    league_id: str = Field(..., description="Sleeper league ID")
+    season: int = Field(..., description="NFL season year")
+    week: int = Field(..., description="Current NFL week")
+    scoring_format: str = Field(
+        ..., description="League scoring format (ppr, half_ppr, standard)"
+    )
+    projection_generated_at: Optional[str] = Field(
+        None,
+        description="ISO timestamp the week's projection was written; null when not generated yet",
+    )
+    odds_fetched_at: Optional[str] = Field(
+        None, description="ISO timestamp live Vegas lines were fetched; null when unavailable"
+    )
+    odds_source: str = Field(
+        ...,
+        description="'live' when fresh Odds API lines feed the projection, else 'schedule' (nflverse lines)",
     )

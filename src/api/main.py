@@ -46,6 +46,9 @@ from src.api.models import (
     WaiverResponse,
     DropAddRecResponse,
     DropAddResponse,
+    InSeasonStatusResponse,
+    ProjectionDetail,
+    StatPoints,
 )
 from src.api.storage import load_player_universe, save_player_universe
 from src.api.draft_stream import BroadcasterCapacityError, DraftBroadcaster
@@ -1876,6 +1879,133 @@ def _load_week_projections(season: int, week: int, scoring_format: str, all_play
         return {}
 
 
+def _load_week_team_map(season: int, week: int, scoring_format: str, all_players):
+    """Map Sleeper player_id -> NFL team abbreviation from the projection parquet.
+
+    Sleeper's ``/players/nfl`` record often has ``team: null`` for recent
+    rookies (e.g. draftees not yet assigned in Sleeper's offseason data), which
+    makes the roster code fall back to "FA" and, in turn, blanks the opponent
+    and matchup grade. The projection parquet, however, carries the real
+    nflverse team for those same players. This helper re-keys that team from
+    nflverse ids to Sleeper ids using the SAME two-bridge matching as
+    :func:`_load_week_projections` (gsis_id exact, then normalized name +
+    position), so callers can backfill a missing Sleeper team.
+
+    Returns an empty dict on any failure (projection unavailable, etc.).
+    """
+    rows = _load_week_projection_rows(season, week, scoring_format, all_players)
+    return {
+        sleeper_id: row["team"]
+        for sleeper_id, row in rows.items()
+        if row.get("team") and row["team"] != "FA"
+    }
+
+
+def _load_week_projection_rows(season: int, week: int, scoring_format: str, all_players):
+    """Map Sleeper player_id -> that player's full projection parquet row.
+
+    The parquet is keyed by nflverse ids, so each row is re-keyed to the Sleeper
+    player it belongs to with the same two bridges as
+    :func:`_load_week_projections`: ``gsis_id`` exact match first, then
+    normalized name + position (recent draftees often lack a ``gsis_id``).
+    Rows without a projected_points value are skipped. Returns {} on any
+    failure (projection unavailable, etc.).
+    """
+    if not all_players:
+        return {}
+    try:
+        from src.data_sources.projections_store import load_projections
+        from src.services.player_id_resolver import normalize_fantasypros_name
+
+        df = load_projections(season, week, scoring_format)
+        if df is None or len(df) == 0:
+            return {}
+
+        by_gsis = {}
+        by_name_pos = {}
+        for row in df.iter_rows(named=True):
+            if row.get("projected_points") is None:
+                continue
+            pid = row.get("player_id")
+            if pid is not None:
+                by_gsis[str(pid)] = row
+            name = row.get("player_name")
+            position = row.get("position")
+            if name and position:
+                by_name_pos[(normalize_fantasypros_name(name), position)] = row
+
+        rows = {}
+        for sleeper_id, player_data in all_players.items():
+            if not isinstance(player_data, dict):
+                continue
+
+            gsis = player_data.get("gsis_id")
+            if gsis is not None:
+                row = by_gsis.get(str(gsis).strip())
+                if row is not None:
+                    rows[str(sleeper_id)] = row
+                    continue  # exact match wins; skip the name fallback
+
+            full_name = (
+                f"{player_data.get('first_name', '') or ''} "
+                f"{player_data.get('last_name', '') or ''}"
+            ).strip()
+            position = player_data.get("position")
+            if full_name and position:
+                row = by_name_pos.get((normalize_fantasypros_name(full_name), position))
+                if row is not None:
+                    rows[str(sleeper_id)] = row
+
+        return rows
+    except Exception as e:  # pragma: no cover - optional dependency
+        logger.debug(f"Projection rows unavailable for {season} wk{week} {scoring_format}: {e}")
+        return {}
+
+
+def _load_week_projection_details(season: int, week: int, scoring_format: str, all_players):
+    """Map Sleeper player_id -> ProjectionDetail explaining that player's number.
+
+    Built from the extra columns the projection service writes (opponent
+    factors, Vegas multiplier and implied totals, per-stat points). Parquet
+    files generated before those columns existed still load: the missing pieces
+    come back as None and the UI shows what it has. Never raises.
+    """
+    def num(value):
+        return float(value) if isinstance(value, (int, float)) else None
+
+    details = {}
+    try:
+        from src.services.projection_service import STAT_COMPONENTS
+
+        rows = _load_week_projection_rows(season, week, scoring_format, all_players)
+        for sleeper_id, row in rows.items():
+            stats = []
+            for stat in STAT_COMPONENTS:
+                value = num(row.get(f"expected_{stat}"))
+                points = num(row.get(f"points_{stat}"))
+                # Only stats that actually contribute; sorted by the points they add.
+                if value and points:
+                    stats.append(StatPoints(stat=stat, value=value, points=points))
+            stats.sort(key=lambda s: abs(s.points), reverse=True)
+
+            details[sleeper_id] = ProjectionDetail(
+                opponent=row.get("opponent"),
+                baseline_points=num(row.get("baseline_points")),
+                defense_adjusted_points=num(row.get("defense_adjusted_points")),
+                projected_points=float(row["projected_points"]),
+                pass_factor=num(row.get("pass_factor")),
+                rush_factor=num(row.get("rush_factor")),
+                env_multiplier=num(row.get("env_multiplier")),
+                implied_team_total=num(row.get("implied_team_total")),
+                trailing_implied_total=num(row.get("trailing_implied_total")),
+                stats=stats,
+            )
+    except Exception as e:  # pragma: no cover - explanation is optional
+        logger.debug(f"Projection details unavailable for {season} wk{week} {scoring_format}: {e}")
+        return {}
+    return details
+
+
 def _schedule_available(matchup_service) -> bool:
     """True when the matchup mart is loaded and non-empty.
 
@@ -1989,12 +2119,16 @@ def _build_roster_player(
     matchup_service,
     season,
     week,
+    team_map=None,
 ):
     """Enrich a raw Sleeper player_id into a RosterPlayer response model.
 
     Pulls name/position/team/injury from the cached player universe. Adds
     projected points and matchup grade when those services are available.
+    ``team_map`` (Sleeper player_id -> NFL team from the projection parquet)
+    backfills the team when the Sleeper universe reports none (rookies).
     """
+    team_map = team_map or {}
     player_id = str(player_id)
     player_data = all_players.get(player_id) or {}
 
@@ -2003,7 +2137,7 @@ def _build_roster_player(
     player_name = f"{first} {last}".strip() or player_id
 
     position = player_data.get("position") or "UNKNOWN"
-    team = player_data.get("team") or "FA"
+    team = player_data.get("team") or team_map.get(player_id) or "FA"
     injury_status = player_data.get("injury_status")
 
     projected_points = projections.get(player_id)
@@ -2022,6 +2156,10 @@ def _build_roster_player(
         and opponent is None
         and _schedule_available(matchup_service)
     )
+
+    # A player on bye cannot score; don't surface a stale non-zero projection.
+    if on_bye:
+        projected_points = 0.0
 
     return RosterPlayer(
         player_id=player_id,
@@ -2044,13 +2182,17 @@ def _roster_to_response(
     all_players,
     projections,
     matchup_service,
+    team_map=None,
 ) -> RosterResponse:
     """Convert a Sleeper Roster into an enriched RosterResponse.
 
     Categorizes players into starters / bench / reserve using roster_bench()
     (bench = players - starters - reserve). Starter slot labels come from the
     league's roster_positions when available, else the player's position.
+    ``team_map`` backfills a player's team from the projection parquet when the
+    Sleeper universe has none (rookies).
     """
+    team_map = team_map or {}
     bench_ids = roster_bench(roster)
     reserve_set = set(roster.reserve)
 
@@ -2066,20 +2208,20 @@ def _roster_to_response(
             slot = player_data.get("position") or "FLEX"
         starters.append(
             _build_roster_player(
-                pid, slot, all_players, projections, matchup_service, season, week
+                pid, slot, all_players, projections, matchup_service, season, week, team_map
             )
         )
 
     bench = [
         _build_roster_player(
-            pid, "BENCH", all_players, projections, matchup_service, season, week
+            pid, "BENCH", all_players, projections, matchup_service, season, week, team_map
         )
         for pid in bench_ids
     ]
 
     reserve = [
         _build_roster_player(
-            pid, "RESERVE", all_players, projections, matchup_service, season, week
+            pid, "RESERVE", all_players, projections, matchup_service, season, week, team_map
         )
         for pid in roster.reserve
     ]
@@ -2150,10 +2292,11 @@ def get_in_season_league_rosters(league_id: str):
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
         projections = _load_week_projections(season, week, scoring_format, all_players)
         matchup_service = _get_matchup_grade_service()
+        team_map = _load_week_team_map(season, week, scoring_format, all_players)
 
         roster_responses = [
             _roster_to_response(
-                roster, league_id, season, week, all_players, projections, matchup_service
+                roster, league_id, season, week, all_players, projections, matchup_service, team_map
             )
             for roster in rosters
         ]
@@ -2221,9 +2364,10 @@ def get_in_season_user_roster(league_id: str, user_id: str):
         scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
         projections = _load_week_projections(season, week, scoring_format, all_players)
         matchup_service = _get_matchup_grade_service()
+        team_map = _load_week_team_map(season, week, scoring_format, all_players)
 
         return _roster_to_response(
-            target, league_id, season, week, all_players, projections, matchup_service
+            target, league_id, season, week, all_players, projections, matchup_service, team_map
         )
 
     except HTTPException:
@@ -2488,6 +2632,7 @@ def _build_optimizer_players(
     season: int,
     week: int,
     matchup_service,
+    team_map=None,
 ):
     """Build OptimizerPlayer objects for every non-reserve player on a roster.
 
@@ -2496,6 +2641,14 @@ def _build_optimizer_players(
     slot as a last resort), and injury/roster status from the universe + the
     roster's reserve list. Players in the reserve list are tagged with an "IR"
     roster_status so :func:`apply_exclusions` drops them from the eligible pool.
+
+    ``team_map`` (Sleeper player_id -> NFL team from the projection parquet) is
+    used to backfill a player's team when the Sleeper universe reports no team
+    (common for recent rookies, who otherwise show as "FA" with no opponent).
+
+    Bye-week players have their displayed ``projected_points`` forced to 0.0:
+    they can't score, so a non-zero projection next to a "SIT (BYE)" label is
+    misleading.
 
     Bye weeks: Sleeper doesn't flag byes, but the NFL schedule does. A player on
     a real NFL team whose team has NO scheduled game that week (``_opponent_for``
@@ -2509,6 +2662,7 @@ def _build_optimizer_players(
     """
     from src.services.lineup_optimizer import OptimizerPlayer
 
+    team_map = team_map or {}
     reserve_set = {str(pid) for pid in roster.reserve}
 
     # Bye detection needs the schedule (matchup mart). If it's unavailable we
@@ -2543,11 +2697,17 @@ def _build_optimizer_players(
         last = player_data.get("last_name", "") or ""
         player_name = f"{first} {last}".strip() or pid
         position = player_data.get("position") or "UNKNOWN"
-        team = player_data.get("team") or "FA"
+        # Prefer Sleeper's team; backfill from the projection parquet when
+        # Sleeper has none (recent rookies), else "FA".
+        team = player_data.get("team") or team_map.get(pid) or "FA"
         injury_status = player_data.get("injury_status")
         roster_status = "IR" if pid in reserve_set else None
         projected_points = projections.get(pid)
         on_bye = _is_on_bye(team)
+        # A player on bye cannot score, so don't surface a stale non-zero
+        # projection next to a "SIT (BYE)" label.
+        if on_bye:
+            projected_points = 0.0
 
         meta[pid] = {
             "player_name": player_name,
@@ -2586,6 +2746,51 @@ def _sit_reason(info) -> str:
     if injury in {"OUT", "DOUBTFUL", "IR"} or roster_status in {"IR", "TAXI"}:
         return "SIT (INJURY)"
     return "SIT"
+
+
+@app.get(
+    "/api/v1/in-season/{league_id}/status",
+    response_model=InSeasonStatusResponse,
+    responses={
+        200: {"description": "Freshness of the data behind this league's lineup"},
+        500: {"model": ErrorResponse, "description": "Server error"},
+    },
+    summary="Get in-season data freshness for a league",
+    description=(
+        "Cheap endpoint the frontend polls to learn the current week and when the "
+        "week's projection and live Vegas lines were last updated, so it can "
+        "reload the lineup the moment new data lands. Does not compute anything."
+    ),
+    tags=["In-Season"],
+)
+def get_in_season_status(league_id: str):
+    """Current week plus projection/odds timestamps for the league's scoring format."""
+    try:
+        from src.data_sources.projections_store import (
+            odds_fetched_at,
+            projection_generated_at,
+        )
+
+        season, week = _resolve_nfl_week_season()
+        scoring_format = sleeper_client.get_scoring_format(league_id) or "ppr"
+
+        projection_at = projection_generated_at(season, week, scoring_format)
+        odds_at = odds_fetched_at(season, week)
+
+        return InSeasonStatusResponse(
+            league_id=str(league_id),
+            season=season,
+            week=week,
+            scoring_format=scoring_format,
+            projection_generated_at=projection_at.isoformat() if projection_at else None,
+            odds_fetched_at=odds_at.isoformat() if odds_at else None,
+            odds_source="live" if odds_at else "schedule",
+        )
+    except Exception as e:
+        logger.error(f"Error computing in-season status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
 
 
 @app.get(
@@ -2657,9 +2862,13 @@ def get_in_season_recommendations(league_id: str, user_id: str):
         roster_positions = league_info.get("roster_positions", []) or []
 
         matchup_service = _get_matchup_grade_service()
+        team_map = _load_week_team_map(season, week, scoring_format, all_players)
+        projection_details = _load_week_projection_details(
+            season, week, scoring_format, all_players
+        )
 
         optimizer_players, meta = _build_optimizer_players(
-            target, all_players, projections, season, week, matchup_service
+            target, all_players, projections, season, week, matchup_service, team_map
         )
 
         # Empty roster -> no recommendations, optimal lineup not set.
@@ -2716,6 +2925,11 @@ def get_in_season_recommendations(league_id: str, user_id: str):
                     matchup_grade=matchup_grade,
                     on_bye=info["on_bye"],
                     injury_status=info["injury_status"],
+                    # A bye-week player's points are forced to 0, so a breakdown
+                    # of the (unused) projection would be misleading.
+                    projection_detail=(
+                        None if info["on_bye"] else projection_details.get(pid)
+                    ),
                 )
             )
 
