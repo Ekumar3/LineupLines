@@ -48,6 +48,9 @@ module "compute" {
   # (which owns the actual bucket resource) depends on compute for the ECS
   # task role, so compute can't reference module.data_storage back.
   adp_s3_bucket = "${var.project}-player-data-prod"
+  # In-season marts/projections/odds live in the same bucket under their own
+  # prefixes. The ECS task role already has read access to it (data_storage).
+  mart_s3_bucket = "${var.project}-player-data-prod"
 }
 
 module "cdn" {

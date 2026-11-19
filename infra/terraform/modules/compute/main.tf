@@ -16,6 +16,10 @@ variable "ses_from_email" { type = string }
 variable "ses_to_email" { type = string }
 variable "analytics_table_name" { type = string }
 variable "adp_s3_bucket" { type = string }
+# Bucket the in-season endpoints read (marts/, projections/, odds/). Setting it
+# switches the API from the baked-in local files to S3 — see
+# src/data_sources/projections_store.py and scripts/publish_to_s3.py.
+variable "mart_s3_bucket" { type = string }
 variable "analytics_admin_token" {
   type      = string
   sensitive = true
@@ -194,6 +198,10 @@ resource "aws_ecs_task_definition" "api" {
         { name = "ANALYTICS_TABLE_NAME", value = var.analytics_table_name },
         { name = "ANALYTICS_ADMIN_TOKEN", value = var.analytics_admin_token },
         { name = "ADP_S3_BUCKET", value = var.adp_s3_bucket },
+        { name = "MART_S3_BUCKET", value = var.mart_s3_bucket },
+        # The image bakes in a copy of Sleeper's player list; re-download it
+        # this often so new rookies/signings don't show up as UNKNOWN.
+        { name = "PLAYER_UNIVERSE_REFRESH_HOURS", value = "12" },
       ]
 
       logConfiguration = {

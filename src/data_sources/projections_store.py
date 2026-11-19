@@ -57,6 +57,22 @@ LOCAL_ODDS_DIR = REPO_ROOT / "data" / "odds"
 # S3 key prefixes (prod).
 _MART_S3_PREFIX = "marts"
 _PROJECTIONS_S3_PREFIX = "projections"
+_ODDS_S3_PREFIX = "odds"
+
+
+def mart_s3_key(name: str) -> str:
+    """S3 key of a published mart. Shared with scripts/publish_to_s3.py."""
+    return f"{_MART_S3_PREFIX}/{name}.parquet"
+
+
+def projection_s3_key(season: int, week: int, scoring_format: str) -> str:
+    """S3 key of a week's projection output. Shared with scripts/publish_to_s3.py."""
+    return f"{_PROJECTIONS_S3_PREFIX}/{_projection_filename(season, week, scoring_format)}"
+
+
+def odds_s3_key(season: int, week: int) -> str:
+    """S3 key of a week's live Vegas lines. Shared with scripts/publish_to_s3.py."""
+    return f"{_ODDS_S3_PREFIX}/implied_totals_{season}_wk{week:02d}.parquet"
 
 
 def _mart_bucket() -> Optional[str]:
@@ -132,7 +148,7 @@ def _load_mart_s3(bucket: str, name: str, season: Optional[int]) -> pl.DataFrame
         logger.warning("boto3 not available, cannot read mart %s from S3", name)
         return _empty()
 
-    key = f"{_MART_S3_PREFIX}/{name}.parquet"
+    key = mart_s3_key(name)
     try:
         s3 = boto3.client("s3")
         obj = s3.get_object(Bucket=bucket, Key=key)
@@ -277,24 +293,39 @@ def projection_generated_at(
 def odds_fetched_at(season: int, week: int) -> Optional[datetime]:
     """When the week's live Vegas lines were last fetched, or None.
 
-    None means the projection is using the (older) nflverse schedule lines. Odds
-    files aren't persisted to S3 yet, so in prod this is always None. Reads the
-    newest ``fetched_at`` in the week's file (rows for games that already
-    kicked off are kept from earlier fetches, so a file can hold several times).
+    None means the projection is using the (older) nflverse schedule lines. In
+    prod the odds file is published to ``s3://{MART_S3_BUCKET}/odds/`` alongside
+    the projections (see scripts/publish_to_s3.py); the projection itself
+    already has those lines baked in, this only reports how fresh they are.
+    Reads the newest ``fetched_at`` in the week's file (rows for games that
+    already kicked off are kept from earlier fetches, so a file can hold
+    several times).
     """
-    if _mart_bucket():
-        return None
+    def newest(df: "pl.DataFrame") -> Optional[datetime]:
+        stamps = [
+            datetime.fromisoformat(s) for s in df["fetched_at"].drop_nulls().to_list()
+        ]
+        return max(stamps) if stamps else None
+
+    bucket = _mart_bucket()
+    if bucket:
+        if boto3 is None:
+            return None
+        key = odds_s3_key(season, week)
+        try:
+            obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
+            return newest(pl.read_parquet(io.BytesIO(obj["Body"].read()), columns=["fetched_at"]))
+        except Exception as e:
+            logger.info("No odds object for freshness check (%s): %s", key, e)
+            return None
 
     path = LOCAL_ODDS_DIR / f"implied_totals_{season}_wk{week:02d}.parquet"
     if not path.exists():
         return None
     try:
-        df = pl.read_parquet(path, columns=["fetched_at"])
-        stamps = [
-            datetime.fromisoformat(s) for s in df["fetched_at"].drop_nulls().to_list()
-        ]
-        if stamps:
-            return max(stamps)
+        stamp = newest(pl.read_parquet(path, columns=["fetched_at"]))
+        if stamp:
+            return stamp
     except Exception as e:  # pragma: no cover - fall back to file mtime
         logger.info("Could not read fetched_at from %s: %s", path, e)
     try:
@@ -309,4 +340,7 @@ __all__: List[str] = [
     "write_projections",
     "projection_generated_at",
     "odds_fetched_at",
+    "mart_s3_key",
+    "projection_s3_key",
+    "odds_s3_key",
 ]

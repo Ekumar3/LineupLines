@@ -81,16 +81,65 @@ s3://$MART_S3_BUCKET/
     └── projections_<season>_wk<week>_<scoring_format>.parquet
 ```
 
-- `dbt build` in prod overrides `raw_data_path` to `s3://$MART_S3_BUCKET/raw`
-  (see the DAG's `--vars`), and writes marts under `marts/`.
-- `projections_store.write_projections()` persists the projection parquet under
-  `projections/`.
 - The API's `projections_store.load_*` helpers resolve the same prefixes, with a
   graceful empty-DataFrame fallback when a key is missing (so a not-yet-run week
   surfaces as a 503 at the endpoint, not a crash).
 
 In dev these same tiers map to the repo-local `data/raw/`, `dbt/target/`, and
 `data/projections/` directories.
+
+> **What actually writes to S3 today.** Only `scripts/publish_to_s3.py` does (see
+> "Publishing to production" below). The earlier design where `dbt build` wrote
+> marts to S3 and the ingest step wrote `raw/` was never implemented: the `prod`
+> dbt target runs in memory and exports nothing, and `ingest_nflverse.py` writes
+> local files only. The API needs just three prefixes: `marts/mart_matchup_grade`,
+> `projections/`, and `odds/`. `raw/` is unused for now.
+
+---
+
+## Publishing to production (the hosted API)
+
+The hosted API container has no dbt, DuckDB file, or nflverse data. It reads S3
+whenever `MART_S3_BUCKET` is set (Terraform sets it on the ECS task), so the
+data has to be built somewhere else and uploaded. `scripts/publish_to_s3.py`
+does that from a machine that has the full local stack:
+
+```bash
+# See what would be uploaded (nothing is sent)
+.venv/Scripts/python.exe scripts/publish_to_s3.py --bucket lineuplines-player-data-prod --dry-run
+
+# Bring the week's data fully up to date, then upload it
+aws sso login            # or refresh your AWS credentials
+.venv/Scripts/python.exe scripts/publish_to_s3.py --bucket lineuplines-player-data-prod --refresh
+```
+
+It uploads, in this order: `marts/mart_matchup_grade.parquet`, the week's
+`odds/` file, then `projections/` for `ppr`, `half_ppr` and `standard`. The
+projections go last because the frontend reloads a lineup when the projection
+timestamp changes, and by then the mart it depends on is already in place.
+Nothing is uploaded if a piece is missing, and each object is verified by size
+afterwards. The bucket has versioning, so a bad publish can be rolled back.
+
+The bucket comes from `--bucket` or `PUBLISH_S3_BUCKET`, deliberately not from
+`MART_S3_BUCKET`: that variable puts the app's own readers into S3 mode, and the
+publisher must read its inputs from local disk.
+
+The hosted API also re-downloads Sleeper's player list every 12 hours
+(`PLAYER_UNIVERSE_REFRESH_HOURS`), because the image only bakes in the copy that
+existed at build time.
+
+One-time setup, then each week (or after the data changes):
+
+1. `terraform apply` so the API task gets `MART_S3_BUCKET` and
+   `PLAYER_UNIVERSE_REFRESH_HOURS`; bring the service up
+   (`aws ecs update-service --cluster lineuplines --service lineuplines-api --desired-count 1`).
+2. Run the publish command above. Until it has run once, the API answers
+   recommendation requests with a 503 and the page shows "Preparing this week's
+   projections".
+
+Run it before the week's first kickoff to include fresh Vegas lines: once a game
+starts it leaves the Odds API feed. Automating this is the next step (a scheduled
+task that runs the same script).
 
 ---
 

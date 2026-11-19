@@ -64,12 +64,72 @@ from slowapi.errors import RateLimitExceeded
 configure_logging()
 logger = logging.getLogger(__name__)
 
+import contextlib
 import os
+import threading
+
+_PLAYER_REFRESH_RETRY_S = 600  # after a failed refresh, try again in 10 minutes
+
+
+def _player_refresh_loop(stop: threading.Event, interval_s: float) -> None:
+    """Re-download Sleeper's player list now, then every ``interval_s`` seconds.
+
+    The container image bakes in a copy of the player list, which goes stale:
+    rookies, signings and trades then show up as UNKNOWN with no team or
+    projection. This keeps the stored copy current while the API runs. The
+    endpoints pick up the new file on their own (see storage.load_player_universe).
+    """
+    while not stop.is_set():
+        wait_s = interval_s
+        try:
+            before = sleeper_client._player_cache_time
+            players = sleeper_client.get_players(force_refresh=True)
+            # get_players() quietly returns its old copy when the download fails,
+            # so only treat it as fresh if the fetch timestamp actually moved.
+            if players and sleeper_client._player_cache_time != before:
+                save_player_universe(players)
+                logger.info("Refreshed the stored player list (%d players)", len(players))
+            else:
+                logger.warning("Player list refresh did not return new data; retrying soon")
+                wait_s = min(interval_s, _PLAYER_REFRESH_RETRY_S)
+        except Exception:
+            logger.exception("Player list refresh failed; retrying soon")
+            wait_s = min(interval_s, _PLAYER_REFRESH_RETRY_S)
+        stop.wait(wait_s)
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(_app):
+    """Start background upkeep that only the hosted API needs.
+
+    PLAYER_UNIVERSE_REFRESH_HOURS (set in the ECS task definition) turns on the
+    player-list refresher. Unset or invalid: nothing starts, so local runs and
+    tests behave exactly as before (the local dev server refreshes it separately).
+    """
+    stop = threading.Event()
+    try:
+        hours = float(os.environ.get("PLAYER_UNIVERSE_REFRESH_HOURS", "") or 0)
+    except ValueError:
+        hours = 0.0
+    if hours > 0:
+        threading.Thread(
+            target=_player_refresh_loop,
+            args=(stop, hours * 3600.0),
+            name="player-refresh",
+            daemon=True,
+        ).start()
+        logger.info("Player list refresh enabled every %g hour(s)", hours)
+    try:
+        yield
+    finally:
+        stop.set()
+
 
 app = FastAPI(
     title="Draft Helper API",
     version="1.0",
     description="Fantasy football draft helper using Sleeper API and historical ADP data",
+    lifespan=_lifespan,
 )
 
 # Set up CORS origins
