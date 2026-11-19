@@ -28,6 +28,9 @@ FILES_TO_VENDOR = [
     "analytics/__init__.py",
     "analytics/adp_service.py",
     "analytics/adp_analyzer.py",
+    # sleeper_client.py imports this; leaving it out made adp_scrape_dag fail
+    # to import (and CI refuse to deploy) from the 2026-09-14 change onward.
+    "analytics/scoring_format.py",
 ]
 
 
