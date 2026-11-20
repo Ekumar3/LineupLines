@@ -101,4 +101,14 @@ async def submit_feedback(request: Request, body: FeedbackRequest) -> FeedbackRe
         return FeedbackResponse(success=True, detail="Feedback received. Thanks!")
     except (BotoCoreError, ClientError) as exc:
         logger.error("SES send_email failed: %s", exc)
+        # Keep the submission in the log so an SES problem (unverified recipient,
+        # sandbox limits, an outage) can't silently discard what the user wrote.
+        # %r escapes newlines and control characters, so a crafted message can't
+        # forge extra log lines.
+        logger.warning(
+            "UNSENT FEEDBACK (SES failed) page=%r email=%r message=%r",
+            body.page,
+            body.email,
+            body.message,
+        )
         raise HTTPException(status_code=500, detail="Failed to send feedback. Please try again.")
